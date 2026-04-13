@@ -1,0 +1,42 @@
+package models
+
+import (
+	"time"
+	"gorm.io/gorm"
+)
+
+type Organization struct {
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	Name        string         `gorm:"uniqueIndex;not null" json:"name"`
+	Type        string         `gorm:"not null" json:"type"` // e.g., "bank", "clinic", "hospital"
+	Address     string         `json:"address"`
+	Latitude    float64        `json:"latitude"`
+	Longitude   float64        `json:"longitude"`
+	
+	// Verification Documents (Stored in S3 usually)
+	OfficeImageURL string         `json:"office_image_url"`
+	CertPdfURL     string         `json:"cert_pdf_url"`
+	PTaxPaperURL   string         `json:"ptax_paper_url"`
+	IsVerified     bool           `gorm:"default:false" json:"is_verified"`
+
+	// Operating Settings
+	OpenTime    string         `json:"open_time"`  // 09:00
+	CloseTime   string         `json:"close_time"` // 18:00
+	
+	Admins      []User         `gorm:"foreignKey:OrganizationID" json:"admins,omitempty"`
+	Queues      []QueueDef     `gorm:"foreignKey:OrganizationID" json:"queues,omitempty"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type QueueDef struct {
+	ID             uint           `gorm:"primaryKey" json:"id"`
+	OrganizationID uint           `gorm:"not null;index" json:"organization_id"`
+	Organization   Organization   `gorm:"foreignKey:OrganizationID" json:"organization,omitempty"`
+	Name           string         `gorm:"not null" json:"name"`
+	QueueKey       string         `gorm:"uniqueIndex;not null" json:"queue_key"`
+	IsPaused       bool           `gorm:"default:false" json:"is_paused"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+}
