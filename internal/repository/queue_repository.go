@@ -19,7 +19,8 @@ type QueueRepository interface {
 	UpdateHistoryStatus(tokenNumber string, status models.QueueStatus, timestamp *time.Time) error
 	CalculateAverages(queueKey string) (int, int, error) // WaitTime, ServiceTime min averges
 	GetDailyCount(queueKey string) (int64, error)
-	GetPeakHours(queueKey string) (map[string]int, error) // Returns counts grouped by hour
+	GetPeakHours(queueKey string) (map[string]int, error)
+	GetCounterAverages(queueKey string) (map[int]int, error)
 	
 	// Redis operations
 	Enqueue(queueKey string, entry *models.QueueEntry) error
@@ -64,11 +65,44 @@ func (r *queueRepository) UpdateHistoryStatus(tokenNumber string, status models.
 }
 
 func (r *queueRepository) CalculateAverages(queueKey string) (int, int, error) {
-	// Using Postgres to calculate avg difference between joined_at -> served_at (Wait Time) 
-	// and served_at -> completed_at (Service Time)
-	// Simplified mock return for performance in this demo, standard SQL averages would go here:
-	// SELECT AVG(EXTRACT(EPOCH FROM (served_at - joined_at)))/60 ...
-	return 5, 2, nil 
+	var wait, serve float64
+	
+	// Avg Wait: Time between JoinedAt and ServedAt
+	r.db.Model(&models.QueueHistory{}).
+		Select("AVG(EXTRACT(EPOCH FROM (served_at - joined_at))) / 60").
+		Where("queue_key = ? AND status IN ?", queueKey, []models.QueueStatus{models.StatusServing, models.StatusCompleted}).
+		Scan(&wait)
+
+	// Avg Service: Time between ServedAt and CompletedAt
+	r.db.Model(&models.QueueHistory{}).
+		Select("AVG(serving_duration) / 60").
+		Where("queue_key = ? AND status = ?", queueKey, models.StatusCompleted).
+		Scan(&serve)
+
+	return int(wait), int(serve), nil
+}
+
+func (r *queueRepository) GetCounterAverages(queueKey string) (map[int]int, error) {
+	averages := make(map[int]int)
+	
+	type result struct {
+		Counter int
+		Avg     float64
+	}
+	var res []result
+	
+	err := r.db.Model(&models.QueueHistory{}).
+		Select("counter_number as counter, AVG(serving_duration) / 60 as avg").
+		Where("queue_key = ? AND status = ? AND counter_number > 0", queueKey, models.StatusCompleted).
+		Group("counter").
+		Scan(&res).Error
+		
+	if err == nil {
+		for _, row := range res {
+			averages[row.Counter] = int(row.Avg)
+		}
+	}
+	return averages, err
 }
 
 func (r *queueRepository) GetDailyCount(queueKey string) (int64, error) {

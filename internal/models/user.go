@@ -22,6 +22,9 @@ type User struct {
 	Role           Role           `gorm:"type:varchar(20);default:'user'" json:"role"`
 	OrganizationID *uint          `gorm:"index" json:"organization_id"`
 	
+	// Feature #2: Desk Assignment
+	CounterNumber  int            `gorm:"default:0" json:"counter_number"` 
+	
 	// Forgot Password logic
 	ResetToken      string         `json:"-"`
 	ResetTokenExp  *time.Time      `json:"-"`

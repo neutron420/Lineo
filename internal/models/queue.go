@@ -27,6 +27,10 @@ type QueueHistory struct {
 	IsKiosk        bool           `gorm:"default:false" json:"is_kiosk"`
 	Status         QueueStatus    `gorm:"type:varchar(20)" json:"status"`
 	Priority       bool           `gorm:"default:false" json:"priority"`
+	
+	// Feature #2 & #3: Admin Details
+	CounterNumber   int            `json:"counter_number"` 
+	ServingDuration int            `json:"serving_duration"` // In seconds for exact analytics
 	JoinedAt       time.Time      `json:"joined_at"`
 	ServedAt       *time.Time     `json:"served_at"`
 	CompletedAt    *time.Time     `json:"completed_at"`
@@ -85,5 +89,8 @@ type AnalyticsResponse struct {
 	TotalServedToday   int64          `json:"total_served_today"`
 	AvgWaitTimeMins    int            `json:"avg_wait_time_mins"`
 	AvgServiceTimeMins int            `json:"avg_service_time_mins"`
-	PeakHours          map[string]int `json:"peak_hours"` // Peak Hour Graphs
+	PeakHours          map[string]int `json:"peak_hours"`
+	
+	// Feature #3: Efficiency Analytics
+	CounterAverages    map[int]int    `json:"counter_averages_mins"` // e.g. Counter 1: 4 mins
 }

@@ -118,7 +118,9 @@ func (h *QueueHandler) CallNext(c *gin.Context) {
 	orgID, ok := getOrgID(c)
 	if !ok { return }
 
-	entry, err := h.queueService.CallNext(queueKey, orgID)
+	agentID := c.MustGet("userID").(uint)
+
+	entry, err := h.queueService.CallNext(queueKey, orgID, agentID)
 	if err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to call next", err.Error())
 		return

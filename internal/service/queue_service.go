@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -10,6 +11,7 @@ import (
 	"queueless/internal/models"
 	"queueless/internal/repository"
 	"queueless/pkg/db"
+	"queueless/pkg/redis"
 	"queueless/pkg/utils"
 )
 
@@ -17,79 +19,112 @@ type QueueService interface {
 	Enqueue(userID uint, username string, req models.EnqueueRequest) (*models.QueueResponse, error)
 	EnqueueKiosk(req models.EnqueueKioskRequest) (*models.QueueResponse, error)
 	GetQueueState(queueKey string) (*models.QueueState, error)
-	CallNext(queueKey string, orgID uint) (*models.QueueEntry, error)
+	CallNext(queueKey string, orgID uint, agentID uint) (*models.QueueEntry, error)
 	MarkHolding(queueKey string, orgID uint) error
 	CallFromHolding(queueKey string, tokenNumber string, orgID uint) error
 	PauseQueue(queueKey string, isPaused bool, orgID uint) error
 	GetUserPosition(queueKey string, tokenNumber string) (*models.QueueResponse, error)
 	GetAnalytics(queueKey string, orgID uint) (*models.AnalyticsResponse, error)
 	CancelTicket(queueKey string, tokenNumber string, userID uint) error
+	GetLocalUpdatesChan() chan string // Exposed for the handler
 }
 
 type queueService struct {
 	repo    repository.QueueRepository
 	orgRepo repository.OrganizationRepository
+	localUpdates chan string
 }
 
-var Broadcast = make(chan string)
+const PubSubChannel = "queueless_updates"
 
 func NewQueueService(repo repository.QueueRepository, orgRepo repository.OrganizationRepository) QueueService {
-	return &queueService{repo: repo, orgRepo: orgRepo}
+	s := &queueService{
+		repo:    repo, 
+		orgRepo: orgRepo,
+		localUpdates: make(chan string, 100),
+	}
+	
+	// Start a background subscriber for distributed updates
+	go s.listenForDistributedUpdates()
+	
+	return s
 }
 
-func generateToken() string {
-	bytes := make([]byte, 4)
-	if _, err := rand.Read(bytes); err != nil {
-		return time.Now().Format("150405")
+func (s *queueService) GetLocalUpdatesChan() chan string {
+	return s.localUpdates
+}
+
+func (s *queueService) listenForDistributedUpdates() {
+	pubsub := redis.Client.Subscribe(context.Background(), PubSubChannel)
+	defer pubsub.Close()
+
+	ch := pubsub.Channel()
+	for msg := range ch {
+		// Pass the signal to our local handler
+		select {
+		case s.localUpdates <- msg.Payload:
+		default:
+		}
 	}
-	return hex.EncodeToString(bytes)
+}
+
+func (s *queueService) notifyUpdate(queueKey string) {
+	// Publish to Redis so ALL instances know about it
+	redis.Client.Publish(context.Background(), PubSubChannel, queueKey)
 }
 
 func (s *queueService) Enqueue(userID uint, username string, req models.EnqueueRequest) (*models.QueueResponse, error) {
 	queueDef, err := s.orgRepo.GetQueueDefByKey(req.QueueKey)
-	if err != nil {
-		return nil, errors.New("queue not found")
-	}
+	if err != nil { return nil, errors.New("queue not found") }
 	
-	// Geofencing Check
 	org, err := s.orgRepo.GetOrganizationByID(queueDef.OrganizationID)
-	if err == nil && org.Latitude != 0 && org.Longitude != 0 {
+	if err != nil { return nil, errors.New("organization not found") }
+
+	if err := s.checkBusinessHours(org); err != nil { return nil, err }
+
+	if req.Priority && org.SubscriptionStatus == "free" {
+		return nil, errors.New("priority queuing is a premium feature. please upgrade.")
+	}
+
+	if org.Latitude != 0 && org.Longitude != 0 {
 		if req.UserLat != 0 && req.UserLon != 0 {
 			distance := utils.CalculateDistance(org.Latitude, org.Longitude, req.UserLat, req.UserLon)
-			if distance > 1.0 { // 1 km radius
-				return nil, fmt.Errorf("geofencing block: You are %.2f km away, must be within 1km", distance)
-			}
+			if distance > 1.0 { return nil, fmt.Errorf("geofencing block: You are %.2f km away", distance) }
 		}
 	}
 
-	if queueDef.IsPaused {
-		return nil, errors.New("queue is currently paused")
-	}
+	if queueDef.IsPaused { return nil, errors.New("queue is currently paused") }
 
 	return s.processEnqueue(userID, username, "", false, req.Priority, req.QueueKey, queueDef.OrganizationID)
 }
 
 func (s *queueService) EnqueueKiosk(req models.EnqueueKioskRequest) (*models.QueueResponse, error) {
 	queueDef, err := s.orgRepo.GetQueueDefByKey(req.QueueKey)
-	if err != nil {
-		return nil, errors.New("queue not found")
-	}
-	if queueDef.IsPaused {
-		return nil, errors.New("queue is currently paused")
-	}
+	if err != nil { return nil, errors.New("queue not found") }
+	
+	org, _ := s.orgRepo.GetOrganizationByID(queueDef.OrganizationID)
+	if err := s.checkBusinessHours(org); err != nil { return nil, err }
 
-	// Kiosk users are marked with UserID 0, IsKiosk true, and carry phone numbers for SMS
+	if queueDef.IsPaused { return nil, errors.New("queue is currently paused") }
+
 	return s.processEnqueue(0, req.Name, req.PhoneNumber, true, false, req.QueueKey, queueDef.OrganizationID)
 }
 
+func (s *queueService) checkBusinessHours(org *models.Organization) error {
+	now := time.Now()
+	currentTime := now.Format("15:04")
+	if currentTime < org.OpenTime || currentTime > org.CloseTime {
+		return fmt.Errorf("business is currently closed. hours: %s - %s", org.OpenTime, org.CloseTime)
+	}
+	return nil
+}
+
 func (s *queueService) processEnqueue(userID uint, username, phone string, isKiosk, priority bool, queueKey string, orgID uint) (*models.QueueResponse, error) {
-	token := generateToken()
+	token := s.generateToken()
 	now := time.Now()
 
 	score := float64(now.UnixNano())
-	if priority {
-		score = score - float64(time.Hour.Nanoseconds()*24)
-	}
+	if priority { score = score - float64(time.Hour.Nanoseconds()*24) }
 
 	entry := &models.QueueEntry{
 		TokenNumber: token,
@@ -115,15 +150,13 @@ func (s *queueService) processEnqueue(userID uint, username, phone string, isKio
 		JoinedAt:       now,
 	}
 	
+	// Async Persistence Feature #2 could go here with a goroutine
 	if err := s.repo.SaveHistory(history); err != nil { return nil, err }
 	if err := s.repo.Enqueue(queueKey, entry); err != nil { return nil, err }
 
 	pos, _ := s.repo.GetPosition(queueKey, token)
 	avgWait, _, _ := s.repo.CalculateAverages(queueKey)
 	
-	baseURL := "https://queueless.app"
-	qrLink := fmt.Sprintf("%s/join?q=%s", baseURL, queueKey)
-
 	s.notifyUpdate(queueKey)
 
 	return &models.QueueResponse{
@@ -133,16 +166,59 @@ func (s *queueService) processEnqueue(userID uint, username, phone string, isKio
 		EstimatedWait: pos * avgWait,
 		IsVIP:         priority,
 		JoinedAt:      now,
-		QRCodeURL:     qrLink,
 	}, nil
 }
 
+func (s *queueService) CallNext(queueKey string, orgID uint, agentID uint) (*models.QueueEntry, error) {
+	if err := s.verifyOwnership(queueKey, orgID); err != nil { return nil, err }
+
+	now := time.Now()
+
+	currentServing, _ := s.repo.GetCurrentServing(queueKey)
+	if currentServing != nil {
+		var history models.QueueHistory
+		db.DB.Where("token_number = ?", currentServing.TokenNumber).First(&history)
+		
+		if history.ServedAt != nil {
+			duration := int(now.Sub(*history.ServedAt).Seconds())
+			db.DB.Model(&history).Updates(map[string]interface{}{
+				"status":           models.StatusCompleted,
+				"completed_at":     now,
+				"serving_duration": duration,
+			})
+		}
+		
+		db.DB.Model(&models.Appointment{}).Where("token_number = ?", currentServing.TokenNumber).Update("status", "completed")
+	}
+
+	nextEntry, err := s.repo.DequeueMin(queueKey)
+	if err != nil || nextEntry == nil { return nil, err }
+
+	var agent models.User
+	db.DB.First(&agent, agentID)
+
+	if err := s.repo.SetCurrentServing(queueKey, nextEntry); err != nil { return nil, err }
+
+	nextEntry.Status = models.StatusServing
+	db.DB.Model(&models.QueueHistory{}).Where("token_number = ?", nextEntry.TokenNumber).Updates(map[string]interface{}{
+		"status":         models.StatusServing,
+		"served_at":      now,
+		"counter_number": agent.CounterNumber,
+	})
+	
+	s.notifyUpdate(queueKey)
+	return nextEntry, nil
+}
+
+func (s *queueService) generateToken() string {
+	bytes := make([]byte, 4)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
+}
 
 func (s *queueService) GetQueueState(queueKey string) (*models.QueueState, error) {
 	queueDef, err := s.orgRepo.GetQueueDefByKey(queueKey)
-	if err != nil {
-		return nil, err
-	}
+	if err != nil { return nil, err }
 
 	serving, _ := s.repo.GetCurrentServing(queueKey)
 	waiting, _ := s.repo.GetQueueList(queueKey)
@@ -159,57 +235,11 @@ func (s *queueService) GetQueueState(queueKey string) (*models.QueueState, error
 	}, nil
 }
 
-func (s *queueService) CallNext(queueKey string, orgID uint) (*models.QueueEntry, error) {
-	if err := s.verifyOwnership(queueKey, orgID); err != nil { return nil, err }
-
-	now := time.Now()
-
-	currentServing, _ := s.repo.GetCurrentServing(queueKey)
-	if currentServing != nil {
-		s.repo.UpdateHistoryStatus(currentServing.TokenNumber, models.StatusCompleted, &now)
-		// Sync Lifecycle: If this was a booked appointment, update that too!
-		db.DB.Model(&models.Appointment{}).Where("token_number = ?", currentServing.TokenNumber).Update("status", "completed")
-	}
-
-	nextEntry, err := s.repo.DequeueMin(queueKey)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.repo.SetCurrentServing(queueKey, nextEntry); err != nil {
-		return nil, err
-	}
-
-	if nextEntry != nil {
-		nextEntry.Status = models.StatusServing
-		s.repo.UpdateHistoryStatus(nextEntry.TokenNumber, models.StatusServing, &now)
-	}
-	
-	s.checkUpcomingSMS(queueKey)
-	s.notifyUpdate(queueKey)
-	
-	return nextEntry, nil
-}
-
-func (s *queueService) checkUpcomingSMS(queueKey string) {
-	// SMS Tracker: Check who is 3rd in line and send a Twilio warning
-	waiting, err := s.repo.GetQueueList(queueKey)
-	if err == nil && len(waiting) >= 3 {
-		thirdPerson := waiting[2] // Index 2 is the 3rd person
-		if thirdPerson.PhoneNumber != "" {
-			msg := fmt.Sprintf("Hi %s! You are currently 3rd in line for %s. Please start making your way to the counter.", thirdPerson.Username, queueKey)
-			go utils.SendSMS(thirdPerson.PhoneNumber, msg) // Async SMS trigger
-		}
-	}
-}
-
 func (s *queueService) MarkHolding(queueKey string, orgID uint) error {
 	if err := s.verifyOwnership(queueKey, orgID); err != nil { return err }
 
 	currentServing, err := s.repo.GetCurrentServing(queueKey)
-	if err != nil || currentServing == nil {
-		return errors.New("no user currently being served")
-	}
+	if err != nil || currentServing == nil { return errors.New("no user currently being served") }
 
 	now := time.Now()
 	currentServing.Status = models.StatusHolding
@@ -231,20 +261,13 @@ func (s *queueService) PauseQueue(queueKey string, isPaused bool, orgID uint) er
 	if err := s.verifyOwnership(queueKey, orgID); err != nil { return err }
 	
 	err := s.orgRepo.UpdateQueueDefPause(queueKey, isPaused)
-	if err == nil {
-		s.notifyUpdate(queueKey)
-	}
+	if err == nil { s.notifyUpdate(queueKey) }
 	return err
 }
 
 func (s *queueService) GetUserPosition(queueKey string, tokenNumber string) (*models.QueueResponse, error) {
 	pos, err := s.repo.GetPosition(queueKey, tokenNumber)
-	if err != nil {
-		return nil, err
-	}
-	if pos == -1 {
-		return nil, errors.New("token not found in waiting list")
-	}
+	if err != nil || pos == -1 { return nil, errors.New("token not found") }
 	avgWait, _, _ := s.repo.CalculateAverages(queueKey)
 
 	return &models.QueueResponse{
@@ -269,12 +292,14 @@ func (s *queueService) GetAnalytics(queueKey string, orgID uint) (*models.Analyt
 	count, _ := s.repo.GetDailyCount(queueKey)
 	wait, serve, _ := s.repo.CalculateAverages(queueKey)
 	peaks, _ := s.repo.GetPeakHours(queueKey)
+	counters, _ := s.repo.GetCounterAverages(queueKey)
 	
 	return &models.AnalyticsResponse{
 		TotalServedToday: count,
 		AvgWaitTimeMins: wait,
 		AvgServiceTimeMins: serve,
 		PeakHours: peaks,
+		CounterAverages: counters,
 	}, nil
 }
 
@@ -283,8 +308,4 @@ func (s *queueService) verifyOwnership(queueKey string, orgID uint) error {
 	if err != nil { return errors.New("queue not found") }
 	if def.OrganizationID != orgID { return errors.New("unauthorized queue access") }
 	return nil
-}
-
-func (s *queueService) notifyUpdate(queueKey string) {
-	select { case Broadcast <- queueKey: default: }
 }

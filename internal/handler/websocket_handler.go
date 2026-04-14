@@ -13,25 +13,24 @@ import (
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for now
+		return true 
 	},
 }
 
 type Client struct {
 	Conn      *websocket.Conn
-	QueueName string // The queue this client is subscribed to
+	QueueName string 
 }
 
 var (
-	clients   = make(map[*Client]bool)
-	clientsMu sync.Mutex
+	clients      = make(map[*Client]bool)
+	clientsMu    sync.Mutex
 )
 
-// WsHandler upgrades the HTTP connection and handles websocket clients
 func WsHandler(c *gin.Context) {
 	queueName := c.Query("queue")
 	if queueName == "" {
-		queueName = "default" // or reject
+		queueName = "default"
 	}
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -53,7 +52,6 @@ func WsHandler(c *gin.Context) {
 		conn.Close()
 	}()
 
-	// Read messages (could be used for ping/pong to keep connection alive)
 	for {
 		_, _, err := conn.ReadMessage()
 		if err != nil {
@@ -62,10 +60,12 @@ func WsHandler(c *gin.Context) {
 	}
 }
 
-// Broadcaster listens to queue updates and sends to relevant clients
+// StartBroadcaster is the main loop that listens for both local and distributed (Redis) signals
 func StartBroadcaster(queueSvc service.QueueService) {
+	updateChan := queueSvc.GetLocalUpdatesChan()
+
 	for {
-		queueName := <-service.Broadcast
+		queueName := <-updateChan
 		
 		state, err := queueSvc.GetQueueState(queueName)
 		if err != nil {

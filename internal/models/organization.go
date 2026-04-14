@@ -20,8 +20,12 @@ type Organization struct {
 	IsVerified     bool           `gorm:"default:false" json:"is_verified"`
 
 	// Operating Settings
-	OpenTime    string         `json:"open_time"`  // 09:00
-	CloseTime   string         `json:"close_time"` // 18:00
+	OpenTime    string         `gorm:"default:'09:00'" json:"open_time"`  // 09:00
+	CloseTime   string         `gorm:"default:'18:00'" json:"close_time"` // 18:00
+
+	// Feature #4: SaaS Subscription
+	SubscriptionStatus string    `gorm:"default:'free'" json:"subscription_status"` // free, pro, enterprise
+	SubscriptionExpiry *time.Time `json:"subscription_expiry"`
 	
 	Admins      []User         `gorm:"foreignKey:OrganizationID" json:"admins,omitempty"`
 	Queues      []QueueDef     `gorm:"foreignKey:OrganizationID" json:"queues,omitempty"`
