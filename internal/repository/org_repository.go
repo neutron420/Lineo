@@ -12,6 +12,20 @@ type OrganizationRepository interface {
 	CreateQueueDef(def *models.QueueDef) error
 	GetQueueDefByKey(key string) (*models.QueueDef, error)
 	UpdateQueueDefPause(key string, isPaused bool) error
+	GetNearbyOrgs(lat, lng float64, radius float64) ([]models.Organization, error)
+}
+
+func (r *organizationRepository) GetNearbyOrgs(lat, lng float64, radius float64) ([]models.Organization, error) {
+	var orgs []models.Organization
+	// Approximate 1km = 0.01 degrees for bounding box
+	deg := (radius / 1000.0) * 0.01
+	
+	err := r.db.Preload("Queues").
+		Where("latitude BETWEEN ? AND ?", lat-deg, lat+deg).
+		Where("longitude BETWEEN ? AND ?", lng-deg, lng+deg).
+		Find(&orgs).Error
+		
+	return orgs, err
 }
 
 type organizationRepository struct {

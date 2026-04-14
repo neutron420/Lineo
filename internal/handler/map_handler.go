@@ -28,24 +28,19 @@ func (h *MapHandler) SearchNearby(c *gin.Context) {
 	radius, _ := strconv.Atoi(radiusStr)
 
 	if radius == 0 {
-		radius = 5000 // default 5km
+		radius = 50000 // BookMyShow style 50km range
 	}
 
-	var results []utils.Place
-	var err error
+	// 1. Fetch Partnered Institutions from our DB
+	partnered, _ := h.mapService.SearchPartnered(lat, lng, radius)
+	
+	// 2. Fetch from Google Maps
+	nearby, _ := h.mapService.SearchNearby(lat, lng, radius, orgType)
+	
+	// Merge and Prioritize
+	allResults := append(partnered, nearby...)
 
-	if orgType == "bank" {
-		results, err = h.mapService.SearchNearbyBanks(lat, lng, radius)
-	} else {
-		results, err = h.mapService.SearchNearbyClinics(lat, lng, radius)
-	}
-
-	if err != nil {
-		utils.RespondError(c, http.StatusInternalServerError, "Failed to fetch nearby results", err.Error())
-		return
-	}
-
-	utils.RespondSuccess(c, http.StatusOK, "Nearby places found", results)
+	utils.RespondSuccess(c, http.StatusOK, "Nearby places found", allResults)
 }
 
 func (h *MapHandler) GetAddress(c *gin.Context) {

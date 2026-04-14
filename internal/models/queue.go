@@ -27,12 +27,13 @@ type QueueHistory struct {
 	IsKiosk        bool           `gorm:"default:false" json:"is_kiosk"`
 	Status         QueueStatus    `gorm:"type:varchar(20)" json:"status"`
 	Priority       bool           `gorm:"default:false" json:"priority"`
-	
-	// Feature #2 & #3: Admin Details
-	CounterNumber   int            `json:"counter_number"` 
-	ServingDuration int            `json:"serving_duration"` // In seconds for exact analytics
+	UserLat        float64        `json:"user_lat"`
+	UserLon        float64        `json:"user_lon"`
+	CounterNumber   int           `json:"counter_number"` 
+	ServingDuration int           `json:"serving_duration"` 
 	JoinedAt       time.Time      `json:"joined_at"`
 	ServedAt       *time.Time     `json:"served_at"`
+	CommuteNotified bool          `gorm:"default:false" json:"commute_notified"` 
 	CompletedAt    *time.Time     `json:"completed_at"`
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
@@ -52,6 +53,7 @@ type EnqueueKioskRequest struct {
 	Name        string `json:"name" binding:"required"`
 	PhoneNumber string `json:"phone_number"` // Optional for SMS updates
 }
+
 
 type QueueResponse struct {
 	TokenNumber   string    `json:"token_number"`

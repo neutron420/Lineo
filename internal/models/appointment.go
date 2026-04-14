@@ -24,14 +24,18 @@ type Appointment struct {
 	StartTime      time.Time         `gorm:"not null" json:"start_time"`
 	Status         AppointmentStatus `gorm:"type:varchar(20);default:'scheduled'" json:"status"`
 	CommuteNotified bool             `gorm:"default:false" json:"commute_notified"` 
+	UserLat        float64           `json:"user_lat"`
+	UserLon        float64           `json:"user_lon"`
 	CreatedAt      time.Time         `json:"created_at"`
 	UpdatedAt      time.Time         `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt    `gorm:"index" json:"-"`
 }
 
 type BookAppointmentRequest struct {
-	QueueKey  string `json:"queue_key" binding:"required"`
-	StartTime string `json:"start_time" binding:"required"` // Format: YYYY-MM-DD HH:MM
+	QueueKey  string  `json:"queue_key" binding:"required"`
+	StartTime string  `json:"start_time" binding:"required"` // Format: YYYY-MM-DD HH:MM
+	UserLat   float64 `json:"user_lat"`
+	UserLon   float64 `json:"user_lon"`
 }
 
 type CommuteInfo struct {

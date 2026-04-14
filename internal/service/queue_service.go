@@ -2,11 +2,10 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"time"
 
 	"queueless/internal/models"
@@ -33,8 +32,8 @@ type QueueService interface {
 }
 
 type queueService struct {
-	repo    repository.QueueRepository
-	orgRepo repository.OrganizationRepository
+	repo         repository.QueueRepository
+	orgRepo      repository.OrganizationRepository
 	localUpdates chan string
 }
 
@@ -42,14 +41,14 @@ const PubSubChannel = "queueless_updates"
 
 func NewQueueService(repo repository.QueueRepository, orgRepo repository.OrganizationRepository) QueueService {
 	s := &queueService{
-		repo:    repo, 
-		orgRepo: orgRepo,
+		repo:         repo,
+		orgRepo:      orgRepo,
 		localUpdates: make(chan string, 100),
 	}
-	
+
 	// Start a background subscriber for distributed updates
 	go s.listenForDistributedUpdates()
-	
+
 	return s
 }
 
@@ -78,20 +77,20 @@ func (s *queueService) notifyUpdate(queueKey string) {
 
 func (s *queueService) Enqueue(userID uint, username string, req models.EnqueueRequest) (*models.QueueResponse, error) {
 	queueDef, err := s.orgRepo.GetQueueDefByKey(req.QueueKey)
-	if err != nil { 
+	if err != nil {
 		log.Printf("Enqueue error: queue %s not found", req.QueueKey)
-		return nil, errors.New("queue not found") 
-	}
-	
-	org, err := s.orgRepo.GetOrganizationByID(queueDef.OrganizationID)
-	if err != nil { 
-		log.Printf("Enqueue error: organization %d not found", queueDef.OrganizationID)
-		return nil, errors.New("organization not found") 
+		return nil, errors.New("queue not found")
 	}
 
-	if err := s.checkBusinessHours(org); err != nil { 
+	org, err := s.orgRepo.GetOrganizationByID(queueDef.OrganizationID)
+	if err != nil {
+		log.Printf("Enqueue error: organization %d not found", queueDef.OrganizationID)
+		return nil, errors.New("organization not found")
+	}
+
+	if err := s.checkBusinessHours(org); err != nil {
 		log.Printf("Enqueue error (Business Hours): %v", err)
-		return nil, err 
+		return nil, err
 	}
 
 	if req.Priority && org.SubscriptionStatus == "free" {
@@ -102,16 +101,16 @@ func (s *queueService) Enqueue(userID uint, username string, req models.EnqueueR
 	if org.Latitude != 0 && org.Longitude != 0 {
 		if req.UserLat != 0 && req.UserLon != 0 {
 			distance := utils.CalculateDistance(org.Latitude, org.Longitude, req.UserLat, req.UserLon)
-			if distance > 1.0 { 
+			if distance > 1.0 {
 				log.Printf("Enqueue error (Geofencing): distance %.2f km", distance)
-				return nil, fmt.Errorf("geofencing block: You are %.2f km away", distance) 
+				return nil, fmt.Errorf("geofencing block: You are %.2f km away", distance)
 			}
 		}
 	}
 
-	if queueDef.IsPaused { 
+	if queueDef.IsPaused {
 		log.Printf("Enqueue error: queue %s is paused", req.QueueKey)
-		return nil, errors.New("queue is currently paused") 
+		return nil, errors.New("queue is currently paused")
 	}
 
 	resp, err := s.processEnqueue(userID, username, "", false, req.Priority, req.QueueKey, queueDef.OrganizationID)
@@ -124,12 +123,18 @@ func (s *queueService) Enqueue(userID uint, username string, req models.EnqueueR
 
 func (s *queueService) EnqueueKiosk(req models.EnqueueKioskRequest) (*models.QueueResponse, error) {
 	queueDef, err := s.orgRepo.GetQueueDefByKey(req.QueueKey)
-	if err != nil { return nil, errors.New("queue not found") }
-	
-	org, _ := s.orgRepo.GetOrganizationByID(queueDef.OrganizationID)
-	if err := s.checkBusinessHours(org); err != nil { return nil, err }
+	if err != nil {
+		return nil, errors.New("queue not found")
+	}
 
-	if queueDef.IsPaused { return nil, errors.New("queue is currently paused") }
+	org, _ := s.orgRepo.GetOrganizationByID(queueDef.OrganizationID)
+	if err := s.checkBusinessHours(org); err != nil {
+		return nil, err
+	}
+
+	if queueDef.IsPaused {
+		return nil, errors.New("queue is currently paused")
+	}
 
 	return s.processEnqueue(0, req.Name, req.PhoneNumber, true, false, req.QueueKey, queueDef.OrganizationID)
 }
@@ -148,7 +153,9 @@ func (s *queueService) processEnqueue(userID uint, username, phone string, isKio
 	now := time.Now()
 
 	score := float64(now.UnixNano())
-	if priority { score = score - float64(time.Hour.Nanoseconds()*24) }
+	if priority {
+		score = score - float64(time.Hour.Nanoseconds()*24)
+	}
 
 	entry := &models.QueueEntry{
 		TokenNumber: token,
@@ -173,14 +180,18 @@ func (s *queueService) processEnqueue(userID uint, username, phone string, isKio
 		Priority:       priority,
 		JoinedAt:       now,
 	}
-	
+
 	// Async Persistence Feature #2 could go here with a goroutine
-	if err := s.repo.SaveHistory(history); err != nil { return nil, err }
-	if err := s.repo.Enqueue(queueKey, entry); err != nil { return nil, err }
+	if err := s.repo.SaveHistory(history); err != nil {
+		return nil, err
+	}
+	if err := s.repo.Enqueue(queueKey, entry); err != nil {
+		return nil, err
+	}
 
 	pos, _ := s.repo.GetPosition(queueKey, token)
 	avgWait, _, _ := s.repo.CalculateAverages(queueKey)
-	
+
 	s.notifyUpdate(queueKey)
 
 	return &models.QueueResponse{
@@ -194,7 +205,9 @@ func (s *queueService) processEnqueue(userID uint, username, phone string, isKio
 }
 
 func (s *queueService) CallNext(queueKey string, orgID uint, agentID uint) (*models.QueueEntry, error) {
-	if err := s.verifyOwnership(queueKey, orgID); err != nil { return nil, err }
+	if err := s.verifyOwnership(queueKey, orgID); err != nil {
+		return nil, err
+	}
 
 	now := time.Now()
 
@@ -202,7 +215,7 @@ func (s *queueService) CallNext(queueKey string, orgID uint, agentID uint) (*mod
 	if currentServing != nil {
 		var history models.QueueHistory
 		db.DB.Where("token_number = ?", currentServing.TokenNumber).First(&history)
-		
+
 		if history.ServedAt != nil {
 			duration := int(now.Sub(*history.ServedAt).Seconds())
 			db.DB.Model(&history).Updates(map[string]interface{}{
@@ -211,17 +224,21 @@ func (s *queueService) CallNext(queueKey string, orgID uint, agentID uint) (*mod
 				"serving_duration": duration,
 			})
 		}
-		
+
 		db.DB.Model(&models.Appointment{}).Where("token_number = ?", currentServing.TokenNumber).Update("status", "completed")
 	}
 
 	nextEntry, err := s.repo.DequeueMin(queueKey)
-	if err != nil || nextEntry == nil { return nil, err }
+	if err != nil || nextEntry == nil {
+		return nil, err
+	}
 
 	var agent models.User
 	db.DB.First(&agent, agentID)
 
-	if err := s.repo.SetCurrentServing(queueKey, nextEntry); err != nil { return nil, err }
+	if err := s.repo.SetCurrentServing(queueKey, nextEntry); err != nil {
+		return nil, err
+	}
 
 	nextEntry.Status = models.StatusServing
 	db.DB.Model(&models.QueueHistory{}).Where("token_number = ?", nextEntry.TokenNumber).Updates(map[string]interface{}{
@@ -229,20 +246,23 @@ func (s *queueService) CallNext(queueKey string, orgID uint, agentID uint) (*mod
 		"served_at":      now,
 		"counter_number": agent.CounterNumber,
 	})
-	
+
 	s.notifyUpdate(queueKey)
 	return nextEntry, nil
 }
 
 func (s *queueService) generateToken() string {
-	bytes := make([]byte, 4)
-	rand.Read(bytes)
-	return hex.EncodeToString(bytes)
+	// Generate a human-readable token like TK-1001
+	rand.Seed(time.Now().UnixNano())
+	num := 1000 + rand.Intn(9000)
+	return fmt.Sprintf("TK-%d", num)
 }
 
 func (s *queueService) GetQueueState(queueKey string) (*models.QueueState, error) {
 	queueDef, err := s.orgRepo.GetQueueDefByKey(queueKey)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	serving, _ := s.repo.GetCurrentServing(queueKey)
 	waiting, _ := s.repo.GetQueueList(queueKey)
@@ -260,10 +280,14 @@ func (s *queueService) GetQueueState(queueKey string) (*models.QueueState, error
 }
 
 func (s *queueService) MarkHolding(queueKey string, orgID uint) error {
-	if err := s.verifyOwnership(queueKey, orgID); err != nil { return err }
+	if err := s.verifyOwnership(queueKey, orgID); err != nil {
+		return err
+	}
 
 	currentServing, err := s.repo.GetCurrentServing(queueKey)
-	if err != nil || currentServing == nil { return errors.New("no user currently being served") }
+	if err != nil || currentServing == nil {
+		return errors.New("no user currently being served")
+	}
 
 	now := time.Now()
 	currentServing.Status = models.StatusHolding
@@ -271,27 +295,35 @@ func (s *queueService) MarkHolding(queueKey string, orgID uint) error {
 	s.repo.HoldToken(queueKey, currentServing)
 	s.repo.SetCurrentServing(queueKey, nil)
 	s.repo.UpdateHistoryStatus(currentServing.TokenNumber, models.StatusHolding, &now)
-	
+
 	s.notifyUpdate(queueKey)
 	return nil
 }
 
 func (s *queueService) CallFromHolding(queueKey string, tokenNumber string, orgID uint) error {
-	if err := s.verifyOwnership(queueKey, orgID); err != nil { return err }
+	if err := s.verifyOwnership(queueKey, orgID); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (s *queueService) PauseQueue(queueKey string, isPaused bool, orgID uint) error {
-	if err := s.verifyOwnership(queueKey, orgID); err != nil { return err }
-	
+	if err := s.verifyOwnership(queueKey, orgID); err != nil {
+		return err
+	}
+
 	err := s.orgRepo.UpdateQueueDefPause(queueKey, isPaused)
-	if err == nil { s.notifyUpdate(queueKey) }
+	if err == nil {
+		s.notifyUpdate(queueKey)
+	}
 	return err
 }
 
 func (s *queueService) GetUserPosition(queueKey string, tokenNumber string) (*models.QueueResponse, error) {
 	pos, err := s.repo.GetPosition(queueKey, tokenNumber)
-	if err != nil || pos == -1 { return nil, errors.New("token not found") }
+	if err != nil || pos == -1 {
+		return nil, errors.New("token not found")
+	}
 	avgWait, _, _ := s.repo.CalculateAverages(queueKey)
 
 	return &models.QueueResponse{
@@ -333,25 +365,31 @@ func (s *queueService) GetUserHistory(userID uint) ([]models.QueueHistory, error
 }
 
 func (s *queueService) GetAnalytics(queueKey string, orgID uint) (*models.AnalyticsResponse, error) {
-	if err := s.verifyOwnership(queueKey, orgID); err != nil { return nil, err }
-	
+	if err := s.verifyOwnership(queueKey, orgID); err != nil {
+		return nil, err
+	}
+
 	count, _ := s.repo.GetDailyCount(queueKey)
 	wait, serve, _ := s.repo.CalculateAverages(queueKey)
 	peaks, _ := s.repo.GetPeakHours(queueKey)
 	counters, _ := s.repo.GetCounterAverages(queueKey)
-	
+
 	return &models.AnalyticsResponse{
-		TotalServedToday: count,
-		AvgWaitTimeMins: wait,
+		TotalServedToday:   count,
+		AvgWaitTimeMins:    wait,
 		AvgServiceTimeMins: serve,
-		PeakHours: peaks,
-		CounterAverages: counters,
+		PeakHours:          peaks,
+		CounterAverages:    counters,
 	}, nil
 }
 
 func (s *queueService) verifyOwnership(queueKey string, orgID uint) error {
 	def, err := s.orgRepo.GetQueueDefByKey(queueKey)
-	if err != nil { return errors.New("queue not found") }
-	if def.OrganizationID != orgID { return errors.New("unauthorized queue access") }
+	if err != nil {
+		return errors.New("queue not found")
+	}
+	if def.OrganizationID != orgID {
+		return errors.New("unauthorized queue access")
+	}
 	return nil
 }

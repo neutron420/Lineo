@@ -41,7 +41,7 @@ func main() {
 	authService := service.NewAuthService(userRepo)
 	orgService := service.NewOrganizationService(orgRepo)
 	queueService := service.NewQueueService(queueRepo, orgRepo)
-	mapService := service.NewMapService()
+	mapService := service.NewMapService(orgRepo)
 	apptService := service.NewAppointmentService(orgRepo, queueService)
 
 	// Start Workers

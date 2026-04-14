@@ -15,10 +15,13 @@ import {
   Loader2,
   X,
   Search,
-  CheckCircle2
+  CheckCircle2,
+  HeartPulse,
+  Landmark
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
+import { useLocation } from "@/context/LocationContext";
 
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -27,9 +30,25 @@ export default function AppointmentsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ queue_key: "", time: "" });
 
+  const { coords } = useLocation();
+  const [nearbyOrgs, setNearbyOrgs] = useState<any[]>([]);
+
   useEffect(() => {
     fetchAppointments();
   }, []);
+
+  useEffect(() => {
+    fetchNearby();
+  }, [coords.lat, coords.lng]);
+
+  const fetchNearby = async () => {
+    try {
+      const resp = await api.get(`/search/nearby?lat=${coords.lat}&lng=${coords.lng}`);
+      setNearbyOrgs(resp.data.data || []);
+    } catch (err) {
+      console.error("Discovery error:", err);
+    }
+  };
 
   const fetchAppointments = async () => {
     setIsLoading(true);
@@ -54,7 +73,9 @@ export default function AppointmentsPage() {
     try {
       await api.post("/appointments/book", {
         queue_key: formData.queue_key,
-        start_time: formattedDate
+        start_time: formattedDate,
+        user_lat: coords.lat,
+        user_lon: coords.lng
       });
       setIsModalOpen(false);
       setFormData({ queue_key: "", time: "" });
@@ -209,32 +230,58 @@ export default function AppointmentsPage() {
                 <p className="text-stripe-slate mt-1 font-light">Plan your next visit with precision.</p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-7">
-                <div className="space-y-3">
-                   <label className="text-[11px] font-bold text-stripe-slate uppercase tracking-wider pl-1 font-display">Queue Identifier</label>
-                   <div className="relative group">
-                      <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stripe-slate group-focus-within:text-stripe-purple transition-colors" />
-                      <input 
-                        type="text" 
-                        required
-                        value={formData.queue_key}
-                        onChange={(e) => setFormData({...formData, queue_key: e.target.value.toUpperCase()})}
-                        placeholder="e.g. SBI-MAIN-01" 
-                        className="w-full pl-14 pr-4 py-4.5 bg-[#f6f9fc] border border-transparent rounded-2xl text-[16px] font-bold focus:bg-white focus:border-stripe-purple/20 focus:ring-4 focus:ring-stripe-purple/5 transition-all outline-none tracking-wide"
-                      />
-                   </div>
-                </div>
+              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar mb-8">
+                <label className="text-[11px] font-bold text-stripe-slate uppercase tracking-wider pl-1">Select Institution</label>
+                {nearbyOrgs.length > 0 ? (
+                  nearbyOrgs.map((org: any, i) => (
+                    <div
+                      key={i}
+                      onClick={() => {
+                        if (org.key) setFormData({...formData, queue_key: org.key});
+                      }}
+                      className={cn(
+                        "p-5 border-2 rounded-[24px] cursor-pointer transition-all flex items-center justify-between group relative overflow-hidden",
+                        formData.queue_key === org.key 
+                          ? "border-stripe-purple bg-stripe-purple/[0.02] ring-4 ring-stripe-purple/5" 
+                          : "border-[#f6f9fc] bg-[#f6f9fc] hover:border-stripe-purple/20"
+                      )}
+                    >
+                      {org.key && (
+                        <div className="absolute top-0 right-0 py-1 px-3 bg-stripe-purple text-white text-[8px] font-black uppercase tracking-tighter rounded-bl-xl shadow-sm">
+                           Lineo Partnered
+                        </div>
+                      )}
+                      <div className="flex items-center gap-4">
+                         <div className={cn(
+                           "w-10 h-10 rounded-xl flex items-center justify-center shadow-sm transition-transform group-hover:scale-110",
+                           org.key ? "bg-stripe-purple text-white" : "bg-white text-stripe-slate"
+                         )}>
+                            {org.name.toLowerCase().includes("hospital") ? <HeartPulse className="w-5 h-5" /> : <Landmark className="w-5 h-5" />}
+                         </div>
+                         <div className="text-left">
+                            <h4 className="font-bold text-stripe-navy text-sm leading-tight flex items-center gap-2">
+                               {org.name}
+                            </h4>
+                            <p className="text-[10px] text-stripe-slate font-bold uppercase tracking-widest mt-0.5">{org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Nearby'}</p>
+                         </div>
+                      </div>
+                      {formData.queue_key === org.key && <CheckCircle2 className="w-5 h-5 text-stripe-purple animate-in zoom-in" />}
+                    </div>
+                  ))
+                ) : <div className="p-10 text-center text-stripe-slate text-sm font-bold animate-pulse">Scanning Nearby...</div>}
+              </div>
 
-                <div className="space-y-3">
-                   <label className="text-[11px] font-bold text-stripe-slate uppercase tracking-wider pl-1 font-display">Time Allocation</label>
+              <form onSubmit={handleSubmit} className="space-y-10">
+                <div className="space-y-4">
+                   <label className="text-[11px] font-bold text-stripe-slate uppercase tracking-wider pl-1 font-display">Time & Date</label>
                    <div className="relative group">
-                      <Clock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stripe-slate group-focus-within:text-stripe-purple transition-colors" />
+                      <Clock className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-stripe-slate group-focus-within:text-stripe-purple transition-colors" />
                       <input 
                         type="datetime-local" 
                         required
                         value={formData.time}
                         onChange={(e) => setFormData({...formData, time: e.target.value})}
-                        className="w-full pl-14 pr-5 py-4.5 bg-[#f6f9fc] border border-transparent rounded-2xl text-[16px] font-bold focus:bg-white focus:border-stripe-purple/20 transition-all outline-none"
+                        className="w-full pl-16 pr-5 py-5 bg-[#f6f9fc] border border-transparent rounded-[24px] text-[18px] font-bold focus:bg-white focus:border-stripe-purple/20 transition-all outline-none"
                       />
                    </div>
                 </div>

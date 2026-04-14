@@ -16,7 +16,8 @@ import {
   Filter,
   Layers,
   Zap,
-  ArrowLeft
+  ArrowLeft,
+  Calendar
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -36,10 +37,22 @@ export default function DiscoveryPage() {
   const handleJoinQueue = async (queueKey: string) => {
     if (!queueKey) return;
     
+    // VERIFY LIVE GPS BEFORE JOINING
+    let liveLat = coords.lat;
+    let liveLon = coords.lng;
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        liveLat = pos.coords.latitude;
+        liveLon = pos.coords.longitude;
+        setCoords({ lat: liveLat, lng: liveLon });
+      });
+    }
+
     const promise = api.post("/queue/join", {
       queue_key: queueKey,
-      user_lat: coords.lat,
-      user_lon: coords.lng
+      user_lat: liveLat,
+      user_lon: liveLon
     });
 
     toast.promise(promise, {
@@ -90,7 +103,8 @@ export default function DiscoveryPage() {
     { id: 'all', name: 'All Services', icon: <Layers className="w-4 h-4" /> },
     { id: 'hospital', name: 'Health & Medical', icon: <HeartPulse className="w-4 h-4" /> },
     { id: 'bank', name: 'Banks & Fintech', icon: <Landmark className="w-4 h-4" /> },
-    { id: 'shopping_mall', name: 'Shopping & Retail', icon: <ShoppingBag className="w-4 h-4" /> },
+    { id: 'it_park', name: 'Tech Hubs', icon: <Building2 className="w-4 h-4" /> },
+    { id: 'shopping_mall', name: 'Retail Centers', icon: <ShoppingBag className="w-4 h-4" /> },
   ];
 
   const filteredOrgs = nearbyOrgs.filter(org => 
@@ -234,26 +248,39 @@ export default function DiscoveryPage() {
                        <h2 className="text-3xl font-bold text-stripe-navy tracking-tight">{selectedInstitution.name}</h2>
                        <p className="text-stripe-slate text-sm font-medium">{selectedInstitution.address}</p>
                     </div>
-                    <div className="flex gap-6">
-                       <div className="space-y-0.5">
-                          <p className="text-[10px] font-extrabold text-stripe-slate uppercase tracking-wider">Queue Status</p>
-                          <p className="text-emerald-600 font-bold text-sm flex items-center gap-1.5">
-                             <Zap className="w-4 h-4 fill-current" /> Fast Moving
-                          </p>
+                    <div className="flex gap-10 items-center justify-between py-4 border-y border-stripe-border/50">
+                       <div className="space-y-1">
+                          <p className="text-[10px] font-extrabold text-stripe-slate uppercase tracking-widest">Commute Pulse</p>
+                          <div className="flex items-center gap-2">
+                             <div className="bg-emerald-500 w-2 h-2 rounded-full animate-pulse"></div>
+                             <p className="text-emerald-600 font-bold text-sm">Optimal Route Found</p>
+                          </div>
                        </div>
-                       <div className="space-y-0.5">
-                          <p className="text-[10px] font-extrabold text-stripe-slate uppercase tracking-wider">Est. Arrival</p>
-                          <p className="text-stripe-navy font-bold text-sm">12 Mins</p>
+                       <div className="flex gap-8">
+                          <div className="space-y-0.5">
+                             <p className="text-[10px] font-extrabold text-stripe-slate uppercase tracking-wider">Distance</p>
+                             <p className="text-stripe-navy font-bold text-sm">{(selectedInstitution.distance / 1000).toFixed(1)} km</p>
+                          </div>
+                          <div className="space-y-0.5">
+                             <p className="text-[10px] font-extrabold text-stripe-slate uppercase tracking-wider">Est. Travel</p>
+                             <p className="text-stripe-navy font-bold text-sm">{Math.ceil((selectedInstitution.distance / 1000) * 3)} mins</p>
+                          </div>
                        </div>
                     </div>
                  </div>
                  
-                 <div className="flex flex-col gap-3">
+                 <div className="flex flex-col gap-3 min-w-[200px]">
                     <button 
-                      onClick={() => handleJoinQueue(selectedInstitution.key || 'SBI-MAIN-01')}
-                      className="bg-stripe-purple text-white px-10 py-5 rounded-3xl font-bold text-sm shadow-xl shadow-stripe-purple/20 transition-all hover:scale-105 active:scale-95"
+                      onClick={() => handleJoinQueue(selectedInstitution.key)}
+                      className="bg-stripe-purple text-white px-10 py-5 rounded-3xl font-bold text-sm shadow-xl shadow-stripe-purple/30 hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
                     >
-                       Join Queue
+                       <Zap className="w-4 h-4" /> Secure Spot
+                    </button>
+                    <button 
+                      onClick={() => router.push('/dashboard/appointments')}
+                      className="bg-white border-2 border-stripe-purple text-stripe-purple px-10 py-5 rounded-3xl font-bold text-sm transition-all hover:bg-stripe-purple/5 flex items-center justify-center gap-2"
+                    >
+                       <Calendar className="w-4 h-4" /> Book Ahead
                     </button>
                     <button 
                       onClick={() => setSelectedInstitution(null)}

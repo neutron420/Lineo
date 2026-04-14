@@ -27,6 +27,7 @@ type Place struct {
 	Lng      float64 `json:"lng"`
 	Rating   float32 `json:"rating"`
 	UserRatingsTotal int `json:"user_ratings_total"`
+	Key      string  `json:"key"`
 }
 
 // SearchNearby finds hospitals, clinics, or banks using Google Places API
