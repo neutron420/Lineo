@@ -44,7 +44,55 @@ func InitDB() {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
+	// FORCE UPDATE business hours and DISABLE geofencing for demo (Allows testing from anywhere, at any time)
+	DB.Model(&models.Organization{}).Where("1 = 1").Updates(map[string]interface{}{
+		"open_time":  "00:00",
+		"close_time": "23:59",
+		"latitude":   0,
+		"longitude":  0,
+	})
+
 	log.Println("Database connection established and migrated")
+	SeedData()
+}
+
+func SeedData() {
+	var count int64
+	DB.Model(&models.QueueDef{}).Where("queue_key = ?", "SBI-MAIN-01").Count(&count)
+	if count > 0 {
+		return // SBI-MAIN-01 already exists
+	}
+
+	log.Println("Seeding initial data...")
+	
+	// Create Test Organization with 24/7 hours and no geofencing for testing
+	org := models.Organization{
+		Name:      "SBI Main Branch",
+		Type:      "bank",
+		Address:   "City Center, New Delhi",
+		Latitude:  0,
+		Longitude: 0,
+		OpenTime:  "00:00",
+		CloseTime: "23:59",
+	}
+	DB.Create(&org)
+
+	// Create Queue Definitions
+	queues := []models.QueueDef{
+		{
+			QueueKey:       "SBI-MAIN-01",
+			OrganizationID: org.ID,
+			Name:           "General Banking",
+		},
+		{
+			QueueKey:       "APOLLO-ER-01",
+			OrganizationID: org.ID,
+			Name:           "Emergency Care",
+		},
+	}
+	DB.Create(&queues)
+
+	log.Println("Seeding completed successfully")
 }
 
 func CloseDB() {

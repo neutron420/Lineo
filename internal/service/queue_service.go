@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"queueless/internal/models"
@@ -26,6 +27,8 @@ type QueueService interface {
 	GetUserPosition(queueKey string, tokenNumber string) (*models.QueueResponse, error)
 	GetAnalytics(queueKey string, orgID uint) (*models.AnalyticsResponse, error)
 	CancelTicket(queueKey string, tokenNumber string, userID uint) error
+	GetActiveTicket(userID uint) (*models.QueueResponse, error)
+	GetUserHistory(userID uint) ([]models.QueueHistory, error)
 	GetLocalUpdatesChan() chan string // Exposed for the handler
 }
 
@@ -75,27 +78,48 @@ func (s *queueService) notifyUpdate(queueKey string) {
 
 func (s *queueService) Enqueue(userID uint, username string, req models.EnqueueRequest) (*models.QueueResponse, error) {
 	queueDef, err := s.orgRepo.GetQueueDefByKey(req.QueueKey)
-	if err != nil { return nil, errors.New("queue not found") }
+	if err != nil { 
+		log.Printf("Enqueue error: queue %s not found", req.QueueKey)
+		return nil, errors.New("queue not found") 
+	}
 	
 	org, err := s.orgRepo.GetOrganizationByID(queueDef.OrganizationID)
-	if err != nil { return nil, errors.New("organization not found") }
+	if err != nil { 
+		log.Printf("Enqueue error: organization %d not found", queueDef.OrganizationID)
+		return nil, errors.New("organization not found") 
+	}
 
-	if err := s.checkBusinessHours(org); err != nil { return nil, err }
+	if err := s.checkBusinessHours(org); err != nil { 
+		log.Printf("Enqueue error (Business Hours): %v", err)
+		return nil, err 
+	}
 
 	if req.Priority && org.SubscriptionStatus == "free" {
+		log.Printf("Enqueue error: Priority attempted on free tier")
 		return nil, errors.New("priority queuing is a premium feature. please upgrade.")
 	}
 
 	if org.Latitude != 0 && org.Longitude != 0 {
 		if req.UserLat != 0 && req.UserLon != 0 {
 			distance := utils.CalculateDistance(org.Latitude, org.Longitude, req.UserLat, req.UserLon)
-			if distance > 1.0 { return nil, fmt.Errorf("geofencing block: You are %.2f km away", distance) }
+			if distance > 1.0 { 
+				log.Printf("Enqueue error (Geofencing): distance %.2f km", distance)
+				return nil, fmt.Errorf("geofencing block: You are %.2f km away", distance) 
+			}
 		}
 	}
 
-	if queueDef.IsPaused { return nil, errors.New("queue is currently paused") }
+	if queueDef.IsPaused { 
+		log.Printf("Enqueue error: queue %s is paused", req.QueueKey)
+		return nil, errors.New("queue is currently paused") 
+	}
 
-	return s.processEnqueue(userID, username, "", false, req.Priority, req.QueueKey, queueDef.OrganizationID)
+	resp, err := s.processEnqueue(userID, username, "", false, req.Priority, req.QueueKey, queueDef.OrganizationID)
+	if err != nil {
+		log.Printf("Enqueue error (Process): %v", err)
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (s *queueService) EnqueueKiosk(req models.EnqueueKioskRequest) (*models.QueueResponse, error) {
@@ -284,6 +308,28 @@ func (s *queueService) CancelTicket(queueKey string, tokenNumber string, userID 
 	s.repo.UpdateHistoryStatus(tokenNumber, models.StatusCancelled, &now)
 	s.notifyUpdate(queueKey)
 	return err
+}
+
+func (s *queueService) GetActiveTicket(userID uint) (*models.QueueResponse, error) {
+	history, err := s.repo.GetActiveHistoryForUser(userID)
+	if err != nil {
+		return nil, errors.New("no active ticket found")
+	}
+
+	pos, _ := s.repo.GetPosition(history.QueueKey, history.TokenNumber)
+	avgWait, _, _ := s.repo.CalculateAverages(history.QueueKey)
+
+	return &models.QueueResponse{
+		TokenNumber:   history.TokenNumber,
+		QueueKey:      history.QueueKey,
+		Position:      pos,
+		EstimatedWait: pos * avgWait,
+		JoinedAt:      history.JoinedAt,
+	}, nil
+}
+
+func (s *queueService) GetUserHistory(userID uint) ([]models.QueueHistory, error) {
+	return s.repo.GetUserHistory(userID)
 }
 
 func (s *queueService) GetAnalytics(queueKey string, orgID uint) (*models.AnalyticsResponse, error) {

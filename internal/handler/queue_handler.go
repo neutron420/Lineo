@@ -83,6 +83,28 @@ func (h *QueueHandler) GetPosition(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusOK, "User position", resp)
 }
 
+func (h *QueueHandler) GetActiveTicket(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	resp, err := h.queueService.GetActiveTicket(userID)
+	if err != nil {
+		// Instead of 404, we return null to keep the frontend clean
+		utils.RespondSuccess(c, http.StatusOK, "No active ticket found", nil)
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, "Active ticket fetched", resp)
+}
+
+func (h *QueueHandler) GetUserHistory(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	history, err := h.queueService.GetUserHistory(userID)
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to fetch history", err.Error())
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, "User history fetched", history)
+}
+
 
 // User Actions
 func (h *QueueHandler) CancelTicket(c *gin.Context) {

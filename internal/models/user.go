@@ -55,6 +55,7 @@ type RegisterRequest struct {
 	Password       string `json:"password" binding:"required,min=6"`
 	PhoneNumber    string `json:"phone_number"`
 	OrganizationID *uint  `json:"organization_id"`
+	TurnstileToken string `json:"turnstile_token"`
 }
 
 type TokenResponse struct {

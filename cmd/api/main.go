@@ -104,6 +104,8 @@ func main() {
 		protected := v1.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
+			protected.GET("/queue/active", queueHandler.GetActiveTicket)
+			protected.GET("/queue/history", queueHandler.GetUserHistory)
 			protected.POST("/queue/join", queueHandler.Enqueue)
 			protected.POST("/queue/:key/cancel/:token", queueHandler.CancelTicket)
 

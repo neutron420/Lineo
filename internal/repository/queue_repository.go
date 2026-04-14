@@ -33,6 +33,8 @@ type QueueRepository interface {
 	HoldToken(queueKey string, entry *models.QueueEntry) error
 	RemoveFromQueue(queueKey, tokenNumber string) error
 	ClearQueue(queueKey string) error
+	GetActiveHistoryForUser(userID uint) (*models.QueueHistory, error)
+	GetUserHistory(userID uint) ([]models.QueueHistory, error)
 }
 
 type queueRepository struct {
@@ -69,13 +71,13 @@ func (r *queueRepository) CalculateAverages(queueKey string) (int, int, error) {
 	
 	// Avg Wait: Time between JoinedAt and ServedAt
 	r.db.Model(&models.QueueHistory{}).
-		Select("AVG(EXTRACT(EPOCH FROM (served_at - joined_at))) / 60").
+		Select("COALESCE(AVG(EXTRACT(EPOCH FROM (served_at - joined_at))) / 60, 0)").
 		Where("queue_key = ? AND status IN ?", queueKey, []models.QueueStatus{models.StatusServing, models.StatusCompleted}).
 		Scan(&wait)
 
 	// Avg Service: Time between ServedAt and CompletedAt
 	r.db.Model(&models.QueueHistory{}).
-		Select("AVG(serving_duration) / 60").
+		Select("COALESCE(AVG(serving_duration) / 60, 0)").
 		Where("queue_key = ? AND status = ?", queueKey, models.StatusCompleted).
 		Scan(&serve)
 
@@ -276,4 +278,21 @@ func (r *queueRepository) RemoveFromQueue(queueKey, tokenNumber string) error {
 
 func (r *queueRepository) ClearQueue(queueKey string) error {
 	return r.redis.Del(r.ctx, zqKey(queueKey), servingKey(queueKey), entriesKey(queueKey), holdingKey(queueKey)).Err()
+}
+
+func (r *queueRepository) GetActiveHistoryForUser(userID uint) (*models.QueueHistory, error) {
+	var history models.QueueHistory
+	err := r.db.Where("user_id = ? AND status IN ?", userID, []models.QueueStatus{models.StatusWaiting, models.StatusServing, models.StatusHolding}).
+		Order("created_at DESC").
+		First(&history).Error
+	if err != nil {
+		return nil, err
+	}
+	return &history, nil
+}
+
+func (r *queueRepository) GetUserHistory(userID uint) ([]models.QueueHistory, error) {
+	var history []models.QueueHistory
+	err := r.db.Where("user_id = ?", userID).Order("joined_at DESC").Limit(50).Find(&history).Error
+	return history, err
 }

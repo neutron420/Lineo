@@ -35,6 +35,15 @@ func NewAuthService(repo repository.UserRepository) AuthService {
 }
 
 func (s *authService) RegisterUser(req models.RegisterRequest) (*models.User, error) {
+	if os.Getenv("TURNSTILE_SECRET_KEY") != "" {
+		if req.TurnstileToken == "" {
+			return nil, errors.New("captcha token is required")
+		}
+		if !s.VerifyTurnstile(req.TurnstileToken) {
+			return nil, errors.New("invalid captcha token")
+		}
+	}
+
 	existingUser, err := s.userRepo.GetUserByEmail(req.Email)
 	if err != nil { return nil, err }
 	if existingUser != nil { return nil, errors.New("email already registered") }
@@ -59,7 +68,10 @@ func (s *authService) RegisterUser(req models.RegisterRequest) (*models.User, er
 }
 
 func (s *authService) LoginUser(req models.LoginRequest) (string, *models.User, error) {
-	if req.TurnstileToken != "" {
+	if os.Getenv("TURNSTILE_SECRET_KEY") != "" {
+		if req.TurnstileToken == "" {
+			return "", nil, errors.New("captcha token is required")
+		}
 		if !s.VerifyTurnstile(req.TurnstileToken) {
 			return "", nil, errors.New("invalid captcha token")
 		}
