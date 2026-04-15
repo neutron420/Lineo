@@ -322,6 +322,33 @@ func (s *queueService) transitionTicket(orgID, actorID uint, queueKey, token str
 			nextStatus = models.ApptNoShow
 		}
 		db.DB.Model(&models.Appointment{}).Where("token_number = ?", token).Update("status", nextStatus)
+
+		// Trigger feedback SMS for completed tickets
+		if to == models.StatusCompleted {
+			go func() {
+				var history models.QueueHistory
+				if err := db.DB.Where("token_number = ?", token).First(&history).Error; err == nil && (history.PhoneNumber != "" || history.UserID != 0) {
+					phone := history.PhoneNumber
+					if phone == "" && history.UserID != 0 {
+						var user models.User
+						db.DB.First(&user, history.UserID)
+						phone = user.PhoneNumber
+					}
+
+					if phone != "" {
+						msg := fmt.Sprintf("How was your visit at Lineo? Rate your experience: http://lineo.ai/rate/%s", token)
+						_ = s.bus.PublishSMSNotification(context.Background(), events.SMSNotification{
+							OrgID:       orgID,
+							UserID:      history.UserID,
+							PhoneNumber: phone,
+							Message:     msg,
+							Type:        "feedback_request",
+							CreatedAt:   time.Now().UTC(),
+						})
+					}
+				}
+			}()
+		}
 	}
 
 	return nil

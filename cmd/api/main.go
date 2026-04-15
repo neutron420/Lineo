@@ -57,12 +57,15 @@ func main() {
 	orgRepo := repository.NewOrganizationRepository()
 	queueRepo := repository.NewQueueRepository()
 
+	feedbackRepo := repository.NewFeedbackRepository()
+
 	authService := service.NewAuthService(userRepo)
 	orgService := service.NewOrganizationService(orgRepo)
 	queueService := service.NewQueueService(queueRepo, orgRepo, bus)
 	mapService := service.NewMapService(orgRepo)
 	apptService := service.NewAppointmentService(orgRepo, queueService, bus)
 	paymentService := service.NewPaymentService()
+	feedbackService := service.NewFeedbackService(feedbackRepo, queueRepo)
 
 	authHandler := handler.NewAuthHandler(authService)
 	orgHandler := handler.NewOrgHandler(orgService)
@@ -70,6 +73,7 @@ func main() {
 	mapHandler := handler.NewMapHandler(mapService)
 	apptHandler := handler.NewAppointmentHandler(apptService)
 	paymentHandler := handler.NewPaymentHandler(paymentService)
+	feedbackHandler := handler.NewFeedbackHandler(feedbackService)
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
@@ -149,6 +153,7 @@ func main() {
 			protected.POST("/appointments/:id/checkin", apptHandler.CheckIn)
 			protected.POST("/payments/razorpay/order", paymentHandler.CreateRazorpayOrder)
 			protected.POST("/payments/razorpay/verify", paymentHandler.VerifyRazorpayPayment)
+			protected.POST("/feedback", feedbackHandler.Submit)
 
 			staff := protected.Group("/staff")
 			staff.Use(middleware.StaffMiddleware())
@@ -178,6 +183,7 @@ func main() {
 				admin.GET("/config", orgHandler.GetOrgConfig)
 				admin.PUT("/config", orgHandler.UpsertOrgConfig)
 				admin.DELETE("/config", orgHandler.DeleteOrgConfig)
+				admin.GET("/feedback", feedbackHandler.GetByOrg)
 			}
 		}
 	}
