@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, 
-  Map as MapIcon, 
   Navigation, 
   Building2, 
   Landmark, 
@@ -12,27 +11,52 @@ import {
   Star,
   Clock,
   MapPin,
-  ChevronRight,
   Filter,
   Layers,
   Zap,
-  ArrowLeft,
   Calendar
 } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
+interface Organization {
+  name: string;
+  key?: string;
+  address?: string;
+  type?: string;
+  rating?: number;
+  wait_time?: string;
+  distance: number;
+  lat: number;
+  lng: number;
+}
+
 export default function DiscoveryPage() {
   const router = useRouter();
   const [coords, setCoords] = useState({ lat: 28.6139, lng: 77.2090 });
   const [activeCategory, setActiveCategory] = useState('all');
-  const [nearbyOrgs, setNearbyOrgs] = useState<any[]>([]);
+  const [nearbyOrgs, setNearbyOrgs] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedInstitution, setSelectedInstitution] = useState<any>(null);
+  const [selectedInstitution, setSelectedInstitution] = useState<Organization | null>(null);
+
+  const fetchNearby = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const categoryParam = activeCategory !== 'all' ? `&type=${activeCategory}` : "";
+      const response = await api.get(`/search/nearby?lat=${coords.lat}&lng=${coords.lng}${categoryParam}`);
+      setNearbyOrgs(response.data.data || []);
+    } catch (err) {
+      console.error("Discovery error:", err);
+      toast.error("Discovery Engine Offline", {
+        description: "Failed to fetch geo-tagged institutions."
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [coords.lat, coords.lng, activeCategory]);
 
   const handleJoinQueue = async (queueKey: string) => {
     if (!queueKey) return;
@@ -81,23 +105,7 @@ export default function DiscoveryPage() {
 
   useEffect(() => {
     fetchNearby();
-  }, [coords.lat, coords.lng, activeCategory]);
-
-  const fetchNearby = async () => {
-    setIsLoading(true);
-    try {
-      const categoryParam = activeCategory !== 'all' ? `&type=${activeCategory}` : "";
-      const response = await api.get(`/search/nearby?lat=${coords.lat}&lng=${coords.lng}${categoryParam}`);
-      setNearbyOrgs(response.data.data || []);
-    } catch (err) {
-      console.error("Discovery error:", err);
-      toast.error("Discovery Engine Offline", {
-        description: "Failed to fetch geo-tagged institutions."
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [fetchNearby]);
 
   const categories = [
     { id: 'all', name: 'All Services', icon: <Layers className="w-4 h-4" /> },
@@ -115,7 +123,7 @@ export default function DiscoveryPage() {
   return (
     <div className="flex h-[calc(100vh-80px)] overflow-hidden bg-[#f6f9fc]">
       {/* Sidebar Discovery List */}
-      <div className="w-[450px] flex-shrink-0 bg-white border-r border-stripe-border flex flex-col shadow-2xl z-20">
+      <div className="w-[450px] flex-shrink-0 bg-white border-r border-stripe-border flex flex-col shadow-2xl z-20 text-left">
         <div className="p-8 border-b border-stripe-border space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-stripe-navy tracking-tight">Discovery Expo</h1>
@@ -174,7 +182,7 @@ export default function DiscoveryPage() {
                     : 'border-stripe-border hover:border-stripe-purple/30 hover:shadow-lg'
                 }`}
               >
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start justify-between mb-3 text-left">
                   <div className="space-y-1">
                     <h3 className="font-bold text-stripe-navy text-lg line-clamp-1">{org.name}</h3>
                     <div className="flex items-center gap-2 text-stripe-slate text-[11px] font-bold uppercase tracking-wider">
@@ -213,6 +221,7 @@ export default function DiscoveryPage() {
         <iframe
           width="100%"
           height="100%"
+          title="Discovery Map"
           style={{ border: 0 }}
           loading="lazy"
           allowFullScreen
@@ -239,7 +248,7 @@ export default function DiscoveryPage() {
               exit={{ opacity: 0, y: 100 }}
               className="absolute bottom-10 left-10 right-10 flex justify-center"
             >
-              <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[40px] shadow-3xl border border-white max-w-2xl w-full flex items-center justify-between gap-8">
+              <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[40px] shadow-3xl border border-white max-w-2xl w-full flex items-center justify-between gap-8 text-left">
                  <div className="flex-1 space-y-4">
                     <div className="inline-flex items-center gap-2 px-3 py-1 bg-stripe-purple/10 text-stripe-purple rounded-full text-[10px] font-bold uppercase tracking-widest">
                        Highly Rated
@@ -270,12 +279,14 @@ export default function DiscoveryPage() {
                  </div>
                  
                  <div className="flex flex-col gap-3 min-w-[200px]">
-                    <button 
-                      onClick={() => handleJoinQueue(selectedInstitution.key)}
-                      className="bg-stripe-purple text-white px-10 py-5 rounded-3xl font-bold text-sm shadow-xl shadow-stripe-purple/30 hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
-                    >
-                       <Zap className="w-4 h-4" /> Secure Spot
-                    </button>
+                    {selectedInstitution.key && (
+                      <button 
+                        onClick={() => handleJoinQueue(selectedInstitution.key!)}
+                        className="bg-stripe-purple text-white px-10 py-5 rounded-3xl font-bold text-sm shadow-xl shadow-stripe-purple/30 hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                      >
+                         <Zap className="w-4 h-4" /> Secure Spot
+                      </button>
+                    )}
                     <button 
                       onClick={() => router.push('/dashboard/appointments')}
                       className="bg-white border-2 border-stripe-purple text-stripe-purple px-10 py-5 rounded-3xl font-bold text-sm transition-all hover:bg-stripe-purple/5 flex items-center justify-center gap-2"

@@ -1,24 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, 
   Timer, 
   MapPin, 
-  Clock, 
-  ChevronRight, 
   Plus, 
   QrCode, 
   ArrowUpRight,
-  TrendingUp,
   Map as MapIcon,
   Search,
   Loader2,
   Building2,
-  Stethoscope,
   X,
-  CreditCard,
   History as HistoryIcon,
   Smile,
   ArrowRight,
@@ -27,11 +22,9 @@ import {
   CheckCircle2,
   AlertCircle,  
   Zap,
-  LayoutGrid,
   HeartPulse,
   Landmark,
   ShoppingCart,
-  LocateFixed
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
@@ -40,23 +33,79 @@ import { toast } from "sonner";
 import { useLocation } from "@/context/LocationContext";
 import { useSocket } from "@/context/SocketContext";
 
+interface TokenData {
+  token_number: string;
+  queue_key: string;
+  organization_id: number;
+  position: number;
+  estimated_wait_mins: number;
+  status: string;
+}
+
+interface Organization {
+  name: string;
+  key?: string;
+  types?: string[];
+  address?: string;
+  rating?: number;
+  distance?: number;
+}
+
+interface Appointment {
+  start_time: string;
+  queue_key: string;
+  token_number: string;
+}
+
+interface SocketQueueData {
+  event?: { token_number: string };
+  state?: {
+    waiting_list: { token_number: string }[];
+    currently_serving: { token_number: string } | null;
+  };
+}
+
 export default function UserDashboard() {
-  const { coords, address: locationName, pincode, refreshLocation } = useLocation();
+  const { coords, address: locationName, pincode } = useLocation();
   const { isConnected, subscribe, unsubscribe } = useSocket();
-  const [activeToken, setActiveToken] = useState<any>(null);
-  const [nearbyOrgs, setNearbyOrgs] = useState<any[]>([]);
-  const [appointments, setAppointments] = useState<any[]>([]);
+  const [activeToken, setActiveToken] = useState<TokenData | null>(null);
+  const [nearbyOrgs, setNearbyOrgs] = useState<Organization[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ username: string } | null>(null);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [joinQueueKey, setJoinQueueKey] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeCategory, setActiveCategory] = useState("all");
-  const [history, setHistory] = useState<any[]>([]);
-  const [userQueueHistory, setUserQueueHistory] = useState<any[]>([]);
+
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
+    try {
+      const [activeResp, apptResp] = await Promise.all([
+        api.get("/queue/active").catch(() => ({ data: { data: null } })),
+        api.get("/appointments").catch(() => ({ data: { data: [] } })),
+      ]);
+
+      if (activeResp.data.data) setActiveToken(activeResp.data.data);
+      setAppointments(apptResp.data.data || []); 
+    } catch (err) {
+      console.error("Critical Dash Sync Error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const fetchNearby = useCallback(async () => {
+    try {
+      const categoryParam = activeCategory !== "all" ? `&type=${activeCategory}` : "";
+      const resp = await api.get(`/search/nearby?lat=${coords.lat}&lng=${coords.lng}${categoryParam}`);
+      setNearbyOrgs(resp.data.data || []);
+    } catch (err) {
+      console.error("Nearby discovery error:", err);
+    }
+  }, [coords.lat, coords.lng, activeCategory]);
 
   useEffect(() => {
     setMounted(true);
@@ -71,22 +120,24 @@ export default function UserDashboard() {
     }
 
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   useEffect(() => {
     if (activeToken?.organization_id) {
-       subscribe(activeToken.organization_id, (data) => {
-          // data.state is the new QueueState
-          // data.event is the QueueEvent
+        subscribe(activeToken.organization_id, (rawData: unknown) => {
+          const data = rawData as SocketQueueData;
           if (data.event?.token_number === activeToken.token_number) {
-             const newPos = data.state?.waiting_list?.findIndex((e: any) => e.token_number === activeToken.token_number);
+             const newPos = data.state?.waiting_list?.findIndex((e) => e.token_number === activeToken.token_number);
              const isServing = data.state?.currently_serving?.token_number === activeToken.token_number;
              
-             setActiveToken((prev: any) => ({
-                ...prev,
-                position: isServing ? 0 : (newPos !== -1 ? newPos + 1 : prev.position),
-                status: isServing ? 'serving' : (newPos !== -1 ? 'waiting' : prev.status)
-             }));
+             setActiveToken((prev) => {
+                if (!prev) return null;
+                return {
+                  ...prev,
+                  position: isServing ? 0 : (newPos !== undefined && newPos !== -1 ? newPos + 1 : prev.position),
+                  status: isServing ? 'serving' : (newPos !== undefined && newPos !== -1 ? 'waiting' : prev.status)
+                };
+             });
              
              if (isServing) {
                 toast.success("It's your turn!", {
@@ -96,50 +147,19 @@ export default function UserDashboard() {
                 });
              }
           } else {
-             // Just refresh to be safe if it's a general queue update
              fetchData(true);
           }
        });
        return () => unsubscribe(activeToken.organization_id);
     }
-  }, [activeToken?.token_number, activeToken?.organization_id]);
+  }, [activeToken?.token_number, activeToken?.organization_id, subscribe, unsubscribe, fetchData]);
 
   useEffect(() => {
     fetchNearby();
-  }, [coords.lat, coords.lng, activeCategory]);
-
-  const fetchData = async (silent = false) => {
-    if (!silent) setIsLoading(true);
-    try {
-      const [activeResp, apptResp, historyResp] = await Promise.all([
-        api.get("/queue/active").catch(() => ({ data: { data: null } })),
-        api.get("/appointments").catch(() => ({ data: { data: [] } })),
-        api.get("/queue/history").catch(() => ({ data: { data: [] } }))
-      ]);
-
-      if (activeResp.data.data) setActiveToken(activeResp.data.data);
-      setAppointments(apptResp.data.data || []); 
-      setUserQueueHistory(historyResp.data.data || []);
-    } catch (err) {
-      console.error("Critical Dash Sync Error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchNearby = async () => {
-    try {
-      const categoryParam = activeCategory !== "all" ? `&type=${activeCategory}` : "";
-      const resp = await api.get(`/search/nearby?lat=${coords.lat}&lng=${coords.lng}${categoryParam}`);
-      setNearbyOrgs(resp.data.data || []);
-    } catch (err) {
-      console.error("Nearby discovery error:", err);
-    }
-  };
+  }, [fetchNearby]);
 
   const handleJoinQueue = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     const promise = api.post("/queue/join", {
       queue_key: joinQueueKey,
       user_lat: coords.lat,
@@ -149,7 +169,7 @@ export default function UserDashboard() {
 
     toast.promise(promise, {
       loading: 'Analyzing institution capacity...',
-      success: (data) => {
+      success: () => {
         setIsJoinModalOpen(false);
         setJoinQueueKey("");
         fetchData();
@@ -157,8 +177,6 @@ export default function UserDashboard() {
       },
       error: 'Invalid queue key or unauthorized access.',
     });
-    
-    setIsSubmitting(false);
   };
 
   const handleCancelToken = async () => {
@@ -173,7 +191,7 @@ export default function UserDashboard() {
             await api.post(`/queue/${activeToken.queue_key}/cancel/${activeToken.token_number}`);
             toast.success("Spot Released", { description: "You are no longer in the queue." });
             await fetchData();
-          } catch (err) {
+          } catch {
             toast.error("Process Failed", { description: "Could not cancel the token." });
           }
         }
@@ -215,13 +233,13 @@ export default function UserDashboard() {
                </span>
              )}
              <span className="w-1 h-1 rounded-full bg-stripe-border mx-1" />
-             <p className="text-stripe-slate text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+             <div className="text-stripe-slate text-sm font-bold uppercase tracking-widest flex items-center gap-2">
                Real-time Node
                <span className={cn(
                  "w-2 h-2 rounded-full",
                  isConnected ? "bg-green-500 animate-pulse" : "bg-red-400"
                )} />
-             </p>
+             </div>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -374,7 +392,7 @@ export default function UserDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {nearbyOrgs.length > 0 ? nearbyOrgs.slice(0, 3).map((org: any, i) => (
+              {nearbyOrgs.length > 0 ? nearbyOrgs.slice(0, 3).map((org, i) => (
                 <motion.div
                   key={i}
                   whileHover={{ y: -8, scale: 1.02 }}
@@ -465,6 +483,7 @@ export default function UserDashboard() {
               <iframe
                 width="100%"
                 height="100%"
+                title="Nearby Map"
                 style={{ border: 0 }}
                 loading="lazy"
                 allowFullScreen
@@ -537,7 +556,7 @@ export default function UserDashboard() {
 
               <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {nearbyOrgs.length > 0 ? (
-                  nearbyOrgs.map((org: any, i) => (
+                  nearbyOrgs.map((org, i) => (
                     <motion.div
                       key={i}
                       whileHover={org.key ? { scale: 1.02 } : {}}
@@ -574,7 +593,7 @@ export default function UserDashboard() {
                            "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform",
                            org.key ? "bg-white text-stripe-purple shadow-sm group-hover:scale-110" : "bg-stripe-slate/10 text-stripe-slate"
                          )}>
-                            {org.name.toLowerCase().includes("hospital") ? <HeartPulse /> : <Landmark />}
+                            {org.name.toLowerCase().includes("hospital") ? <HeartPulse className="w-6 h-6" /> : <Landmark className="w-6 h-6" />}
                          </div>
                          <div className="text-left">
                             <h4 className="font-bold text-stripe-navy text-lg leading-tight flex items-center gap-2">
@@ -707,11 +726,11 @@ export default function UserDashboard() {
                 <div className="grid grid-cols-2 gap-8">
                    <div className="space-y-1">
                       <p className="text-[10px] font-extrabold text-stripe-slate uppercase tracking-widest">Position</p>
-                      <p className="text-xl font-bold text-stripe-purple">#{activeToken.position}</p>
+                      <div className="text-xl font-bold text-stripe-purple">#{activeToken.position}</div>
                    </div>
                    <div className="space-y-1">
                       <p className="text-[10px] font-extrabold text-stripe-slate uppercase tracking-widest">Wait Time</p>
-                      <p className="text-xl font-bold text-stripe-navy">~{activeToken.estimated_wait_mins || 0}m</p>
+                      <div className="text-xl font-bold text-stripe-navy">~{activeToken.estimated_wait_mins || 0}m</div>
                    </div>
                 </div>
               </div>
@@ -730,7 +749,7 @@ export default function UserDashboard() {
   );
 }
 
-function CategoryBox({ icon, title, desc, onClick }: any) {
+function CategoryBox({ icon, title, desc, onClick }: { icon: React.ReactNode, title: string, desc: string, onClick: () => void }) {
   return (
     <button onClick={onClick} className="p-8 rounded-[32px] border-2 border-stripe-border hover:border-stripe-purple/30 hover:bg-stripe-purple/[0.02] transition-all group text-left">
        <div className="w-12 h-12 rounded-2xl bg-stripe-purple/10 flex items-center justify-center text-stripe-purple mb-6 group-hover:scale-110 transition-transform">
@@ -758,7 +777,7 @@ function CategoryButton({ active, label, onClick }: { active: boolean, label: st
   );
 }
 
-function StatCard({ title, value, desc, trend, icon }: any) {
+function StatCard({ title, value, desc, trend, icon }: { title: string, value: string, desc: string, trend: string, icon: React.ReactNode }) {
   return (
     <div className="stripe-card p-10 bg-white hover:border-stripe-purple/30 hover:shadow-stripe-premium transition-all group rounded-[40px] text-left border-stripe-border shadow-sm">
       <div className="flex items-center justify-between mb-8">
@@ -774,19 +793,7 @@ function StatCard({ title, value, desc, trend, icon }: any) {
   );
 }
 
-function ActionItem({ icon, title, onClick }: any) {
-  return (
-    <button onClick={onClick} className="flex items-center justify-between w-full p-5 rounded-[24px] hover:bg-[#f6f9fc] transition-all text-stripe-slate hover:text-stripe-navy group">
-       <div className="flex items-center gap-5">
-          <div className="p-2 transition-transform group-hover:scale-110 group-hover:text-stripe-purple duration-300">{icon}</div>
-          <span className="text-[16px] font-bold">{title}</span>
-       </div>
-       <ChevronRight className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-all -translate-x-4 group-hover:translate-x-0 text-stripe-purple" />
-    </button>
-  );
-}
-
-function ActivityRow({ org, date, time }: any) {
+function ActivityRow({ org, date, time }: { org: string, date: string, time: string }) {
   return (
     <div className="flex items-center justify-between p-6 rounded-[32px] border border-transparent hover:border-stripe-border/50 hover:bg-white transition-all cursor-default group text-left">
        <div className="flex items-center gap-5">
@@ -798,9 +805,7 @@ function ActivityRow({ org, date, time }: any) {
        </div>
        <div className="text-right">
           <p className="text-[15px] font-extrabold text-stripe-navy tabular-nums">{time}</p>
-          <p className="text-[10px] text-stripe-slate uppercase font-extrabold tracking-widest opacity-40">Verified</p>
        </div>
     </div>
   );
 }
-

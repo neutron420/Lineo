@@ -3,10 +3,11 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2, Heart, Landmark, Building2, User, Mail, Lock } from "lucide-react";
+import { ArrowLeft, Loader2, Heart, Landmark, User, Mail, Lock } from "lucide-react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { AxiosError } from "axios";
 
 export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -40,8 +41,9 @@ export default function RegisterPage() {
 
       // After registration, redirect to login
       router.push("/login?registered=true");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Registration failed. Please try again.");
+    } catch (err) {
+      const axiosError = err as AxiosError<{ message: string }>;
+      setError(axiosError.response?.data?.message || "Registration failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -142,7 +144,7 @@ export default function RegisterPage() {
           </div>
 
           <p className="text-[13px] text-stripe-slate/60 leading-snug">
-            By clicking "Create account", you agree to our Terms of Service and Privacy Policy. No credit card required.
+            By clicking &ldquo;Create account&rdquo;, you agree to our Terms of Service and Privacy Policy. No credit card required.
           </p>
 
           <button

@@ -4,14 +4,9 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Bell, 
-  X, 
-  CheckCircle2, 
-  Clock, 
   Navigation, 
   Zap, 
-  Building2,
-  Calendar,
-  AlertCircle
+  Calendar
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -99,7 +94,7 @@ export function NotificationCenter() {
                 </button>
               </div>
 
-              <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+              <div className="max-h-[400px] overflow-y-auto custom-scrollbar text-left">
                 {notifications.length > 0 ? (
                   notifications.map((n, i) => (
                     <motion.div 
@@ -122,7 +117,7 @@ export function NotificationCenter() {
                          {n.icon}
                       </div>
 
-                      <div className="flex-1 space-y-1">
+                      <div className="flex-1 space-y-1 text-left">
                         <div className="flex items-center justify-between">
                            <h4 className="text-sm font-bold text-stripe-navy">{n.title}</h4>
                            <span className="text-[10px] text-stripe-slate font-medium">{n.time}</span>

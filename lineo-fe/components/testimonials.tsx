@@ -35,7 +35,7 @@ export default function Testimonials() {
       <div className="max-w-[1080px] mx-auto px-6">
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold tracking-tight text-stripe-navy mb-4 font-medium">Trusted by industry leaders</h2>
-          <p className="text-stripe-slate text-lg max-w-[600px] mx-auto">See how Lineo is helping businesses worldwide modernize their customer experience.</p>
+          <p className="text-stripe-slate italic text-[15px] leading-relaxed">&ldquo;Lineo has completely changed how we manage walk-ins. The Smart Commute feature is pure magic &mdash; our patients love it!&rdquo;</p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
@@ -56,7 +56,7 @@ export default function Testimonials() {
                   <Star key={i} className="w-4 h-4 fill-current" />
                 ))}
               </div>
-              <p className="text-stripe-navy text-lg mb-8 italic">"{t.content}"</p>
+              <p className="text-stripe-navy text-lg mb-8 italic">&ldquo;{t.content}&rdquo;</p>
               <div className="flex items-center gap-4 mt-auto">
                 <div className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center text-white font-medium",

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { 
   User, 
   Shield, 
@@ -17,17 +16,37 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+interface UserProfile {
+  username: string;
+  email: string;
+}
+
 export default function SettingsPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
-    if (userData) setUser(JSON.parse(userData));
+    let parsedUser: UserProfile | null = null;
+    if (userData) {
+      try {
+        parsedUser = JSON.parse(userData);
+      } catch (e) {
+        console.error("Failed to parse user data", e);
+      }
+    }
+
+    void Promise.resolve().then(() => {
+      setUser(parsedUser);
+      setMounted(true);
+    });
   }, []);
+
+  if (!mounted) return null;
 
   return (
     <div className="space-y-10">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 text-left">
         <div>
           <h1 className="text-[32px] font-light text-stripe-navy tracking-tight">Settings</h1>
           <p className="text-stripe-slate text-lg font-light">Manage your account preferences and security configuration.</p>
@@ -50,7 +69,7 @@ export default function SettingsPage() {
         <div className="lg:col-span-3 space-y-8">
            {/* Profile Section */}
            <div className="stripe-card p-10 bg-white">
-              <div className="flex items-center gap-8 mb-12">
+              <div className="flex items-center gap-8 mb-12 text-left">
                  <div className="relative group">
                     <div className="w-24 h-24 bg-stripe-purple rounded-3xl flex items-center justify-center text-white text-3xl font-bold font-display shadow-xl shadow-stripe-purple/30 group-hover:scale-105 transition-transform duration-300">
                        {user?.username?.charAt(0).toUpperCase() || "U"}
@@ -69,7 +88,7 @@ export default function SettingsPage() {
                  </div>
               </div>
 
-              <div className="space-y-6 pt-6 border-t border-stripe-border">
+              <div className="space-y-6 pt-6 border-t border-stripe-border text-left">
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <InputField label="Full Name" placeholder="R.K Singh" defaultValue={user?.username} />
                     <InputField label="Email Address" placeholder="rk@example.com" defaultValue={user?.email} icon={<Mail className="w-4 h-4" />} />
@@ -77,11 +96,11 @@ export default function SettingsPage() {
                     <InputField label="Timezone" placeholder="UTC+5:30 (IST)" icon={<Globe className="w-4 h-4" />} />
                  </div>
                  
-                 <div className="pt-6 flex justify-end gap-3">
+                 <div className="pt-6 flex justify-end gap-3 text-right">
                     <button className="px-6 py-2.5 bg-[#f6f9fc] text-stripe-navy font-medium rounded-xl hover:bg-stripe-border transition-all">
                        Discard
                     </button>
-                    <button className="stripe-btn-primary px-8">
+                    <button className="stripe-btn-primary px-8 py-2.5">
                        Save Changes
                     </button>
                  </div>
@@ -89,7 +108,7 @@ export default function SettingsPage() {
            </div>
 
            {/* Security Quick Link */}
-           <div className="stripe-card p-8 bg-white flex items-center justify-between group cursor-pointer hover:border-stripe-purple/30 transition-all">
+           <div className="stripe-card p-8 bg-white flex items-center justify-between group cursor-pointer hover:border-stripe-purple/30 transition-all text-left">
               <div className="flex items-center gap-6">
                  <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-all duration-300">
                     <Lock className="w-6 h-6" />
@@ -103,7 +122,7 @@ export default function SettingsPage() {
            </div>
 
            {/* Danger Zone */}
-           <div className="pt-8">
+           <div className="pt-8 text-left">
               <h3 className="text-sm font-bold text-red-600 uppercase tracking-widest mb-4">Danger Zone</h3>
               <div className="stripe-card p-8 bg-red-50/30 border-red-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
                  <div>
@@ -121,12 +140,12 @@ export default function SettingsPage() {
   );
 }
 
-function SettingsNavItem({ icon, title, active, highlight }: any) {
+function SettingsNavItem({ icon, title, active, highlight }: { icon: React.ReactNode, title: string, active?: boolean, highlight?: boolean }) {
   return (
     <button className={cn(
        "flex items-center gap-3 w-full px-5 py-3.5 rounded-xl transition-all duration-200 group text-left",
        active ? "bg-white text-stripe-purple shadow-sidebar-pill font-medium" : "text-stripe-slate hover:bg-white/50 hover:text-stripe-navy",
-       highlight && "bg-stripe-purple text-white shadow-xl shadow-stripe-purple/30 hover:bg-stripe-purpleHover hover:scale-[1.02]"
+       highlight && "bg-stripe-purple text-white shadow-xl shadow-stripe-purple/30 hover:bg-stripe-purple Hover:scale-[1.02]"
     )}>
        <div className={cn(
          "transition-transform duration-300",
@@ -138,11 +157,11 @@ function SettingsNavItem({ icon, title, active, highlight }: any) {
   );
 }
 
-function InputField({ label, placeholder, icon, defaultValue }: any) {
+function InputField({ label, placeholder, icon, defaultValue }: { label: string, placeholder: string, icon?: React.ReactNode, defaultValue?: string }) {
   return (
     <div className="space-y-2">
        <label className="text-xs font-bold text-stripe-slate uppercase tracking-wider pl-1">{label}</label>
-       <div className="relative group">
+       <div className="relative group text-left">
           {icon && <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stripe-slate group-focus-within:text-stripe-purple transition-colors">{icon}</div>}
           <input 
             type="text" 

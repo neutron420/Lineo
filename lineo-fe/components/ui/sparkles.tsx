@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState } from "react"
 import Particles, { initParticlesEngine } from "@tsparticles/react"
+import type { ISourceOptions } from "@tsparticles/engine"
 import { loadSlim } from "@tsparticles/slim"
 
 export function Sparkles({
@@ -31,7 +32,7 @@ export function Sparkles({
   minOpacity?: number | null
   color?: string
   background?: string
-  options?: any
+  options?: ISourceOptions
 }) {
   const [isReady, setIsReady] = useState(false)
 
@@ -46,7 +47,7 @@ export function Sparkles({
   const generatedId = useId()
   const id = propId || generatedId
 
-  const defaultOptions = {
+  const defaultOptions: ISourceOptions = {
     background: {
       color: {
         value: background,

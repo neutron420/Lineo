@@ -1,11 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
 
 interface SocketContextType {
   isConnected: boolean;
-  subscribe: (orgId: number, callback: (data: any) => void) => void;
+  subscribe: (orgId: number, callback: (data: unknown) => void) => void;
   unsubscribe: (orgId: number) => void;
 }
 
@@ -14,9 +13,9 @@ const SocketContext = createContext<SocketContextType | undefined>(undefined);
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [isConnected, setIsConnected] = useState(false);
   const sockets = useRef<Map<number, WebSocket>>(new Map());
-  const callbacks = useRef<Map<number, Set<(data: any) => void>>>(new Map());
+  const callbacks = useRef<Map<number, Set<(data: unknown) => void>>>(new Map());
 
-  const subscribe = (orgId: number, callback: (data: any) => void) => {
+  const subscribe = (orgId: number, callback: (data: unknown) => void) => {
     if (!callbacks.current.has(orgId)) {
       callbacks.current.set(orgId, new Set());
     }
@@ -54,11 +53,13 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const unsubscribe = (orgId: number) => {
     // For now, we just keep the socket open if there are other listeners or for simplicity
     // we could close it if listeners reach 0
+    console.log(`Unsubscribe requested for Org: ${orgId}`);
   };
 
   useEffect(() => {
+    const currentSockets = sockets.current;
     return () => {
-      sockets.current.forEach((ws) => ws.close());
+      currentSockets.forEach((ws) => ws.close());
     };
   }, []);
 

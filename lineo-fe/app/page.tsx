@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, Zap, Shield, BarChart3, Clock, LayoutGrid, Calendar, MapIcon, Star, Sparkles as SparklesIcon } from "lucide-react";
+import { ArrowRight, Zap, Star, Sparkles as SparklesIcon, LayoutGrid } from "lucide-react";
 import { Sparkles } from "@/components/ui/sparkles";
 import { Features as FeaturesSection } from "@/components/features-8";
 import RuixenBentoCards from "@/components/ruixen-bento-cards";
@@ -13,7 +13,7 @@ import Testimonials from "@/components/testimonials";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden selection:bg-stripe-purple/20 selection:text-stripe-purple">
+    <div className="min-h-screen bg-white overflow-x-hidden selection:bg-stripe-purple/20 selection:text-stripe-purple text-left">
       {/* 🏛️ Sticky Navigation */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-md border-b border-stripe-border/50 transition-all">
         <nav className="max-w-[1080px] mx-auto px-6 h-16 flex items-center justify-between">
@@ -66,14 +66,14 @@ export default function LandingPage() {
                 In-person waiting, reimagined.
               </h1>
               <p className="text-[18px] text-stripe-slate leading-relaxed mb-10 max-w-[440px]">
-                The world’s most advanced queue management system for hospitals, banks, and retailers. Scale your operations, eliminate wait times, and delight your customers.
+                The world&apos;s most advanced queue management system for hospitals, banks, and retailers. Scale your operations, eliminate wait times, and delight your customers.
               </p>
 
               <div className="flex items-center gap-4">
                 <Link href="/register" className="stripe-btn-primary group flex items-center gap-2 pr-4">
                   Start now <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
-                <Link href="/solutions" className="stripe-btn-ghost group flex items-center gap-2 pr-4">
+                <Link href="/solutions" className="stripe-btn-ghost group flex items-center gap-2 pr-4 text-stripe-navy">
                   Connect sales <ArrowRight className="w-4 h-4 text-stripe-slate group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </div>
@@ -86,14 +86,14 @@ export default function LandingPage() {
               transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
               className="relative"
             >
-              <div className="stripe-card relative z-10 p-6 min-h-[400px]">
+              <div className="stripe-card relative z-10 p-6 min-h-[400px] bg-white text-left">
                 <div className="flex items-center justify-between mb-8 border-b border-stripe-border pb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-stripe bg-stripe-brandDark flex items-center justify-center text-white">
                       <LayoutGrid className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-normal text-stripe-navy font-medium">City Care Hospital</h3>
+                      <h3 className="text-sm font-medium text-stripe-navy">City Care Hospital</h3>
                       <p className="text-xs text-stripe-slate">Reception Queue</p>
                     </div>
                   </div>
@@ -119,7 +119,9 @@ export default function LandingPage() {
               <div className="absolute -bottom-20 -left-20 w-[300px] h-[300px] bg-stripe-magenta/10 blur-[100px] -z-10 rounded-full" />
             </motion.div>
           </div>
-          <LogoCloud className="max-w-[800px] mx-auto mt-20" />
+          <div className="max-w-[800px] mx-auto mt-20">
+            <LogoCloud />
+          </div>
         </div>
       </main>
 
@@ -134,7 +136,7 @@ export default function LandingPage() {
       <FeaturesSection />
 
       {/* 🧩 Bento Showcases */}
-      <section id="solutions" className="py-24 bg-white">
+      <section id="solutions" className="py-24 bg-white text-left">
         <div className="max-w-[1080px] mx-auto px-6">
           <div className="mb-12">
             <h2 className="text-3xl font-bold tracking-tight text-stripe-navy mb-4 font-medium">Powerful from every angle</h2>
@@ -148,7 +150,7 @@ export default function LandingPage() {
       <Testimonials />
 
       {/* 💰 Creative Pricing Section */}
-      <section id="pricing" className="py-24 bg-zinc-50/50">
+      <section id="pricing" className="py-24 bg-zinc-50/50 text-left">
         <CreativePricing 
           tag="Fair Pricing"
           title="Plans for every scale"
@@ -185,7 +187,7 @@ export default function LandingPage() {
 
 
       {/* 🏁 Footer */}
-      <footer className="bg-white border-t border-stripe-border py-16">
+      <footer className="bg-white border-t border-stripe-border py-16 text-left">
         <div className="max-w-[1080px] mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-12 mb-16">
             <div className="col-span-2">
@@ -193,12 +195,12 @@ export default function LandingPage() {
                 <span className="text-stripe-purple">lineo</span>.ai
               </Link>
               <p className="text-stripe-slate text-sm max-w-[240px]">
-                The world's most advanced queue management platform. Built for performance, designed for people.
+                The world&apos;s most advanced queue management platform. Built for performance, designed for people.
               </p>
             </div>
             <div>
               <h4 className="text-[13px] font-medium uppercase tracking-wider text-stripe-navy mb-4">Product</h4>
-              <ul className="space-y-2">
+              <ul className="space-y-2 text-left">
                 <li><FooterLink href="#">Features</FooterLink></li>
                 <li><FooterLink href="#">Integrations</FooterLink></li>
                 <li><FooterLink href="#">Solutions</FooterLink></li>
@@ -207,7 +209,7 @@ export default function LandingPage() {
             </div>
             <div>
               <h4 className="text-[13px] font-medium uppercase tracking-wider text-stripe-navy mb-4">Company</h4>
-              <ul className="space-y-2">
+              <ul className="space-y-2 text-left">
                 <li><FooterLink href="#">About</FooterLink></li>
                 <li><FooterLink href="#">Customers</FooterLink></li>
                 <li><FooterLink href="#">Careers</FooterLink></li>
@@ -216,7 +218,7 @@ export default function LandingPage() {
             </div>
             <div>
               <h4 className="text-[13px] font-medium uppercase tracking-wider text-stripe-navy mb-4">Legal</h4>
-              <ul className="space-y-2">
+              <ul className="space-y-2 text-left">
                 <li><FooterLink href="#">Privacy</FooterLink></li>
                 <li><FooterLink href="#">Terms</FooterLink></li>
                 <li><FooterLink href="#">Security</FooterLink></li>
@@ -248,7 +250,7 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
 
 function StatCard({ label, value, trend }: { label: string; value: string; trend: string }) {
   return (
-    <div className="p-4 bg-stripe-border/20 rounded-stripe">
+    <div className="p-4 bg-stripe-border/20 rounded-stripe text-left">
       <p className="text-xs text-stripe-slate mb-1">{label}</p>
       <div className="flex items-end justify-between">
         <span className="text-lg font-normal tabular">{value}</span>
@@ -262,7 +264,7 @@ function StatCard({ label, value, trend }: { label: string; value: string; trend
 
 function QueueEntry({ token, name, status }: { token: string; name: string; status: string }) {
   return (
-    <div className="flex items-center justify-between p-3 border border-stripe-border/50 rounded-stripe hover:bg-stripe-border/10 transition-colors">
+    <div className="flex items-center justify-between p-3 border border-stripe-border/50 rounded-stripe hover:bg-stripe-border/10 transition-colors text-left">
       <div className="flex items-center gap-3">
         <span className="text-xs font-medium tabular text-stripe-purple bg-stripe-purple/10 px-1.5 py-0.5 rounded-stripe">{token}</span>
         <span className="text-sm text-stripe-navy">{name}</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { 
   History, 
@@ -23,24 +23,32 @@ import {
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
 
+interface HistoryItem {
+  queue_key: string;
+  joined_at: string;
+  token_number: string;
+  serving_duration?: number;
+  status: string;
+}
+
 export default function QueueHistoryPage() {
-  const [historyItems, setHistoryItems] = useState<any[]>([]);
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const resp = await api.get("/queue/history");
-        setHistoryItems(resp.data.data || []);
-      } catch (err) {
-        console.error("Failed to fetch history", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchHistory();
+  const fetchHistory = useCallback(async () => {
+    try {
+      const resp = await api.get("/queue/history");
+      setHistoryItems(resp.data.data || []);
+    } catch (err) {
+      console.error("Failed to fetch history", err);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
 
   return (
     <div className="space-y-10 text-left">
@@ -151,8 +159,8 @@ export default function QueueHistoryPage() {
   );
 }
 
-function StatsBox({ title, value, desc, color, icon }: any) {
-  const colorMap: any = {
+function StatsBox({ title, value, desc, color, icon }: { title: string, value: string, desc: string, color: string, icon: React.ReactNode }) {
+  const colorMap: Record<string, string> = {
     purple: "bg-stripe-purple/5 text-stripe-purple border-stripe-purple/20",
     green: "bg-green-50 text-green-600 border-green-100",
     blue: "bg-blue-50 text-blue-600 border-blue-100",

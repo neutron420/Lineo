@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Calendar, 
   Clock, 
   MapPin, 
-  ChevronRight, 
   Plus, 
   CalendarDays,
   MoreVertical,
@@ -14,7 +13,6 @@ import {
   Navigation,
   Loader2,
   X,
-  Search,
   CheckCircle2,
   HeartPulse,
   Landmark
@@ -23,34 +21,31 @@ import { cn } from "@/lib/utils";
 import api from "@/lib/api";
 import { useLocation } from "@/context/LocationContext";
 
+interface Appointment {
+  id: string;
+  start_time: string;
+  status: string;
+  token_number: string;
+  queue_key: string;
+}
+
+interface Organization {
+  name: string;
+  key?: string;
+  distance?: number;
+}
+
 export default function AppointmentsPage() {
-  const [appointments, setAppointments] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ queue_key: "", time: "" });
 
   const { coords } = useLocation();
-  const [nearbyOrgs, setNearbyOrgs] = useState<any[]>([]);
+  const [nearbyOrgs, setNearbyOrgs] = useState<Organization[]>([]);
 
-  useEffect(() => {
-    fetchAppointments();
-  }, []);
-
-  useEffect(() => {
-    fetchNearby();
-  }, [coords.lat, coords.lng]);
-
-  const fetchNearby = async () => {
-    try {
-      const resp = await api.get(`/search/nearby?lat=${coords.lat}&lng=${coords.lng}`);
-      setNearbyOrgs(resp.data.data || []);
-    } catch (err) {
-      console.error("Discovery error:", err);
-    }
-  };
-
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     setIsLoading(true);
     try {
       const resp = await api.get("/appointments");
@@ -60,7 +55,24 @@ export default function AppointmentsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  const fetchNearby = useCallback(async () => {
+    try {
+      const resp = await api.get(`/search/nearby?lat=${coords.lat}&lng=${coords.lng}`);
+      setNearbyOrgs(resp.data.data || []);
+    } catch (err) {
+      console.error("Discovery error:", err);
+    }
+  }, [coords.lat, coords.lng]);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
+
+  useEffect(() => {
+    fetchNearby();
+  }, [fetchNearby]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +93,7 @@ export default function AppointmentsPage() {
       setFormData({ queue_key: "", time: "" });
       await fetchAppointments();
       alert("Appointment scheduled successfully!");
-    } catch (err) {
+    } catch {
       alert("Booking failed. Please check the queue code and time slot.");
     } finally {
       setIsSubmitting(false);
@@ -178,7 +190,7 @@ export default function AppointmentsPage() {
               </h3>
               
               <p className="text-[15px] text-stripe-slate mb-10 relative z-10 leading-relaxed font-light">
-                Based on your real-time GPS and current traffic data, we'll alert you exactly when it's time to head out.
+                Based on your real-time GPS and current traffic data, we&apos;ll alert you exactly when it&apos;s time to head out.
               </p>
               
               <div className="space-y-4 relative z-10">
@@ -188,11 +200,11 @@ export default function AppointmentsPage() {
                  </div>
                  <div className="p-6 bg-[#f6f9fc] rounded-[24px] border border-stripe-border/50 flex items-center justify-between group-hover:bg-white group-hover:border-stripe-purple/20 transition-all duration-500">
                     <span className="text-sm text-stripe-slate font-medium">Traffic Status</span>
-                    <span className="text-green-600 font-bold uppercase text-[10px] tracking-widest bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">Optimal</span>
+                    <div className="text-green-600 font-bold uppercase text-[10px] tracking-widest bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">Optimal</div>
                  </div>
               </div>
               
-              <button className="w-full mt-10 py-5 bg-stripe-purple text-white rounded-[20px] font-bold text-sm hover:bg-stripe-purpleHover hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-stripe-purple/20 flex items-center justify-center gap-3">
+              <button className="w-full mt-10 py-5 bg-stripe-purple text-white rounded-[20px] font-bold text-sm hover:bg-stripe-purple hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-stripe-purple/20 flex items-center justify-center gap-3">
                  <Navigation className="w-4 h-4" /> Enable Live Alerts
               </button>
            </div>
@@ -231,9 +243,9 @@ export default function AppointmentsPage() {
               </div>
 
               <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar mb-8">
-                <label className="text-[11px] font-bold text-stripe-slate uppercase tracking-wider pl-1">Select Institution</label>
+                <div className="text-[11px] font-bold text-stripe-slate uppercase tracking-wider pl-1">Select Institution</div>
                 {nearbyOrgs.length > 0 ? (
-                  nearbyOrgs.map((org: any, i) => (
+                  nearbyOrgs.map((org, i) => (
                     <div
                       key={i}
                       onClick={() => {
@@ -273,7 +285,7 @@ export default function AppointmentsPage() {
 
               <form onSubmit={handleSubmit} className="space-y-10">
                 <div className="space-y-4">
-                   <label className="text-[11px] font-bold text-stripe-slate uppercase tracking-wider pl-1 font-display">Time & Date</label>
+                   <div className="text-[11px] font-bold text-stripe-slate uppercase tracking-wider pl-1 font-display">Time & Date</div>
                    <div className="relative group">
                       <Clock className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-stripe-slate group-focus-within:text-stripe-purple transition-colors" />
                       <input 

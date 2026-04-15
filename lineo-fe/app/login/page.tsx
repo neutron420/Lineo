@@ -7,6 +7,17 @@ import { ArrowLeft, Loader2, Mail, Lock, ShieldCheck, AlertCircle } from "lucide
 import { Turnstile } from "@marsidev/react-turnstile";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { AxiosError } from "axios";
+
+interface AuthResponse {
+  data: {
+    token: string;
+    user: {
+      role: string;
+      username: string;
+    };
+  };
+}
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +39,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await api.post("/auth/login", {
+      const response = await api.post<AuthResponse>("/auth/login", {
         email,
         password,
         turnstile_token: captchaToken
@@ -46,8 +57,9 @@ export default function LoginPage() {
       } else {
         router.push("/dashboard");
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Login failed. Please check your credentials.");
+    } catch (err) {
+      const axiosError = err as AxiosError<{ message: string }>;
+      setError(axiosError.response?.data?.message || "Login failed. Please check your credentials.");
     } finally {
       setIsLoading(false);
     }
@@ -133,7 +145,7 @@ export default function LoginPage() {
 
         <div className="mt-8 pt-6 border-t border-stripe-border text-center">
           <p className="text-sm text-stripe-slate">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link href="/register" className="text-stripe-purple font-medium hover:underline">
               Create an account
             </Link>
