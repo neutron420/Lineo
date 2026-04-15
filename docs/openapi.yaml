@@ -1,0 +1,70 @@
+openapi: 3.0.3
+info:
+  title: QueueLess API
+  version: 2.1.0
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/staff/analytics/peak-hours:
+    get:
+      summary: Get peak-hour analytics buckets for an org
+      parameters:
+        - in: query
+          name: org_id
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: range
+          required: false
+          schema:
+            type: string
+            example: 7d
+      responses:
+        '200':
+          description: Peak-hour buckets
+  /api/v1/admin/config:
+    post:
+      summary: Create organization config
+      responses:
+        '201':
+          description: Created
+    get:
+      summary: Get organization config
+      responses:
+        '200':
+          description: OK
+    put:
+      summary: Update organization config
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete organization config
+      responses:
+        '200':
+          description: Deleted
+  /api/v1/tickets/{id}/status:
+    get:
+      summary: SSE stream for ticket status
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: text/event-stream
+  /api/v1/payments/razorpay/webhook:
+    post:
+      summary: Razorpay webhook (signature verified + idempotent)
+      parameters:
+        - in: header
+          name: X-Razorpay-Signature
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Processed

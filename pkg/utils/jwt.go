@@ -2,28 +2,26 @@ package utils
 
 import (
 	"errors"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"queueless/internal/models"
+	"queueless/pkg/config"
 )
-
-var jwtKey []byte
-
-func init() {
-	key := os.Getenv("JWT_SECRET")
-	if key == "" {
-		key = "fallback_secret_key_for_development_only"
-	}
-	jwtKey = []byte(key)
-}
 
 type Claims struct {
 	UserID         uint        `json:"user_id"`
 	Role           models.Role `json:"role"`
 	OrganizationID *uint       `json:"organization_id"`
 	jwt.RegisteredClaims
+}
+
+func getJWTKey() []byte {
+	key := config.Secret("JWT_SECRET")
+	if key == "" {
+		key = "fallback_secret_key_for_development_only"
+	}
+	return []byte(key)
 }
 
 func GenerateToken(user *models.User) (string, error) {
@@ -38,14 +36,17 @@ func GenerateToken(user *models.User) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtKey)
+	return token.SignedString(getJWTKey())
 }
 
 func ValidateToken(tokenString string) (*Claims, error) {
 	claims := &Claims{}
 
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
+		if token.Method == nil || token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
+			return nil, errors.New("unexpected signing method")
+		}
+		return getJWTKey(), nil
 	})
 
 	if err != nil {

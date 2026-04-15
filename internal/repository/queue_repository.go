@@ -20,6 +20,7 @@ type QueueRepository interface {
 	CalculateAverages(queueKey string) (int, int, error) // WaitTime, ServiceTime min averges
 	GetDailyCount(queueKey string) (int64, error)
 	GetPeakHours(queueKey string) (map[string]int, error)
+	GetPeakHoursByOrgRange(orgID uint, since time.Time) (map[string]int, error)
 	GetCounterAverages(queueKey string) (map[int]int, error)
 	
 	// Redis operations
@@ -35,6 +36,8 @@ type QueueRepository interface {
 	ClearQueue(queueKey string) error
 	GetActiveHistoryForUser(userID uint) (*models.QueueHistory, error)
 	GetUserHistory(userID uint) ([]models.QueueHistory, error)
+	GetHistoryByToken(tokenNumber string) (*models.QueueHistory, error)
+	ReorderToken(queueKey, tokenNumber string, score float64) error
 }
 
 type queueRepository struct {
@@ -60,7 +63,7 @@ func (r *queueRepository) UpdateHistoryStatus(tokenNumber string, status models.
 	updates := map[string]interface{}{"status": status}
 	if status == models.StatusServing {
 		updates["served_at"] = timestamp
-	} else if status == models.StatusCompleted || status == models.StatusCancelled {
+	} else if status == models.StatusCompleted || status == models.StatusCancelled || status == models.StatusNoShow {
 		updates["completed_at"] = timestamp
 	}
 	return r.db.Model(&models.QueueHistory{}).Where("token_number = ?", tokenNumber).Updates(updates).Error
@@ -141,6 +144,31 @@ func (r *queueRepository) GetPeakHours(queueKey string) (map[string]int, error) 
 		}
 	}
 	return peakMap, err
+}
+
+func (r *queueRepository) GetPeakHoursByOrgRange(orgID uint, since time.Time) (map[string]int, error) {
+	peakMap := make(map[string]int)
+
+	type result struct {
+		Bucket time.Time
+		Count  int
+	}
+	var res []result
+
+	err := r.db.Model(&models.QueueHistory{}).
+		Select("date_trunc('hour', joined_at) as bucket, count(*) as count").
+		Where("organization_id = ? AND joined_at >= ?", orgID, since).
+		Group("bucket").
+		Order("bucket asc").
+		Scan(&res).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range res {
+		peakMap[row.Bucket.UTC().Format("2006-01-02 15:00")] = row.Count
+	}
+	return peakMap, nil
 }
 
 // Redis keys
@@ -295,4 +323,19 @@ func (r *queueRepository) GetUserHistory(userID uint) ([]models.QueueHistory, er
 	var history []models.QueueHistory
 	err := r.db.Where("user_id = ?", userID).Order("joined_at DESC").Limit(50).Find(&history).Error
 	return history, err
+}
+
+func (r *queueRepository) GetHistoryByToken(tokenNumber string) (*models.QueueHistory, error) {
+	var history models.QueueHistory
+	if err := r.db.Where("token_number = ?", tokenNumber).Order("created_at desc").First(&history).Error; err != nil {
+		return nil, err
+	}
+	return &history, nil
+}
+
+func (r *queueRepository) ReorderToken(queueKey, tokenNumber string, score float64) error {
+	return r.redis.ZAdd(r.ctx, zqKey(queueKey), redisClient.Z{
+		Score:  score,
+		Member: tokenNumber,
+	}).Err()
 }

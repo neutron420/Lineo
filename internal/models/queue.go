@@ -8,9 +8,12 @@ import (
 type QueueStatus string
 
 const (
+	StatusPending   QueueStatus = "pending"
 	StatusWaiting   QueueStatus = "waiting"
+	StatusCalled    QueueStatus = "called"
 	StatusServing   QueueStatus = "serving"
 	StatusCompleted QueueStatus = "completed"
+	StatusNoShow    QueueStatus = "noshow"
 	StatusSkipped   QueueStatus = "skipped"
 	StatusHolding   QueueStatus = "holding"
 	StatusCancelled QueueStatus = "cancelled"
@@ -19,19 +22,19 @@ const (
 // Postgres model
 type QueueHistory struct {
 	ID             uint           `gorm:"primaryKey" json:"id"`
-	OrganizationID uint           `gorm:"index;not null" json:"organization_id"`
+	OrganizationID uint           `gorm:"index:idx_qh_org_joined,priority:1;index:idx_qh_org_status_joined,priority:1;not null" json:"organization_id"`
 	QueueKey       string         `gorm:"index;not null" json:"queue_key"`
-	TokenNumber    string         `gorm:"not null" json:"token_number"`
+	TokenNumber    string         `gorm:"index:idx_qh_token;not null" json:"token_number"`
 	UserID         uint           `json:"user_id"` // 0 if Kiosk Mode
 	PhoneNumber    string         `json:"phone_number"` // Fallback for Twilio / SMS
 	IsKiosk        bool           `gorm:"default:false" json:"is_kiosk"`
-	Status         QueueStatus    `gorm:"type:varchar(20)" json:"status"`
+	Status         QueueStatus    `gorm:"type:varchar(20);index:idx_qh_org_status_joined,priority:2" json:"status"`
 	Priority       bool           `gorm:"default:false" json:"priority"`
 	UserLat        float64        `json:"user_lat"`
 	UserLon        float64        `json:"user_lon"`
 	CounterNumber   int           `json:"counter_number"` 
 	ServingDuration int           `json:"serving_duration"` 
-	JoinedAt       time.Time      `json:"joined_at"`
+	JoinedAt       time.Time      `gorm:"index:idx_qh_org_joined,priority:2;index:idx_qh_org_status_joined,priority:3" json:"joined_at"`
 	ServedAt       *time.Time     `json:"served_at"`
 	CommuteNotified bool          `gorm:"default:false" json:"commute_notified"` 
 	CompletedAt    *time.Time     `json:"completed_at"`
@@ -56,13 +59,14 @@ type EnqueueKioskRequest struct {
 
 
 type QueueResponse struct {
-	TokenNumber   string    `json:"token_number"`
-	QueueKey      string    `json:"queue_key"`
-	Position      int       `json:"position"`
-	EstimatedWait int       `json:"estimated_wait_mins"`
-	IsVIP         bool      `json:"is_vip"`
-	JoinedAt      time.Time `json:"joined_at"`
-	QRCodeURL     string    `json:"qr_code_url,omitempty"`
+	TokenNumber    string    `json:"token_number"`
+	QueueKey       string    `json:"queue_key"`
+	OrganizationID uint      `json:"organization_id"`
+	Position       int       `json:"position"`
+	EstimatedWait  int       `json:"estimated_wait_mins"`
+	IsVIP          bool      `json:"is_vip"`
+	JoinedAt       time.Time `json:"joined_at"`
+	QRCodeURL      string    `json:"qr_code_url,omitempty"`
 }
 
 type QueueState struct {

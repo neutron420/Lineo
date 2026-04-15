@@ -23,8 +23,16 @@ func (h *MapHandler) SearchNearby(c *gin.Context) {
 	radiusStr := c.Query("radius")
 	orgType := c.Query("type") // hospital, bank etc.
 
-	lat, _ := strconv.ParseFloat(latStr, 64)
-	lng, _ := strconv.ParseFloat(lngStr, 64)
+	lat, err := strconv.ParseFloat(latStr, 64)
+	if err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid lat", "lat query is required")
+		return
+	}
+	lng, err := strconv.ParseFloat(lngStr, 64)
+	if err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid lng", "lng query is required")
+		return
+	}
 	radius, _ := strconv.Atoi(radiusStr)
 
 	if radius == 0 {
@@ -47,8 +55,16 @@ func (h *MapHandler) GetAddress(c *gin.Context) {
 	latStr := c.Query("lat")
 	lngStr := c.Query("lng")
 
-	lat, _ := strconv.ParseFloat(latStr, 64)
-	lng, _ := strconv.ParseFloat(lngStr, 64)
+	lat, err := strconv.ParseFloat(latStr, 64)
+	if err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid lat", "lat query is required")
+		return
+	}
+	lng, err := strconv.ParseFloat(lngStr, 64)
+	if err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid lng", "lng query is required")
+		return
+	}
 
 	address, err := h.mapService.GetAddress(lat, lng)
 	if err != nil {

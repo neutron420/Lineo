@@ -10,6 +10,7 @@ type AppointmentStatus string
 const (
 	ApptScheduled AppointmentStatus = "scheduled"
 	ApptCheckedIn AppointmentStatus = "checked_in"
+	ApptCompleted AppointmentStatus = "completed"
 	ApptNoShow    AppointmentStatus = "no_show"
 	ApptCancelled AppointmentStatus = "cancelled"
 )

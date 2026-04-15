@@ -5,15 +5,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"queueless/internal/models"
 	"queueless/internal/repository"
 	"queueless/pkg/db"
+	"queueless/pkg/config"
 	"queueless/pkg/utils"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -35,7 +35,7 @@ func NewAuthService(repo repository.UserRepository) AuthService {
 }
 
 func (s *authService) RegisterUser(req models.RegisterRequest) (*models.User, error) {
-	if os.Getenv("TURNSTILE_SECRET_KEY") != "" {
+	if config.Secret("TURNSTILE_SECRET_KEY") != "" {
 		if req.TurnstileToken == "" {
 			return nil, errors.New("captcha token is required")
 		}
@@ -59,16 +59,12 @@ func (s *authService) RegisterUser(req models.RegisterRequest) (*models.User, er
 		PhoneNumber:    req.PhoneNumber,
 	}
 
-	if req.Email == "admin@queueless.com" {
-		user.Role = models.RoleAdmin
-	}
-
 	err = s.userRepo.CreateUser(user)
 	return user, err
 }
 
 func (s *authService) LoginUser(req models.LoginRequest) (string, *models.User, error) {
-	if os.Getenv("TURNSTILE_SECRET_KEY") != "" {
+	if config.Secret("TURNSTILE_SECRET_KEY") != "" {
 		if req.TurnstileToken == "" {
 			return "", nil, errors.New("captcha token is required")
 		}
@@ -100,7 +96,7 @@ func (s *authService) ForgotPassword(email string) error {
 	user.ResetTokenExp = &exp
 
 	db.DB.Save(user)
-	log.Printf("[EMAIL SENT] Reset Token for %s: %s\n", email, resetToken)
+	slog.Info("password reset token generated", "email", email)
 	return nil
 }
 
@@ -120,7 +116,7 @@ func (s *authService) ResetPassword(token, newPass string) error {
 }
 
 func (s *authService) VerifyTurnstile(token string) bool {
-	secret := os.Getenv("TURNSTILE_SECRET_KEY")
+	secret := config.Secret("TURNSTILE_SECRET_KEY")
 	if secret == "" {
 		return true // Skip for dev if no secret
 	}
@@ -132,7 +128,7 @@ func (s *authService) VerifyTurnstile(token string) bool {
 
 	resp, err := http.PostForm(verifyURL, data)
 	if err != nil {
-		log.Printf("Turnstile API error: %v", err)
+		slog.Error("turnstile api error", "error", err)
 		return false
 	}
 	defer resp.Body.Close()

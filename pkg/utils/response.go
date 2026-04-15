@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"fmt"
+	"log/slog"
 	"net/http"
 	"github.com/gin-gonic/gin"
 )
@@ -28,7 +28,7 @@ func RespondError(c *gin.Context, statusCode int, err string, message string) {
 func RespondServerError(c *gin.Context, internalErr error) {
 	// Log the actual error for staff eyes
 	if internalErr != nil {
-		fmt.Printf("[SERVER ERROR DEBUG] %v\n", internalErr)
+		slog.Error("internal server error", "error", internalErr)
 	}
 
 	c.JSON(http.StatusInternalServerError, ErrorResponse{

@@ -1,7 +1,11 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"queueless/internal/models"
@@ -26,9 +30,7 @@ func (h *QueueHandler) Enqueue(c *gin.Context) {
 
 	userID := c.MustGet("userID").(uint)
 	role := c.MustGet("role").(models.Role)
-	username := "user" // Dynamic in a real app
-	
-	// Ensure that ONLY admins can set Priority flags
+	username := "user"
 	if role != models.RoleAdmin {
 		req.Priority = false
 	}
@@ -88,7 +90,6 @@ func (h *QueueHandler) GetActiveTicket(c *gin.Context) {
 
 	resp, err := h.queueService.GetActiveTicket(userID)
 	if err != nil {
-		// Instead of 404, we return null to keep the frontend clean
 		utils.RespondSuccess(c, http.StatusOK, "No active ticket found", nil)
 		return
 	}
@@ -105,8 +106,6 @@ func (h *QueueHandler) GetUserHistory(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusOK, "User history fetched", history)
 }
 
-
-// User Actions
 func (h *QueueHandler) CancelTicket(c *gin.Context) {
 	queueKey := c.Param("key")
 	tokenNumber := c.Param("token")
@@ -120,7 +119,6 @@ func (h *QueueHandler) CancelTicket(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusOK, "Ticket cancelled", nil)
 }
 
-// Below are Admin specific logic handling
 func getOrgID(c *gin.Context) (uint, bool) {
 	orgIDRaw, exists := c.Get("organizationID")
 	if !exists || orgIDRaw == nil {
@@ -138,10 +136,11 @@ func getOrgID(c *gin.Context) (uint, bool) {
 func (h *QueueHandler) CallNext(c *gin.Context) {
 	queueKey := c.Param("key")
 	orgID, ok := getOrgID(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 
 	agentID := c.MustGet("userID").(uint)
-
 	entry, err := h.queueService.CallNext(queueKey, orgID, agentID)
 	if err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to call next", err.Error())
@@ -153,7 +152,9 @@ func (h *QueueHandler) CallNext(c *gin.Context) {
 func (h *QueueHandler) MarkHolding(c *gin.Context) {
 	queueKey := c.Param("key")
 	orgID, ok := getOrgID(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 
 	err := h.queueService.MarkHolding(queueKey, orgID)
 	if err != nil {
@@ -166,7 +167,9 @@ func (h *QueueHandler) MarkHolding(c *gin.Context) {
 func (h *QueueHandler) PauseQueue(c *gin.Context) {
 	queueKey := c.Param("key")
 	orgID, ok := getOrgID(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 
 	var req struct {
 		IsPaused bool `json:"is_paused"`
@@ -187,7 +190,9 @@ func (h *QueueHandler) PauseQueue(c *gin.Context) {
 func (h *QueueHandler) GetAnalytics(c *gin.Context) {
 	queueKey := c.Param("key")
 	orgID, ok := getOrgID(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 
 	data, err := h.queueService.GetAnalytics(queueKey, orgID)
 	if err != nil {
@@ -195,4 +200,120 @@ func (h *QueueHandler) GetAnalytics(c *gin.Context) {
 		return
 	}
 	utils.RespondSuccess(c, http.StatusOK, "Analytics metrics fetched", data)
+}
+
+func (h *QueueHandler) MarkNoShow(c *gin.Context) {
+	queueKey := c.Param("key")
+	tokenNumber := c.Param("token")
+	actorID := c.MustGet("userID").(uint)
+	orgID, ok := getOrgID(c)
+	if !ok {
+		return
+	}
+
+	if err := h.queueService.MarkNoShow(queueKey, tokenNumber, orgID, actorID); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Failed to mark no-show", err.Error())
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, "Ticket marked as no-show", map[string]string{
+		"queue_key":    queueKey,
+		"token_number": tokenNumber,
+	})
+}
+
+func (h *QueueHandler) ReorderQueue(c *gin.Context) {
+	queueKey := c.Param("key")
+	orgID, ok := getOrgID(c)
+	if !ok {
+		return
+	}
+	actorID := c.MustGet("userID").(uint)
+
+	var req struct {
+		TokenNumber string `json:"token_number" binding:"required"`
+		Position    int    `json:"position" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := h.queueService.ReorderPriority(queueKey, req.TokenNumber, req.Position, orgID, actorID); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Failed to reorder queue", err.Error())
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, "Queue priority reordered", req)
+}
+
+func (h *QueueHandler) PeakHours(c *gin.Context) {
+	orgID, ok := getOrgID(c)
+	if !ok {
+		return
+	}
+
+	orgIDRaw := c.Query("org_id")
+	if orgIDRaw == "" {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid org_id", "org_id query is required")
+		return
+	}
+	parsed, err := strconv.ParseUint(orgIDRaw, 10, 64)
+	if err != nil || uint(parsed) != orgID {
+		utils.RespondError(c, http.StatusForbidden, "Forbidden", "org_id mismatch")
+		return
+	}
+
+	rangeExpr := c.DefaultQuery("range", "7d")
+	data, err := h.queueService.GetPeakHoursByOrg(orgID, rangeExpr)
+	if err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Failed to fetch peak hours", err.Error())
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, "Peak hours", data)
+}
+
+func (h *QueueHandler) StreamTicketStatus(c *gin.Context) {
+	tokenNumber := c.Param("id")
+
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	flusher, ok := c.Writer.(http.Flusher)
+	if !ok {
+		utils.RespondError(c, http.StatusInternalServerError, "Streaming unsupported", "flusher not available")
+		return
+	}
+
+	send := func() error {
+		status, err := h.queueService.GetTicketStatus(tokenNumber)
+		if err != nil {
+			return err
+		}
+		body, err := json.Marshal(status)
+		if err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintf(c.Writer, "event: status\\ndata: %s\\n\\n", body)
+		flusher.Flush()
+		return nil
+	}
+
+	_ = send()
+
+	for {
+		select {
+		case <-c.Request.Context().Done():
+			return
+		case <-ticker.C:
+			if err := send(); err != nil {
+				_, _ = fmt.Fprintf(c.Writer, "event: error\\ndata: {\"message\":\"%s\"}\\n\\n", err.Error())
+				flusher.Flush()
+				return
+			}
+		}
+	}
 }

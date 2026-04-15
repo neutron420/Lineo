@@ -1,11 +1,12 @@
 package utils
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
+
+	"queueless/pkg/config"
 )
 
 func SendSMS(to string, message string) {
@@ -13,12 +14,12 @@ func SendSMS(to string, message string) {
 		return 
 	}
 
-	accountSid := os.Getenv("TWILIO_ACCOUNT_SID")
-	authToken := os.Getenv("TWILIO_AUTH_TOKEN")
-	fromNumber := os.Getenv("TWILIO_PHONE_NUMBER")
+	accountSid := config.Secret("TWILIO_ACCOUNT_SID")
+	authToken := config.Secret("TWILIO_AUTH_TOKEN")
+	fromNumber := config.Secret("TWILIO_PHONE_NUMBER")
 	
 	if accountSid == "" || authToken == "" || fromNumber == "" {
-		log.Printf("[MOCK Twilio SMS Sent] To: %s -> Message: %s\n", to, message)
+		slog.Info("mock twilio sms sent", "to", to)
 		return
 	}
 
@@ -32,7 +33,7 @@ func SendSMS(to string, message string) {
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", apiURL, strings.NewReader(data.Encode()))
 	if err != nil {
-		log.Println("Error creating Twilio request:", err)
+		slog.Error("error creating twilio request", "error", err)
 		return
 	}
 
@@ -42,14 +43,14 @@ func SendSMS(to string, message string) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("Failed to send Twilio SMS:", err)
+		slog.Error("failed to send twilio sms", "error", err, "to", to)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		log.Printf("[LIVE Twilio SMS Sent] Successfully sent to %s\n", to)
+		slog.Info("twilio sms sent", "to", to)
 	} else {
-		log.Printf("[Twilio Error] Failed to send SMS, status code: %d\n", resp.StatusCode)
+		slog.Warn("twilio sms failed", "status_code", resp.StatusCode, "to", to)
 	}
 }

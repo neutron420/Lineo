@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"gorm.io/gorm"
 	"queueless/internal/models"
 	database "queueless/pkg/db"
@@ -13,6 +14,10 @@ type OrganizationRepository interface {
 	GetQueueDefByKey(key string) (*models.QueueDef, error)
 	UpdateQueueDefPause(key string, isPaused bool) error
 	GetNearbyOrgs(lat, lng float64, radius float64) ([]models.Organization, error)
+	GetOrCreateOrgConfig(orgID uint) (*models.OrganizationConfig, error)
+	CreateOrgConfig(orgID uint, req models.OrganizationConfigRequest) (*models.OrganizationConfig, error)
+	UpdateOrgConfig(orgID uint, req models.OrganizationConfigRequest) (*models.OrganizationConfig, error)
+	DeleteOrgConfig(orgID uint) error
 }
 
 func (r *organizationRepository) GetNearbyOrgs(lat, lng float64, radius float64) ([]models.Organization, error) {
@@ -62,4 +67,107 @@ func (r *organizationRepository) GetQueueDefByKey(key string) (*models.QueueDef,
 
 func (r *organizationRepository) UpdateQueueDefPause(key string, isPaused bool) error {
 	return r.db.Model(&models.QueueDef{}).Where("queue_key = ?", key).Update("is_paused", isPaused).Error
+}
+
+func (r *organizationRepository) GetOrCreateOrgConfig(orgID uint) (*models.OrganizationConfig, error) {
+	var cfg models.OrganizationConfig
+	err := r.db.Where("org_id = ?", orgID).First(&cfg).Error
+	if err == nil {
+		return &cfg, nil
+	}
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+
+	cfg = models.OrganizationConfig{
+		OrgID:                orgID,
+		MaxQueueSize:         200,
+		SlotDurationMinutes:  15,
+		GracePeriodMinutes:   10,
+		GeofenceRadiusMeters: 1000,
+	}
+	if err := r.db.Create(&cfg).Error; err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (r *organizationRepository) UpdateOrgConfig(orgID uint, req models.OrganizationConfigRequest) (*models.OrganizationConfig, error) {
+	cfg, err := r.GetOrCreateOrgConfig(orgID)
+	if err != nil {
+		return nil, err
+	}
+
+	updates := map[string]interface{}{}
+	if req.MaxQueueSize > 0 {
+		updates["max_queue_size"] = req.MaxQueueSize
+	}
+	if req.SlotDurationMinutes > 0 {
+		updates["slot_duration_minutes"] = req.SlotDurationMinutes
+	}
+	if req.GracePeriodMinutes > 0 {
+		updates["grace_period_minutes"] = req.GracePeriodMinutes
+	}
+	if len(req.OperatingHoursJSON) > 0 {
+		updates["operating_hours_json"] = req.OperatingHoursJSON
+	}
+	if req.GeofenceRadiusMeters > 0 {
+		updates["geofence_radius_meters"] = req.GeofenceRadiusMeters
+	}
+
+	if len(updates) == 0 {
+		return cfg, nil
+	}
+
+	if err := r.db.Model(cfg).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.Where("org_id = ?", orgID).First(cfg).Error; err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+func (r *organizationRepository) CreateOrgConfig(orgID uint, req models.OrganizationConfigRequest) (*models.OrganizationConfig, error) {
+	var existing models.OrganizationConfig
+	err := r.db.Where("org_id = ?", orgID).First(&existing).Error
+	if err == nil {
+		return nil, errors.New("organization config already exists")
+	}
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+
+	cfg := models.OrganizationConfig{
+		OrgID:                orgID,
+		MaxQueueSize:         req.MaxQueueSize,
+		SlotDurationMinutes:  req.SlotDurationMinutes,
+		GracePeriodMinutes:   req.GracePeriodMinutes,
+		OperatingHoursJSON:   req.OperatingHoursJSON,
+		GeofenceRadiusMeters: req.GeofenceRadiusMeters,
+	}
+	if cfg.MaxQueueSize <= 0 {
+		cfg.MaxQueueSize = 200
+	}
+	if cfg.SlotDurationMinutes <= 0 {
+		cfg.SlotDurationMinutes = 15
+	}
+	if cfg.GracePeriodMinutes <= 0 {
+		cfg.GracePeriodMinutes = 10
+	}
+	if cfg.GeofenceRadiusMeters <= 0 {
+		cfg.GeofenceRadiusMeters = 1000
+	}
+	if cfg.OperatingHoursJSON == "" {
+		cfg.OperatingHoursJSON = "{}"
+	}
+
+	if err := r.db.Create(&cfg).Error; err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (r *organizationRepository) DeleteOrgConfig(orgID uint) error {
+	return r.db.Where("org_id = ?", orgID).Delete(&models.OrganizationConfig{}).Error
 }

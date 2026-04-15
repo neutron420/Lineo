@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 
 	"queueless/internal/models"
+	"queueless/pkg/config"
 )
 
 type GoogleMapsClient struct {
@@ -15,7 +15,7 @@ type GoogleMapsClient struct {
 
 func NewGoogleMapsClient() *GoogleMapsClient {
 	return &GoogleMapsClient{
-		APIKey: os.Getenv("GOOGLE_API_KEY"),
+		APIKey: config.Secret("GOOGLE_API_KEY"),
 	}
 }
 
@@ -172,4 +172,3 @@ func (g *GoogleMapsClient) GetDistanceMatrix(originLat, originLng, destLat, dest
 		DurationSec:  el.DurationInTraffic.Value,
 	}, nil
 }
-

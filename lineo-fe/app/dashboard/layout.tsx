@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { motion } from "framer-motion";
 import { LocationProvider, useLocation } from "@/context/LocationContext";
+import { SocketProvider } from "@/context/SocketContext";
 import { NotificationCenter } from "@/components/NotificationCenter";
 
 function GlobalHeader() {
@@ -117,78 +118,21 @@ export default function DashboardLayout({
 
   return (
     <LocationProvider>
-      <div className="min-h-screen bg-[#f6f9fc] flex transition-all duration-300 font-sans selection:bg-stripe-purple/10 selection:text-stripe-purple">
-        <Toaster position="top-right" expand={true} richColors closeButton />
-        
-        {/* Sidebar */}
-        <aside className={cn(
-          "bg-white border-r border-stripe-border hidden md:flex flex-col sticky top-0 h-screen transition-all duration-300 z-40 shadow-sm",
-          isCollapsed ? "w-20" : "w-72"
-        )}>
-          {/* ... sidebar content remains the same ... */}
-          <div className={cn(
-            "p-6 border-b border-stripe-border flex items-center gap-4 transition-all",
-            isCollapsed ? "justify-center px-2" : "justify-start"
-          )}>
-            <div className="w-10 h-10 bg-stripe-purple rounded-[12px] flex items-center justify-center shadow-lg shadow-stripe-purple/20 shrink-0">
-              <span className="text-white font-bold text-2xl uppercase tracking-tighter">L</span>
-            </div>
-            {!isCollapsed && (
-              <span className="text-[24px] font-bold text-stripe-navy tracking-tight">Lineo<span className="text-stripe-purple">.ai</span></span>
-            )}
+      <SocketProvider>
+        <div className="min-h-screen bg-[#f6f9fc] flex transition-all duration-300 font-sans selection:bg-stripe-purple/10 selection:text-stripe-purple">
+          <Toaster position="top-right" expand={true} richColors closeButton />
+          
+          {/* ... sidebars and main content ... */}
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <GlobalHeader />
+
+            <main className="flex-1 p-8 lg:p-14 w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 custom-scrollbar overflow-y-auto">
+              {children}
+            </main>
           </div>
-
-          <nav className="flex-1 p-4 space-y-2 mt-4 overflow-y-auto custom-scrollbar">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-300 group relative",
-                    isActive
-                      ? "bg-stripe-purple text-white shadow-xl shadow-stripe-purple/20 font-bold"
-                      : "text-stripe-slate hover:bg-[#f6f9fc] hover:text-stripe-purple"
-                  )}
-                >
-                  <item.icon className={cn(
-                    "w-5 h-5 transition-transform duration-300",
-                    isActive ? "text-white scale-110" : "text-stripe-slate group-hover:text-stripe-purple group-hover:scale-110"
-                  )} />
-                  {!isCollapsed && <span className="text-[15px]">{item.name}</span>}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="p-4 border-t border-stripe-border space-y-2 bg-[#fcfdfe]">
-            <button
-               onClick={() => setIsCollapsed(!isCollapsed)}
-               className="flex items-center gap-4 px-5 py-4 w-full rounded-2xl text-stripe-slate hover:bg-[#f6f9fc] hover:text-stripe-navy transition-all duration-200 group"
-            >
-               <div className="shrink-0">{isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}</div>
-               {!isCollapsed && <span className="text-[14px] font-bold">Collapse</span>}
-            </button>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-4 px-5 py-4 w-full rounded-2xl text-stripe-slate hover:bg-red-50 hover:text-red-600 transition-all duration-200 group"
-            >
-              <LogOut className="w-5 h-5 shrink-0" />
-              {!isCollapsed && <span className="text-[15px] font-bold">Sign out</span>}
-            </button>
-          </div>
-        </aside>
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <GlobalHeader />
-
-          <main className="flex-1 p-8 lg:p-14 w-full animate-in fade-in slide-in-from-bottom-4 duration-1000 custom-scrollbar overflow-y-auto">
-            {children}
-          </main>
         </div>
-      </div>
+      </SocketProvider>
     </LocationProvider>
   );
 }

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"queueless/internal/models"
 	"queueless/internal/service"
 	"queueless/pkg/utils"
 )
@@ -65,4 +66,81 @@ func (h *OrgHandler) CreateQueue(c *gin.Context) {
 	}
 
 	utils.RespondSuccess(c, http.StatusCreated, "Queue created for organization", q)
+}
+
+func (h *OrgHandler) GetOrgConfig(c *gin.Context) {
+	orgID, exists := c.Get("organizationID")
+	if !exists || orgID == nil {
+		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
+		return
+	}
+
+	idPtr := orgID.(*uint)
+	cfg, err := h.orgService.GetOrgConfig(*idPtr)
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to fetch config", err.Error())
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, "Organization config fetched", cfg)
+}
+
+func (h *OrgHandler) UpsertOrgConfig(c *gin.Context) {
+	orgID, exists := c.Get("organizationID")
+	if !exists || orgID == nil {
+		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
+		return
+	}
+
+	var req models.OrganizationConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	idPtr := orgID.(*uint)
+	cfg, err := h.orgService.UpdateOrgConfig(*idPtr, req)
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to update config", err.Error())
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, "Organization config updated", cfg)
+}
+
+func (h *OrgHandler) CreateOrgConfig(c *gin.Context) {
+	orgID, exists := c.Get("organizationID")
+	if !exists || orgID == nil {
+		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
+		return
+	}
+
+	var req models.OrganizationConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	idPtr := orgID.(*uint)
+	cfg, err := h.orgService.CreateOrgConfig(*idPtr, req)
+	if err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Failed to create config", err.Error())
+		return
+	}
+	utils.RespondSuccess(c, http.StatusCreated, "Organization config created", cfg)
+}
+
+func (h *OrgHandler) DeleteOrgConfig(c *gin.Context) {
+	orgID, exists := c.Get("organizationID")
+	if !exists || orgID == nil {
+		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
+		return
+	}
+
+	idPtr := orgID.(*uint)
+	if err := h.orgService.DeleteOrgConfig(*idPtr); err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to delete config", err.Error())
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, "Organization config deleted", nil)
 }

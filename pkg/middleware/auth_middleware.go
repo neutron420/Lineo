@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -40,16 +40,38 @@ func AuthMiddleware() gin.HandlerFunc {
 }
 
 func AdminMiddleware() gin.HandlerFunc {
+	return RequireRoles(models.RoleAdmin)
+}
+
+func AgentMiddleware() gin.HandlerFunc {
+	return RequireRoles(models.RoleAgent)
+}
+
+func StaffMiddleware() gin.HandlerFunc {
+	return RequireRoles(models.RoleAdmin, models.RoleAgent)
+}
+
+func RequireRoles(allowed ...models.Role) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		role, exists := c.Get("role")
+		roleRaw, exists := c.Get("role")
 		if !exists {
 			utils.RespondError(c, http.StatusForbidden, "Forbidden", "Role not found")
 			return
 		}
 
-		if role.(models.Role) != models.RoleAdmin {
-			log.Println("Admin error: user role is", role)
-			utils.RespondError(c, http.StatusForbidden, "Forbidden", "Requires admin privileges")
+		role, ok := roleRaw.(models.Role)
+		if !ok {
+			utils.RespondError(c, http.StatusForbidden, "Forbidden", "Invalid role in token")
+			return
+		}
+
+		allowedSet := make(map[models.Role]struct{}, len(allowed))
+		for _, r := range allowed {
+			allowedSet[r] = struct{}{}
+		}
+		if _, ok := allowedSet[role]; !ok {
+			slog.Warn("role middleware denied user", "role", role, "allowed_roles", allowed)
+			utils.RespondError(c, http.StatusForbidden, "Forbidden", "Insufficient role permissions")
 			return
 		}
 

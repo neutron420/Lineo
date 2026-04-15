@@ -2,19 +2,20 @@ package redis
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os"
 
 	redis "github.com/redis/go-redis/v9"
+	"queueless/pkg/config"
 )
 
 var Client *redis.Client
 var Ctx = context.Background()
 
 func InitRedis() {
-	redisHost := os.Getenv("REDIS_HOST")
-	redisPort := os.Getenv("REDIS_PORT")
-	redisPassword := os.Getenv("REDIS_PASSWORD")
+	redisHost := config.Secret("REDIS_HOST")
+	redisPort := config.Secret("REDIS_PORT")
+	redisPassword := config.Secret("REDIS_PASSWORD")
 
 	Client = redis.NewClient(&redis.Options{
 		Addr:     redisHost + ":" + redisPort,
@@ -23,14 +24,22 @@ func InitRedis() {
 	})
 
 	if err := Client.Ping(Ctx).Err(); err != nil {
-		log.Fatalf("Failed to connect to Redis: %v", err)
+		slog.Error("failed to connect to redis", "error", err)
+		os.Exit(1)
 	}
 
-	log.Println("Redis connection established")
+	slog.Info("redis connection established")
 }
 
 func CloseRedis() {
-	log.Println("Closing Redis connections...")
-	Client.Close()
+	slog.Info("closing redis connections")
+	_ = Client.Close()
 }
 
+func FlushPipeline() {
+	if Client == nil {
+		return
+	}
+	pipe := Client.Pipeline()
+	_, _ = pipe.Exec(Ctx)
+}

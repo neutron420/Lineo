@@ -38,9 +38,11 @@ import api from "@/lib/api";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useLocation } from "@/context/LocationContext";
+import { useSocket } from "@/context/SocketContext";
 
 export default function UserDashboard() {
   const { coords, address: locationName, pincode, refreshLocation } = useLocation();
+  const { isConnected, subscribe, unsubscribe } = useSocket();
   const [activeToken, setActiveToken] = useState<any>(null);
   const [nearbyOrgs, setNearbyOrgs] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -69,9 +71,38 @@ export default function UserDashboard() {
     }
 
     fetchData();
-    const interval = setInterval(() => fetchData(true), 5000);
-    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (activeToken?.organization_id) {
+       subscribe(activeToken.organization_id, (data) => {
+          // data.state is the new QueueState
+          // data.event is the QueueEvent
+          if (data.event?.token_number === activeToken.token_number) {
+             const newPos = data.state?.waiting_list?.findIndex((e: any) => e.token_number === activeToken.token_number);
+             const isServing = data.state?.currently_serving?.token_number === activeToken.token_number;
+             
+             setActiveToken((prev: any) => ({
+                ...prev,
+                position: isServing ? 0 : (newPos !== -1 ? newPos + 1 : prev.position),
+                status: isServing ? 'serving' : (newPos !== -1 ? 'waiting' : prev.status)
+             }));
+             
+             if (isServing) {
+                toast.success("It's your turn!", {
+                   description: "Please proceed to the counter.",
+                   duration: 10000,
+                   icon: <Zap className="w-4 h-4 text-stripe-purple" />
+                });
+             }
+          } else {
+             // Just refresh to be safe if it's a general queue update
+             fetchData(true);
+          }
+       });
+       return () => unsubscribe(activeToken.organization_id);
+    }
+  }, [activeToken?.token_number, activeToken?.organization_id]);
 
   useEffect(() => {
     fetchNearby();
@@ -184,7 +215,13 @@ export default function UserDashboard() {
                </span>
              )}
              <span className="w-1 h-1 rounded-full bg-stripe-border mx-1" />
-             <p className="text-stripe-slate text-sm font-bold uppercase tracking-widest">Real-time Node</p>
+             <p className="text-stripe-slate text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+               Real-time Node
+               <span className={cn(
+                 "w-2 h-2 rounded-full",
+                 isConnected ? "bg-green-500 animate-pulse" : "bg-red-400"
+               )} />
+             </p>
           </div>
         </div>
         <div className="flex items-center gap-4">
