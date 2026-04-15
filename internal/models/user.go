@@ -10,7 +10,7 @@ type Role string
 const (
 	RoleUser  Role = "user"
 	RoleAdmin Role = "admin" // Boss Admin
-	RoleAgent Role = "agent" // Counter staff member
+	RoleStaff Role = "staff" // Counter staff member
 )
 
 type User struct {
@@ -56,6 +56,7 @@ type RegisterRequest struct {
 	PhoneNumber    string `json:"phone_number"`
 	OrganizationID *uint  `json:"organization_id"`
 	TurnstileToken string `json:"turnstile_token"`
+	CounterNumber  int    `json:"counter_number"`
 }
 
 type TokenResponse struct {

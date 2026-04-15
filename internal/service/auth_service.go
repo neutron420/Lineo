@@ -24,6 +24,7 @@ type AuthService interface {
 	ForgotPassword(email string) error
 	ResetPassword(token, newPass string) error
 	VerifyTurnstile(token string) bool
+	AddStaff(adminOrgID uint, req models.RegisterRequest) (*models.User, error)
 }
 
 type authService struct {
@@ -141,4 +142,26 @@ func (s *authService) VerifyTurnstile(token string) bool {
 	}
 
 	return result.Success
+}
+
+func (s *authService) AddStaff(adminOrgID uint, req models.RegisterRequest) (*models.User, error) {
+	existingUser, _ := s.userRepo.GetUserByEmail(req.Email)
+	if existingUser != nil {
+		return nil, errors.New("email already registered")
+	}
+
+	hashed, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+
+	user := &models.User{
+		Username:       req.Username,
+		Email:          req.Email,
+		Password:       string(hashed),
+		Role:           models.RoleStaff,
+		OrganizationID: &adminOrgID,
+		PhoneNumber:    req.PhoneNumber,
+		CounterNumber:  req.CounterNumber,
+	}
+
+	err := s.userRepo.CreateUser(user)
+	return user, err
 }

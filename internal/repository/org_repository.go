@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"time"
 	"gorm.io/gorm"
 	"queueless/internal/models"
 	database "queueless/pkg/db"
@@ -18,18 +19,26 @@ type OrganizationRepository interface {
 	CreateOrgConfig(orgID uint, req models.OrganizationConfigRequest) (*models.OrganizationConfig, error)
 	UpdateOrgConfig(orgID uint, req models.OrganizationConfigRequest) (*models.OrganizationConfig, error)
 	DeleteOrgConfig(orgID uint) error
+	GetQueueCountByOrg(orgID uint) (int, error)
+	UpdateSubscription(orgID uint, plan string, expiry *time.Time) error
+}
+
+func (r *organizationRepository) GetQueueCountByOrg(orgID uint) (int, error) {
+	var count int64
+	err := r.db.Model(&models.QueueDef{}).Where("organization_id = ?", orgID).Count(&count).Error
+	return int(count), err
 }
 
 func (r *organizationRepository) GetNearbyOrgs(lat, lng float64, radius float64) ([]models.Organization, error) {
 	var orgs []models.Organization
 	// Approximate 1km = 0.01 degrees for bounding box
 	deg := (radius / 1000.0) * 0.01
-	
+
 	err := r.db.Preload("Queues").
 		Where("latitude BETWEEN ? AND ?", lat-deg, lat+deg).
 		Where("longitude BETWEEN ? AND ?", lng-deg, lng+deg).
 		Find(&orgs).Error
-		
+
 	return orgs, err
 }
 
@@ -170,4 +179,12 @@ func (r *organizationRepository) CreateOrgConfig(orgID uint, req models.Organiza
 
 func (r *organizationRepository) DeleteOrgConfig(orgID uint) error {
 	return r.db.Where("org_id = ?", orgID).Delete(&models.OrganizationConfig{}).Error
+}
+
+func (r *organizationRepository) UpdateSubscription(orgID uint, plan string, expiry *time.Time) error {
+	return r.db.Model(&models.Organization{}).Where("id = ?", orgID).Updates(map[string]interface{}{
+		"subscription_status": plan,
+		"subscription_expiry": expiry,
+		"is_verified":         plan != "free", // Auto-verify if they pay? Or just separate. Let's keep separate for now.
+	}).Error
 }

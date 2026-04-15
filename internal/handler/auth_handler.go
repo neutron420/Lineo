@@ -84,3 +84,26 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusOK, "Password reset successfully. You can now login.", nil)
 }
 
+func (h *AuthHandler) AddStaff(c *gin.Context) {
+	orgID, exists := c.Get("organizationID")
+	if !exists || orgID == nil {
+		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
+		return
+	}
+
+	var req models.RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	idPtr := orgID.(*uint)
+	user, err := h.authService.AddStaff(*idPtr, req)
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to add staff", err.Error())
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusCreated, "Staff member added successfully", user)
+}
+

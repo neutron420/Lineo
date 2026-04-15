@@ -183,6 +183,8 @@ func main() {
 				admin.GET("/config", orgHandler.GetOrgConfig)
 				admin.PUT("/config", orgHandler.UpsertOrgConfig)
 				admin.DELETE("/config", orgHandler.DeleteOrgConfig)
+				admin.POST("/upgrade-plan", orgHandler.UpgradePlan)
+				admin.POST("/staff", authHandler.AddStaff)
 				admin.GET("/feedback", feedbackHandler.GetByOrg)
 			}
 		}

@@ -108,6 +108,24 @@ func (s *queueService) Enqueue(userID uint, username string, req models.EnqueueR
 		}
 	}
 
+	if org.SubscriptionExpiry != nil && time.Now().After(*org.SubscriptionExpiry) {
+		return nil, errors.New("organization subscription has expired. please contact administrator")
+	}
+
+	dailyCount, err := s.repo.GetDailyTicketCountByOrg(queueDef.OrganizationID)
+	if err == nil {
+		limit := 30 // Default for free
+		if org.SubscriptionStatus == "pro" {
+			limit = 1000000 // Effectively unlimited
+		} else if org.SubscriptionStatus == "enterprise" {
+			limit = 10000000
+		}
+
+		if dailyCount >= limit {
+			return nil, fmt.Errorf("daily ticket limit reached for %s plan (%d). please upgrade for more", org.SubscriptionStatus, limit)
+		}
+	}
+
 	if queueDef.IsPaused {
 		return nil, errors.New("queue is currently paused")
 	}

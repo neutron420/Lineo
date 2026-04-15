@@ -144,3 +144,28 @@ func (h *OrgHandler) DeleteOrgConfig(c *gin.Context) {
 	}
 	utils.RespondSuccess(c, http.StatusOK, "Organization config deleted", nil)
 }
+
+func (h *OrgHandler) UpgradePlan(c *gin.Context) {
+	orgID, exists := c.Get("organizationID")
+	if !exists || orgID == nil {
+		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
+		return
+	}
+
+	var req struct {
+		Plan   string `json:"plan" binding:"required"`
+		Months int    `json:"months" binding:"required,min=1"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	idPtr := orgID.(*uint)
+	if err := h.orgService.UpgradePlan(*idPtr, req.Plan, req.Months); err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to upgrade plan", err.Error())
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, "Subscription upgraded successfully", gin.H{"plan": req.Plan})
+}

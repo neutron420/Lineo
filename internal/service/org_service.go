@@ -1,8 +1,10 @@
 package service
 
 import (
+	"fmt"
 	"queueless/internal/models"
 	"queueless/internal/repository"
+	"time"
 )
 
 type OrganizationService interface {
@@ -12,6 +14,7 @@ type OrganizationService interface {
 	CreateOrgConfig(orgID uint, req models.OrganizationConfigRequest) (*models.OrganizationConfig, error)
 	UpdateOrgConfig(orgID uint, req models.OrganizationConfigRequest) (*models.OrganizationConfig, error)
 	DeleteOrgConfig(orgID uint) error
+	UpgradePlan(orgID uint, plan string, months int) error
 }
 
 type organizationService struct {
@@ -33,12 +36,32 @@ func (s *organizationService) CreateOrganization(name, orgType, address string) 
 }
 
 func (s *organizationService) CreateQueueForOrg(orgID uint, name, queueKey string) (*models.QueueDef, error) {
+	org, err := s.orgRepo.GetOrganizationByID(orgID)
+	if err != nil {
+		return nil, err
+	}
+
+	queueCount, err := s.orgRepo.GetQueueCountByOrg(orgID)
+	if err == nil {
+		limit := 1 // Default for free
+		switch org.SubscriptionStatus {
+case "pro":
+			limit = 5
+		case "enterprise":
+			limit = 100
+		}
+
+		if queueCount >= limit {
+			return nil, fmt.Errorf("queue limit reached for %s plan (%d). please upgrade to create more queues", org.SubscriptionStatus, limit)
+		}
+	}
+
 	def := &models.QueueDef{
 		OrganizationID: orgID,
 		Name:           name,
 		QueueKey:       queueKey,
 	}
-	err := s.orgRepo.CreateQueueDef(def)
+	err = s.orgRepo.CreateQueueDef(def)
 	return def, err
 }
 
@@ -56,4 +79,9 @@ func (s *organizationService) UpdateOrgConfig(orgID uint, req models.Organizatio
 
 func (s *organizationService) DeleteOrgConfig(orgID uint) error {
 	return s.orgRepo.DeleteOrgConfig(orgID)
+}
+
+func (s *organizationService) UpgradePlan(orgID uint, plan string, months int) error {
+	expiry := time.Now().AddDate(0, months, 0)
+	return s.orgRepo.UpdateSubscription(orgID, plan, &expiry)
 }

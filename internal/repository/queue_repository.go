@@ -22,6 +22,7 @@ type QueueRepository interface {
 	GetPeakHours(queueKey string) (map[string]int, error)
 	GetPeakHoursByOrgRange(orgID uint, since time.Time) (map[string]int, error)
 	GetCounterAverages(queueKey string) (map[int]int, error)
+	GetDailyTicketCountByOrg(orgID uint) (int, error)
 	
 	// Redis operations
 	Enqueue(queueKey string, entry *models.QueueEntry) error
@@ -114,15 +115,21 @@ func (r *queueRepository) GetDailyCount(queueKey string) (int64, error) {
 	var count int64
 	today := time.Now().Truncate(24 * time.Hour)
 	err := r.db.Model(&models.QueueHistory{}).
-		Where("queue_key = ? AND status = ? AND created_at >= ?", queueKey, models.StatusCompleted, today).
+		Where("queue_key = ? AND created_at >= ?", queueKey, today).
 		Count(&count).Error
 	return count, err
 }
 
+func (r *queueRepository) GetDailyTicketCountByOrg(orgID uint) (int, error) {
+	var count int64
+	today := time.Now().Truncate(24 * time.Hour)
+	err := r.db.Model(&models.QueueHistory{}).
+		Where("organization_id = ? AND created_at >= ?", orgID, today).
+		Count(&count).Error
+	return int(count), err
+}
+
 func (r *queueRepository) GetPeakHours(queueKey string) (map[string]int, error) {
-	// Simplified mock. Postgres query would ordinarily be:
-	// SELECT EXTRACT(HOUR FROM joined_at) as hour, COUNT(*) FROM queue_histories GROUP BY hour
-	
 	peakMap := make(map[string]int)
 	
 	type result struct {

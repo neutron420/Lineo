@@ -44,11 +44,11 @@ func AdminMiddleware() gin.HandlerFunc {
 }
 
 func AgentMiddleware() gin.HandlerFunc {
-	return RequireRoles(models.RoleAgent)
+	return RequireRoles(models.RoleStaff)
 }
 
 func StaffMiddleware() gin.HandlerFunc {
-	return RequireRoles(models.RoleAdmin, models.RoleAgent)
+	return RequireRoles(models.RoleAdmin, models.RoleStaff)
 }
 
 func RequireRoles(allowed ...models.Role) gin.HandlerFunc {
