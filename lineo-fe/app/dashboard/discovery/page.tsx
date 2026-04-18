@@ -15,7 +15,8 @@ import {
   Layers,
   Zap,
   Calendar,
-  Loader2
+  Loader2,
+  Share2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -103,39 +104,58 @@ export default function DiscoveryPage() {
     <div className="flex h-[calc(100vh-96px)] overflow-hidden rounded-2xl">
       {/* Sidebar Discovery List */}
       <div className="w-[420px] flex-shrink-0 bg-white flex flex-col z-20 ghost-border rounded-l-2xl">
-        <div className="p-6 space-y-5 border-b border-[#e5e8eb]">
+        <div className="p-6 space-y-6 border-b border-[#e5e8eb]">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Discovery</h1>
-            <span className="bg-[#493ee5]/10 text-[#493ee5] px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
-              Live Area
-            </span>
+            <h1 className="text-xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Discover</h1>
+            <div className="flex items-center gap-2">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="p-2 bg-[#f1f4f7] text-[#49607e] rounded-lg hover:bg-[#493ee5]/5 hover:text-[#493ee5] transition-all"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </motion.button>
+              <span className="bg-[#493ee5]/10 text-[#493ee5] px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                Live
+              </span>
+            </div>
+          </div>
+
+          {/* View Switcher Tabs */}
+          <div className="flex p-1 bg-[#f1f4f7] rounded-xl">
+             <button className="flex-1 py-2 px-3 bg-white text-[#493ee5] shadow-sm rounded-lg text-xs font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+               Nearby
+             </button>
+             <button className="flex-1 py-2 px-3 text-[#49607e] hover:text-[#181c1e] text-xs font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+               History
+             </button>
           </div>
 
           <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#49607e] group-focus-within:text-[#493ee5] transition-colors" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#49607e] group-focus-within:text-[#493ee5] transition-colors" />
             <input
               type="text"
               placeholder="Search institutions..."
-              className="w-full pl-11 pr-4 py-3 bg-[#f1f4f7] rounded-xl outline-none transition-all text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#493ee5]/10"
+              className="w-full pl-10 pr-4 py-2.5 bg-[#f1f4f7] border border-transparent focus:bg-white focus:border-[#493ee5]/15 focus:ring-4 focus:ring-[#493ee5]/5 rounded-xl outline-none transition-all text-sm font-medium placeholder:text-[#49607e]/50"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <div className="flex gap-2 items-center overflow-x-auto pb-1 scrollbar-none">
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
                 className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap",
+                  "flex items-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap border",
                   activeCategory === cat.id 
-                    ? 'bg-[#181c1e] text-white shadow-neobrutal' 
-                    : 'bg-[#f1f4f7] text-[#49607e] hover:text-[#181c1e]'
+                    ? 'bg-white border-[#e5e8eb] text-[#493ee5] shadow-[0_2px_8px_rgba(0,0,0,0.04)]' 
+                    : 'bg-transparent border-transparent text-[#49607e] hover:text-[#181c1e]'
                 )}
                 style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
               >
-                {cat.icon}
+                {activeCategory === cat.id && <span className="w-1.5 h-1.5 rounded-full bg-[#493ee5]" />}
                 {cat.name}
               </button>
             ))}

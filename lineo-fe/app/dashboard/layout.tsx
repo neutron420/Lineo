@@ -14,7 +14,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Map as MapIcon,
-  BarChart3
+  BarChart3,
+  LifeBuoy,
+  Share2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
@@ -44,13 +46,17 @@ function GlobalHeader() {
       }
     }
     
-    // Using microtask to avoid "synchronous setState in effect" lint error
-    // and prevent immediate cascading renders in the same tick.
     void Promise.resolve().then(() => {
       setUser(parsedUser);
       setMounted(true);
     });
   }, []);
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
+    window.location.href = "/login";
+  };
 
   if (!mounted) return (
     <header className="h-20 bg-white/80 backdrop-blur-xl sticky top-0 z-30 flex items-center justify-between px-8 opacity-0" />
@@ -86,8 +92,30 @@ function GlobalHeader() {
       </div>
 
       <div className="flex items-center gap-5">
-        <NotificationCenter />
+        <div className="flex items-center gap-3">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="p-2.5 bg-[#f1f4f7] text-[#49607e] rounded-xl hover:bg-[#493ee5]/5 hover:text-[#493ee5] transition-all group"
+          >
+            <Share2 className="w-4 h-4" />
+          </motion.button>
+          <NotificationCenter />
+        </div>
         <div className="h-6 w-px bg-[#e5e8eb]" />
+        
+        {/* Logout Button */}
+        <motion.button
+          onClick={handleLogout}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all text-xs font-bold border border-red-100/50"
+          style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Sign Out</span>
+        </motion.button>
+
         <div className="flex items-center gap-4">
           <div className="text-right hidden xl:block">
             <p className="text-sm font-bold text-[#181c1e] leading-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{user?.username || "Quest"}</p>
@@ -115,20 +143,19 @@ export default function DashboardLayout({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
 
-  const navItems = [
+  const mainNavItems = [
     { name: "Live Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Discovery & Maps", href: "/dashboard/discovery", icon: MapIcon },
-    { name: "My Appointments", href: "/dashboard/appointments", icon: Calendar },
+    { name: "My Appointments", href: "/dashboard/appointments", icon: Calendar, badge: 2 },
     { name: "Queue History", href: "/dashboard/history", icon: HistoryIcon },
     { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-    { name: "Settings", href: "/dashboard/settings", icon: Settings },
   ];
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("user");
-    window.location.href = "/login";
-  };
+  const footerNavItems = [
+    { name: "Settings", href: "/dashboard/settings", icon: Settings },
+    { name: "Support", href: "/dashboard/support", icon: LifeBuoy, status: "Online" },
+  ];
+
 
   return (
     <LocationProvider>
@@ -138,9 +165,16 @@ export default function DashboardLayout({
           
           {/* ━━━ Sidebar ━━━ */}
           <aside className={cn(
-            "bg-white hidden md:flex flex-col sticky top-0 h-screen transition-all duration-300 z-40 ghost-border border-t-0 border-b-0 border-l-0",
+            "bg-white hidden md:flex flex-col sticky top-0 h-screen transition-all duration-300 z-40 ghost-border border-t-0 border-b-0 border-l-0 relative",
             isCollapsed ? "w-[72px]" : "w-[260px]"
           )}>
+            {/* Floating Collapse Toggle */}
+            <button
+               onClick={() => setIsCollapsed(!isCollapsed)}
+               className="absolute -right-3 top-7 w-6 h-6 bg-white border border-[#e5e8eb] rounded-full flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-[#493ee5]/30 hover:text-[#493ee5] transition-all z-50 group"
+            >
+               {isCollapsed ? <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:scale-110" /> : <ChevronLeft className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />}
+            </button>
             {/* Logo */}
             <div className={cn(
               "p-5 flex items-center gap-3 transition-all border-b border-[#e5e8eb]",
@@ -157,49 +191,93 @@ export default function DashboardLayout({
             </div>
 
             {/* Nav Items */}
-            <nav className="flex-1 p-3 space-y-1 mt-2 overflow-y-auto">
-              {navItems.map((item) => {
+            <nav className="flex-1 p-3 space-y-1 mt-2 overflow-y-auto flex flex-col">
+              {mainNavItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative text-sm",
+                      "flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group relative text-sm",
                       isActive
                         ? "text-white font-bold shadow-neobrutal"
                         : "text-[#49607e] hover:bg-[#f1f4f7] hover:text-[#493ee5] font-medium"
                     )}
                     style={isActive ? { background: 'linear-gradient(135deg, #493ee5, #635bff)', fontFamily: 'var(--font-manrope), sans-serif' } : { fontFamily: 'var(--font-manrope), sans-serif' }}
                   >
-                    <item.icon className={cn(
-                      "w-[18px] h-[18px] transition-transform duration-200 shrink-0",
-                      isActive ? "text-white" : "text-[#49607e] group-hover:text-[#493ee5] group-hover:scale-110"
-                    )} />
-                    {!isCollapsed && <span>{item.name}</span>}
+                    <div className="flex items-center gap-3">
+                      <item.icon className={cn(
+                        "w-[18px] h-[18px] transition-transform duration-200 shrink-0",
+                        isActive ? "text-white" : "text-[#49607e] group-hover:text-[#493ee5] flex-shrink-0"
+                      )} />
+                      {!isCollapsed && <span>{item.name}</span>}
+                    </div>
+                    {!isCollapsed && item.badge && (
+                      <span className={cn(
+                        "px-2 py-0.5 rounded-full text-xs font-bold",
+                        isActive ? "bg-white/20 text-white" : "bg-[#f1f4f7] text-[#49607e] group-hover:text-[#493ee5] group-hover:bg-[#493ee5]/10"
+                      )}>
+                        {item.badge}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
+
             </nav>
 
             {/* Footer */}
-            <div className="p-3 space-y-1 border-t border-[#e5e8eb] bg-[#f7fafd]/50">
-              <button
-                 onClick={() => setIsCollapsed(!isCollapsed)}
-                 className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-[#49607e] hover:bg-[#f1f4f7] hover:text-[#181c1e] transition-all duration-200 group text-sm font-medium"
-                 style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
-              >
-                 <div className="shrink-0">{isCollapsed ? <ChevronRight className="w-[18px] h-[18px]" /> : <ChevronLeft className="w-[18px] h-[18px]" />}</div>
-                 {!isCollapsed && <span>Collapse</span>}
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-[#49607e] hover:bg-red-50 hover:text-red-600 transition-all duration-200 group text-sm font-medium"
-                style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
-              >
-                <LogOut className="w-[18px] h-[18px] shrink-0" />
-                {!isCollapsed && <span>Sign out</span>}
-              </button>
+            <div className="p-3 space-y-1 border-t border-[#e5e8eb] bg-white">
+              {footerNavItems.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group relative text-sm",
+                      isActive
+                        ? "text-white font-bold shadow-neobrutal"
+                        : "text-[#49607e] hover:bg-[#f1f4f7] hover:text-[#493ee5] font-medium"
+                    )}
+                    style={isActive ? { background: 'linear-gradient(135deg, #493ee5, #635bff)', fontFamily: 'var(--font-manrope), sans-serif' } : { fontFamily: 'var(--font-manrope), sans-serif' }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon className={cn(
+                        "w-[18px] h-[18px] transition-transform duration-200 shrink-0",
+                        isActive ? "text-white" : "text-[#49607e] group-hover:text-[#493ee5]"
+                      )} />
+                      {!isCollapsed && <span>{item.name}</span>}
+                    </div>
+                    {!isCollapsed && item.status && (
+                       <div className="flex items-center gap-1.5 bg-green-50 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold border border-green-200">
+                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                         {item.status}
+                       </div>
+                    )}
+                  </Link>
+                );
+              })}
+
+              {/* Feature Card (Progress Bar) - Moved to absolute bottom */}
+              {!isCollapsed && (
+                <div className="mt-4 p-4 rounded-2xl bg-[#f7fafd] border border-[#e5e8eb] shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-[#493ee5]/10 to-transparent rounded-bl-full -mr-8 -mt-8" />
+                  <h4 className="text-sm font-bold text-[#181c1e] mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Used space</h4>
+                  <p className="text-xs text-[#49607e] mb-3 leading-relaxed">Your team has used 80% of your available space. Need more?</p>
+                  
+                  <div className="w-full bg-[#e5e8eb] rounded-full h-1.5 mb-3 overflow-hidden">
+                    <div className="bg-[#493ee5] h-1.5 rounded-full" style={{ width: '80%' }}></div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button className="text-xs font-bold text-white bg-[#181c1e] hover:bg-[#493ee5] transition-colors py-1.5 px-3 rounded-lg w-full" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                      Upgrade plan
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </aside>
 

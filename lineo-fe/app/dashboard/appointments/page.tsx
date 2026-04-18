@@ -15,7 +15,9 @@ import {
   X,
   CheckCircle2,
   HeartPulse,
-  Landmark
+  Landmark,
+  Info,
+  Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
@@ -46,9 +48,12 @@ export default function AppointmentsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ queue_key: "", time: "" });
+  const [modalSearchQuery, setModalSearchQuery] = useState("");
+  const [modalCategory, setModalCategory] = useState("all");
 
   const { coords } = useLocation();
   const [nearbyOrgs, setNearbyOrgs] = useState<Organization[]>([]);
+  const [isLiveAlertsEnabled, setIsLiveAlertsEnabled] = useState(false);
 
   const fetchAppointments = useCallback(async () => {
     setIsLoading(true);
@@ -189,23 +194,56 @@ export default function AppointmentsPage() {
                 <Bell className="w-4 h-4 text-[#493ee5]" /> Smart Commute
               </h3>
               
-              <p className="text-sm text-[#49607e] leading-relaxed">
-                We&apos;ll alert you exactly when it&apos;s time to head out based on real-time GPS and traffic.
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-[#49607e] leading-relaxed max-w-[200px]">
+                  We&apos;ll alert you exactly when it&apos;s time to head out based on real-time GPS and traffic.
+                </p>
+                <div className="flex items-center gap-2">
+                  <motion.div 
+                    whileHover={{ rotate: 180 }}
+                    className="w-8 h-8 bg-[#f1f4f7] rounded-lg flex items-center justify-center text-[#49607e] cursor-help shrink-0"
+                    title="How it works: We calculate the distance between your location and the institution, cross-reference it with Google Traffic data, and notify you as soon as the optimal departure window opens."
+                  >
+                    <Info className="w-4 h-4" />
+                  </motion.div>
+                  <div className="w-12 h-12 bg-[#493ee5]/5 rounded-xl flex items-center justify-center text-[#493ee5] animate-pulse shrink-0">
+                    <Navigation className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
               
               <div className="space-y-3">
-                 <div className="p-4 bg-[#f1f4f7] rounded-xl flex items-center justify-between">
-                    <span className="text-sm text-[#49607e] font-medium">Avg. Commute</span>
-                    <span className="text-[#493ee5] font-bold text-sm" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>~18 mins</span>
+                 <div className="p-4 bg-[#f1f4f7] rounded-xl flex items-center justify-between group hover:bg-[#e2dfff]/30 transition-all cursor-default">
+                    <span className="text-sm text-[#49607e] font-medium group-hover:text-[#493ee5]">Avg. Commute</span>
+                    <span className="text-[#493ee5] font-bold text-sm" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                      {isLiveAlertsEnabled || appointments.length > 0 ? "~14 mins" : "-- mins"}
+                    </span>
                  </div>
-                 <div className="p-4 bg-[#f1f4f7] rounded-xl flex items-center justify-between">
-                    <span className="text-sm text-[#49607e] font-medium">Traffic Status</span>
-                    <span className="text-green-600 font-bold uppercase text-[10px] tracking-widest bg-green-50 px-2.5 py-1 rounded-lg">Optimal</span>
+                 <div className="p-4 bg-[#f1f4f7] rounded-xl flex items-center justify-between group hover:bg-green-50 transition-all cursor-default">
+                    <span className="text-sm text-[#49607e] font-medium group-hover:text-green-600">Traffic Status</span>
+                    <span className={cn(
+                      "font-bold uppercase text-[10px] tracking-widest px-2.5 py-1 rounded-lg transition-all",
+                      isLiveAlertsEnabled || appointments.length > 0 ? "text-green-600 bg-green-50" : "text-[#49607e] bg-[#e5e8eb]"
+                    )}>
+                      {isLiveAlertsEnabled || appointments.length > 0 ? "OPTIMAL" : "STANDBY"}
+                    </span>
                  </div>
               </div>
               
-              <Button className="kinetic-btn-primary w-full h-11 text-sm gap-2">
-                 <Navigation className="w-4 h-4" /> Enable Live Alerts
+              <Button 
+                onClick={() => {
+                  setIsLiveAlertsEnabled(!isLiveAlertsEnabled);
+                  if(!isLiveAlertsEnabled) {
+                    toast.success("Commute Alerts Active", { description: "Monitoring real-time traffic for your next session." });
+                  }
+                }}
+                className={cn(
+                  "w-full h-11 text-sm gap-2 transition-all",
+                  isLiveAlertsEnabled ? "bg-green-600 hover:bg-green-700 text-white shadow-lg" : "kinetic-btn-primary"
+                )}
+              >
+                 {isLiveAlertsEnabled ? <CheckCircle2 className="w-4 h-4" /> : <Navigation className="w-4 h-4" />}
+                 {isLiveAlertsEnabled ? "Live Alerts Active" : "Enable Live Alerts"}
               </Button>
            </div>
         </div>
@@ -225,41 +263,96 @@ export default function AppointmentsPage() {
 
           <div className="p-6 space-y-5 bg-white">
             <div>
-              <Label className="text-xs font-bold text-[#49607e] uppercase tracking-[0.15em] mb-2 block" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Select Institution</Label>
-              <ScrollArea className="h-[220px] pr-2">
-                <div className="space-y-2">
-                  {nearbyOrgs.length > 0 ? nearbyOrgs.map((org, i) => (
-                    <div
-                      key={i}
-                      onClick={() => { if (org.key) setFormData({...formData, queue_key: org.key}); }}
+              <Label className="text-xs font-bold text-[#49607e] uppercase tracking-[0.15em] mb-3 block" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Select Institution</Label>
+              
+              {/* Modal Search/Filter */}
+              <div className="space-y-4 mb-5">
+                <div className="relative group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#49607e] group-focus-within:text-[#493ee5] transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Search partner institutions..."
+                    className="w-full pl-11 pr-4 py-3 bg-[#f1f4f7] rounded-xl outline-none transition-all text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#493ee5]/10"
+                    onChange={(e) => setModalSearchQuery(e.target.value)}
+                    value={modalSearchQuery}
+                  />
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                  {['all', 'hospital', 'bank'].map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setModalCategory(cat)}
                       className={cn(
-                        "p-4 rounded-xl transition-all flex items-center justify-between",
-                        formData.queue_key === org.key && org.key
-                          ? "bg-[#493ee5]/5 ring-2 ring-[#493ee5]" 
-                          : org.key 
-                            ? "bg-[#f1f4f7] hover:bg-[#e5e8eb] cursor-pointer"
-                            : "opacity-60 saturate-50 cursor-not-allowed bg-[#f1f4f7] border border-[#e5e8eb]"
+                        "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+                        modalCategory === cat 
+                          ? "bg-[#493ee5] text-white shadow-neobrutal" 
+                          : "bg-[#f1f4f7] text-[#49607e] hover:text-[#493ee5] hover:bg-[#493ee5]/5"
                       )}
+                      style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "w-10 h-10 rounded-lg flex items-center justify-center",
-                          org.key ? "bg-[#493ee5] text-white" : "bg-[#ebeef1] text-[#49607e]"
-                        )}>
-                          {org.name.toLowerCase().includes("hospital") ? <HeartPulse className="w-5 h-5" /> : <Landmark className="w-5 h-5" />}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-[#181c1e] text-sm" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{org.name}</h4>
-                          <p className="text-[10px] text-[#49607e] font-medium">
-                            {org.key 
-                              ? (org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Partner Active')
-                              : 'Not Partnered'}
-                          </p>
-                        </div>
-                      </div>
-                      {formData.queue_key === org.key && org.key && <CheckCircle2 className="w-4 h-4 text-[#493ee5]" />}
-                    </div>
-                  )) : <div className="p-8 text-center text-[#49607e] text-sm font-bold animate-pulse">Scanning...</div>}
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <ScrollArea className="h-[200px] pr-2 -mr-1">
+                <div className="space-y-2.5">
+                  <AnimatePresence mode="popLayout">
+                    {nearbyOrgs.filter(org => {
+                      const matchesSearch = org.name.toLowerCase().includes(modalSearchQuery.toLowerCase());
+                      const matchesCat = modalCategory === 'all' || org.name.toLowerCase().includes(modalCategory === 'hospital' ? 'hospital' : modalCategory === 'bank' ? 'bank' : '');
+                      return matchesSearch && matchesCat;
+                    }).length > 0 ? (
+                      nearbyOrgs
+                        .filter(org => {
+                          const matchesSearch = org.name.toLowerCase().includes(modalSearchQuery.toLowerCase());
+                          const matchesCat = modalCategory === 'all' || org.name.toLowerCase().includes(modalCategory === 'hospital' ? 'hospital' : modalCategory === 'bank' ? 'bank' : '');
+                          return matchesSearch && matchesCat;
+                        })
+                        .map((org, i) => (
+                          <motion.div
+                            key={org.key || i}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.05 }}
+                          >
+                            <div
+                              onClick={() => { if (org.key) setFormData({...formData, queue_key: org.key}); }}
+                              className={cn(
+                                "p-4 rounded-xl transition-all flex items-center justify-between border border-transparent",
+                                formData.queue_key === org.key && org.key
+                                  ? "bg-[#493ee5]/5 ring-2 ring-[#493ee5]" 
+                                  : org.key 
+                                    ? "bg-[#f1f4f7] hover:bg-white hover:shadow-ambient cursor-pointer"
+                                    : "opacity-60 saturate-50 cursor-not-allowed bg-[#f1f4f7] border border-[#e5e8eb]"
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={cn(
+                                  "w-10 h-10 rounded-lg flex items-center justify-center transition-colors",
+                                  org.key ? (formData.queue_key === org.key ? "bg-[#493ee5] text-white" : "bg-white text-[#493ee5] shadow-sm") : "bg-[#ebeef1] text-[#49607e]"
+                                )}>
+                                  {org.name.toLowerCase().includes("hospital") ? <HeartPulse className="w-5 h-5" /> : <Landmark className="w-5 h-5" />}
+                                </div>
+                                <div>
+                                  <h4 className="font-bold text-[#181c1e] text-sm" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{org.name}</h4>
+                                  <p className="text-[10px] text-[#49607e] font-medium">
+                                    {org.key 
+                                      ? (org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Partner Active')
+                                      : 'Not Partnered'}
+                                  </p>
+                                </div>
+                              </div>
+                              {formData.queue_key === org.key && org.key && <CheckCircle2 className="w-4 h-4 text-[#493ee5]" />}
+                            </div>
+                          </motion.div>
+                        ))
+                    ) : (
+                      <div className="py-8 text-center text-[#49607e] text-xs font-bold animate-pulse">Scanning Institutions...</div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </ScrollArea>
             </div>

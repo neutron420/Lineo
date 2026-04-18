@@ -131,6 +131,10 @@ export default function UserDashboard() {
   const [isPriorityToggle, setIsPriorityToggle] = useState(false);
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState("");
+  
+  // Modal Filtering Stats
+  const [modalSearchQuery, setModalSearchQuery] = useState("");
+  const [modalCategory, setModalCategory] = useState("all");
 
   // ─── Data Fetching ──────────────────────────────────
   const fetchData = useCallback(async (silent = false) => {
@@ -594,23 +598,35 @@ export default function UserDashboard() {
         {/* ━━━ SIDEBAR (COL 4) ━━━ */}
         <div className="lg:col-span-4 space-y-8">
 
-          {/* ── Digital Entry Pass (Light M3 Variant) ── */}
+          {/* ── Digital Entry Pass (Dynamic Card) ── */}
           <div 
             className="rounded-2xl p-6 bg-white ghost-border relative overflow-hidden group hover:shadow-ambient transition-all duration-300"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-[#493ee5]/5 rounded-full blur-2xl group-hover:bg-[#493ee5]/10 transition-colors pointer-events-none" />
             <div className="relative z-10 flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-[#493ee5]/5 text-[#493ee5] rounded-2xl flex items-center justify-center mb-4 border border-[#493ee5]/10 group-hover:scale-105 transition-transform duration-300">
-                <QrCode className="w-8 h-8" />
+                {activeToken ? (
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${activeToken.token_number}-${activeToken.queue_key}`} 
+                    alt="QR Code"
+                    className="w-12 h-12"
+                  />
+                ) : (
+                  <QrCode className="w-8 h-8" />
+                )}
               </div>
-              <h3 className="text-xl font-extrabold mb-1 tracking-tight text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Digital Entry Pass</h3>
-              <p className="text-[#49607e] text-xs font-medium mb-6">Scan to join the fast track instantly</p>
+              <h3 className="text-xl font-extrabold mb-1 tracking-tight text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                {activeToken ? "My Entry Pass" : "Digital Entry Pass"}
+              </h3>
+              <p className="text-[#49607e] text-xs font-medium mb-6">
+                {activeToken ? `Token ${activeToken.token_number} is active at ${activeToken.queue_key}` : "Scan to join the fast track instantly"}
+              </p>
               <button 
-                onClick={() => setIsJoinModalOpen(true)}
+                onClick={() => activeToken ? setIsTicketModalOpen(true) : setIsJoinModalOpen(true)}
                 className="w-full py-3 rounded-xl font-bold text-sm text-white shadow-neobrutal hover:-translate-y-0.5 active:translate-y-0 transition-all font-manrope"
                 style={{ background: '#493ee5' }}
               >
-                Generate Pass
+                {activeToken ? "View Digital Pass" : "Generate Pass"}
               </button>
             </div>
           </div>
@@ -723,56 +739,120 @@ export default function UserDashboard() {
           </div>
           
           <div className="p-6 space-y-5 bg-white">
-             <ScrollArea className="h-[350px] pr-3">
-                <div className="space-y-2.5">
-                  {nearbyOrgs.length > 0 ? (
-                    nearbyOrgs.map((org, i) => (
-                      <div
-                        key={i}
-                        onClick={() => {
-                          if (org.key) {
-                            setJoinQueueKey(org.key);
-                            setSelectedOrg(org);
-                          } else {
-                            toast.info("Partner Pending", { description: `${org.name} hasn't joined Lineo yet.` });
-                          }
-                        }}
-                        className={cn(
-                          "group p-4 rounded-2xl transition-all flex items-center justify-between",
-                          joinQueueKey === org.key && org.key 
-                            ? "bg-[#493ee5]/5 ring-2 ring-[#493ee5] shadow-inner cursor-pointer"
-                            : org.key 
-                              ? "bg-[#f1f4f7] hover:bg-[#e5e8eb] cursor-pointer"
-                              : "opacity-60 saturate-50 cursor-not-allowed bg-[#f1f4f7] border border-[#e5e8eb]"
-                        )}
-                      >
-                        <div className="flex items-center gap-4">
-                           <div className={cn(
-                             "w-12 h-12 rounded-xl flex items-center justify-center transition-all",
-                             org.key ? "bg-white text-[#493ee5] shadow-sm" : "bg-[#ebeef1] text-[#49607e]"
-                           )}>
-                              {org.types?.includes("hospital") ? <HeartPulse className="w-6 h-6" /> : <Landmark className="w-6 h-6" />}
+             {/* Search and Filter in Modal */}
+             <div className="space-y-4">
+                <div className="relative group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#49607e] group-focus-within:text-[#493ee5] transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Search by name or type..."
+                    className="w-full pl-11 pr-4 py-3 bg-[#f1f4f7] rounded-xl outline-none transition-all text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#493ee5]/10"
+                    onChange={(e) => setModalSearchQuery(e.target.value)}
+                    value={modalSearchQuery}
+                  />
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                  {['all', 'hospital', 'bank'].map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setModalCategory(cat)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+                        modalCategory === cat 
+                          ? "bg-[#493ee5] text-white shadow-neobrutal" 
+                          : "bg-[#f1f4f7] text-[#49607e] hover:text-[#493ee5] hover:bg-[#493ee5]/5"
+                      )}
+                      style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+             </div>
+
+             <ScrollArea className="h-[350px] pr-3 -mr-3">
+                <div className="space-y-3 pb-4">
+                  <AnimatePresence mode="popLayout">
+                    {nearbyOrgs.filter(org => {
+                      const matchesSearch = org.name.toLowerCase().includes(modalSearchQuery.toLowerCase());
+                      const matchesCat = modalCategory === 'all' || org.types?.includes(modalCategory);
+                      return matchesSearch && matchesCat;
+                    }).length > 0 ? (
+                      nearbyOrgs
+                        .filter(org => {
+                          const matchesSearch = org.name.toLowerCase().includes(modalSearchQuery.toLowerCase());
+                          const matchesCat = modalCategory === 'all' || org.types?.includes(modalCategory);
+                          return matchesSearch && matchesCat;
+                        })
+                        .map((org, i) => (
+                          <motion.div
+                            key={org.key || i}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 25 }}
+                          >
+                            <div
+                              onClick={() => {
+                                if (org.key) {
+                                  setJoinQueueKey(org.key);
+                                  setSelectedOrg(org);
+                                } else {
+                                  toast.info("Partner Pending", { description: `${org.name} hasn't joined Lineo yet.` });
+                                }
+                              }}
+                              className={cn(
+                                "group p-4 rounded-2xl transition-all flex items-center justify-between border border-transparent hover:border-[#493ee5]/10",
+                                joinQueueKey === org.key && org.key 
+                                  ? "bg-[#493ee5]/5 ring-2 ring-[#493ee5] shadow-inner cursor-pointer"
+                                  : org.key 
+                                    ? "bg-[#f1f4f7] hover:bg-white hover:shadow-ambient cursor-pointer"
+                                    : "opacity-60 saturate-50 cursor-not-allowed bg-[#f1f4f7] border border-[#e5e8eb]/50"
+                              )}
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className={cn(
+                                  "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300",
+                                  org.key ? "bg-white text-[#493ee5] shadow-sm group-hover:bg-[#493ee5] group-hover:text-white" : "bg-[#ebeef1] text-[#49607e]"
+                                )}>
+                                    {org.types?.includes("hospital") ? <HeartPulse className="w-6 h-6" /> : <Landmark className="w-6 h-6" />}
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-[#181c1e] text-base group-hover:text-[#493ee5] transition-colors" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                                      {org.name}
+                                    </h4>
+                                    <p className="text-xs text-[#49607e] font-medium mt-0.5">
+                                      {org.key 
+                                          ? (org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Partner Active')
+                                          : 'Not on Lineo yet'}
+                                    </p>
+                                </div>
+                              </div>
+                              {org.key && joinQueueKey === org.key && (
+                                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                                  <CheckCircle2 className="w-5 h-5 text-[#493ee5]" />
+                                </motion.div>
+                              )}
+                            </div>
+                          </motion.div>
+                        ))
+                    ) : (
+                      <div className="text-center py-16 opacity-40">
+                         {modalSearchQuery ? (
+                           <div className="space-y-2">
+                             <Search className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                             <p className="font-bold text-sm text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>No nodes found</p>
+                             <p className="text-xs">Try a different search term</p>
                            </div>
-                           <div>
-                              <h4 className="font-bold text-[#181c1e] text-base" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
-                                 {org.name}
-                              </h4>
-                              <p className="text-xs text-[#49607e] font-medium mt-0.5">
-                                 {org.key 
-                                    ? (org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Partner Active')
-                                    : 'Not on Lineo yet'}
-                              </p>
-                           </div>
-                        </div>
-                        {org.key && joinQueueKey === org.key && <CheckCircle2 className="w-5 h-5 text-[#493ee5]" />}
+                         ) : (
+                           <>
+                             <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4 text-[#493ee5]" />
+                             <p className="font-bold text-sm text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Scanning Nodes...</p>
+                           </>
+                         )}
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-16 opacity-40">
-                       <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4 text-[#493ee5]" />
-                       <p className="font-bold text-sm text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Scanning Nodes...</p>
-                    </div>
-                  )}
+                    )}
+                  </AnimatePresence>
                 </div>
              </ScrollArea>
 
@@ -879,8 +959,12 @@ export default function UserDashboard() {
               </div>
 
               <div className="bg-[#f1f4f7] p-8 rounded-2xl flex flex-col items-center justify-center relative group">
-                 <div className="bg-white p-6 rounded-2xl shadow-ambient relative overflow-hidden border-none group-hover:scale-105 transition-transform duration-500">
-                    <QrCode className="w-28 h-28 text-[#181c1e]" />
+                 <div className="bg-white p-4 rounded-2xl shadow-ambient relative overflow-hidden border-none group-hover:scale-105 transition-transform duration-500">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${activeToken?.token_number}-${activeToken?.queue_key}`} 
+                      alt="QR Pass"
+                      className="w-40 h-40 relative z-0"
+                    />
                     <motion.div 
                       animate={{ top: ['0%', '100%', '0%'] }}
                       transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
