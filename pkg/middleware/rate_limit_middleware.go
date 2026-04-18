@@ -11,7 +11,12 @@ import (
 
 func RateLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		key := "rate_limit:" + c.ClientIP()
+		if c.Request.Method == "OPTIONS" {
+			c.Next()
+			return
+		}
+
+		key := "rate_limit_v2:" + c.ClientIP()
 		
 		// Use Redis INCR for rate limiting (Distributed)
 		count, err := redis.Client.Incr(context.Background(), key).Result()

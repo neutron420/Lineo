@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Bell, 
@@ -22,35 +22,26 @@ interface Notification {
 
 export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      title: "Appointment Confirmed",
-      description: "Your visit to SBI Bank is scheduled for tomorrow at 10:30 AM.",
-      time: "2m ago",
-      type: "success",
-      icon: <Calendar className="w-4 h-4" />,
-      unread: true
-    },
-    {
-      id: "2",
-      title: "Smart Commute Alert",
-      description: "Traffic is picking up. Leave in 15 mins to reach Apollo Care on time.",
-      time: "1h ago",
-      type: "alert",
-      icon: <Navigation className="w-4 h-4" />,
-      unread: true
-    },
-    {
-      id: "3",
-      title: "Queue Update",
-      description: "You are now 3rd in line at Indo-Clinic.",
-      time: "3h ago",
-      type: "info",
-      icon: <Zap className="w-4 h-4" />,
-      unread: false
-    }
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  useEffect(() => {
+    const handleNotify = (e: CustomEvent<{ title: string; description: string; type: string }>) => {
+      const { title, description, type } = e.detail;
+      const newNotif: Notification = {
+        id: Math.random().toString(),
+        title,
+        description,
+        time: "Just now",
+        type: (type || "info") as Notification["type"],
+        icon: type === "success" ? <Calendar className="w-4 h-4" /> : <Zap className="w-4 h-4" />,
+        unread: true
+      };
+      setNotifications(prev => [newNotif, ...prev].slice(0, 10));
+    };
+
+    window.addEventListener("lineo_notify", handleNotify as EventListener);
+    return () => window.removeEventListener("lineo_notify", handleNotify as EventListener);
+  }, []);
 
   const unreadCount = notifications.filter(n => n.unread).length;
 

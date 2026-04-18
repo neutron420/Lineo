@@ -20,6 +20,11 @@ import {
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
 import { useLocation } from "@/context/LocationContext";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Appointment {
   id: string;
@@ -59,26 +64,24 @@ export default function AppointmentsPage() {
 
   const fetchNearby = useCallback(async () => {
     try {
-      const resp = await api.get(`/search/nearby?lat=${coords.lat}&lng=${coords.lng}`);
+      const resp = await api.get(`/search/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=40000`);
       setNearbyOrgs(resp.data.data || []);
     } catch (err) {
       console.error("Discovery error:", err);
     }
   }, [coords.lat, coords.lng]);
 
-  useEffect(() => {
-    fetchAppointments();
-  }, [fetchAppointments]);
-
-  useEffect(() => {
-    fetchNearby();
-  }, [fetchNearby]);
+  useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
+  useEffect(() => { fetchNearby(); }, [fetchNearby]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.queue_key) {
+      toast.error("Please select a partner institution before scheduling.");
+      return;
+    }
     setIsSubmitting(true);
     
-    // Format date as YYYY-MM-DD HH:MM for the backend
     const dateObj = new Date(formData.time);
     const formattedDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')} ${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
 
@@ -92,35 +95,33 @@ export default function AppointmentsPage() {
       setIsModalOpen(false);
       setFormData({ queue_key: "", time: "" });
       await fetchAppointments();
-      alert("Appointment scheduled successfully!");
+      toast.success("Appointment scheduled successfully!");
     } catch {
-      alert("Booking failed. Please check the queue code and time slot.");
+      toast.error("Booking failed. Please check the queue code and time slot.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-10 text-left">
+    <div className="space-y-8">
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-[32px] font-light text-stripe-navy tracking-tight">My Appointments</h1>
-          <p className="text-stripe-slate text-lg font-light">Manage your upcoming sessions and commute alerts.</p>
+          <h1 className="text-3xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>My Appointments</h1>
+          <p className="text-[#49607e] text-sm font-medium mt-1">Manage your upcoming sessions and commute alerts.</p>
         </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="stripe-btn-primary py-2.5 px-6 flex items-center gap-2 text-sm font-bold shadow-lg shadow-stripe-purple/20"
-        >
+        <Button onClick={() => setIsModalOpen(true)} className="kinetic-btn-primary h-11 px-6 gap-2 text-sm">
           <Plus className="w-4 h-4" /> Schedule New
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Main List */}
-        <div className="xl:col-span-2 space-y-6">
+        <div className="xl:col-span-2 space-y-4">
           {isLoading ? (
-            <div className="flex flex-col gap-6">
-              {[1,2,3].map(i => <div key={i} className="h-40 bg-white rounded-3xl animate-pulse border border-stripe-border"></div>)}
+            <div className="flex flex-col gap-4">
+              {[1,2,3].map(i => <div key={i} className="h-32 bg-[#f1f4f7] rounded-2xl animate-pulse" />)}
             </div>
           ) : appointments.length > 0 ? (
             appointments.map((appt, i) => {
@@ -130,188 +131,161 @@ export default function AppointmentsPage() {
                   key={appt.id}
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  whileHover={{ y: -4 }}
-                  className="stripe-card p-6 bg-white border-stripe-border hover:border-stripe-purple/20 hover:shadow-ambient transition-all flex flex-col md:flex-row gap-6 md:items-center group rounded-[32px]"
+                  transition={{ delay: i * 0.08 }}
+                  whileHover={{ y: -3 }}
+                  className="bg-white rounded-2xl p-5 ghost-border hover:shadow-ambient transition-all flex flex-col md:flex-row gap-5 md:items-center group"
                 >
-                  <div className="w-20 h-20 bg-stripe-purple/5 rounded-3xl flex flex-col items-center justify-center text-stripe-purple shrink-0 group-hover:bg-stripe-purple group-hover:text-white transition-all duration-500">
-                     <span className="text-[12px] uppercase font-bold tracking-tighter opacity-70">
+                  {/* Date Badge */}
+                  <div className="w-16 h-16 bg-[#493ee5]/5 rounded-xl flex flex-col items-center justify-center text-[#493ee5] shrink-0 group-hover:bg-[#493ee5] group-hover:text-white transition-all duration-300">
+                     <span className="text-[10px] uppercase font-bold tracking-tight opacity-70">
                        {date.toLocaleString('default', { month: 'short' })}
                      </span>
-                     <span className="text-2xl font-bold leading-none">{date.getDate()}</span>
+                     <span className="text-xl font-extrabold leading-none" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{date.getDate()}</span>
                   </div>
 
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-3">
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2">
                        <StatusBadge status={appt.status} />
-                       <span className="text-stripe-slate text-[11px] font-bold uppercase tracking-widest opacity-40">Token: {appt.token_number}</span>
+                       <span className="text-[#49607e] text-[10px] font-bold uppercase tracking-widest opacity-40">Token: {appt.token_number}</span>
                     </div>
-                    <h3 className="text-2xl font-light text-stripe-navy group-hover:text-stripe-purple transition-colors">{appt.queue_key}</h3>
-                    <div className="flex items-center gap-6 text-sm text-stripe-slate">
-                       <span className="flex items-center gap-2 font-medium"><Clock className="w-4 h-4 text-stripe-purple/50" /> {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                       <span className="flex items-center gap-2 font-medium"><MapPin className="w-4 h-4 text-stripe-purple/50" /> 2.4 KM Away</span>
+                    <h3 className="text-lg font-bold text-[#181c1e] group-hover:text-[#493ee5] transition-colors" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{appt.queue_key}</h3>
+                    <div className="flex items-center gap-5 text-xs text-[#49607e]">
+                       <span className="flex items-center gap-1.5 font-medium"><Clock className="w-3.5 h-3.5 text-[#493ee5]/50" /> {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                       <span className="flex items-center gap-1.5 font-medium"><MapPin className="w-3.5 h-3.5 text-[#493ee5]/50" /> 2.4 KM Away</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                     <button className="px-5 py-2.5 border border-stripe-border rounded-xl text-[13px] font-bold text-stripe-navy hover:bg-[#f6f9fc] transition-colors">
+                  <div className="flex items-center gap-2">
+                     <button className="px-4 py-2 bg-[#f1f4f7] rounded-xl text-xs font-bold text-[#181c1e] hover:bg-[#e5e8eb] transition-colors" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                        Reschedule
                      </button>
-                     <button className="w-12 h-12 flex items-center justify-center rounded-2xl hover:bg-[#f6f9fc] transition-all">
-                       <MoreVertical className="w-5 h-5 text-stripe-slate" />
+                     <button className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-[#f1f4f7] transition-all">
+                       <MoreVertical className="w-4 h-4 text-[#49607e]" />
                      </button>
                   </div>
                 </motion.div>
               );
             })
           ) : (
-            <div className="stripe-card p-24 bg-white flex flex-col items-center justify-center text-center space-y-6 border-dashed border-2 border-stripe-border rounded-[40px] shadow-sm">
-               <div className="w-24 h-24 bg-stripe-purple/[0.03] rounded-full flex items-center justify-center">
-                  <CalendarDays className="w-12 h-12 text-stripe-purple/20" />
+            <div className="bg-white rounded-2xl p-16 flex flex-col items-center justify-center text-center space-y-5 ghost-border">
+               <div className="w-20 h-20 bg-[#f1f4f7] rounded-2xl flex items-center justify-center">
+                  <CalendarDays className="w-10 h-10 text-[#49607e]/30" />
                </div>
-               <div className="space-y-2">
-                 <h3 className="text-2xl font-light text-stripe-navy tracking-tight">Your calendar is clear</h3>
-                 <p className="text-stripe-slate max-w-[320px] mx-auto leading-relaxed font-light">Schedule a remote appointment at one of our partnered institutions to minimize your wait time.</p>
+               <div className="space-y-1">
+                 <h3 className="text-xl font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Your calendar is clear</h3>
+                 <p className="text-[#49607e] max-w-[300px] mx-auto text-sm">Schedule a remote appointment to minimize your wait.</p>
                </div>
-               <button onClick={() => setIsModalOpen(true)} className="stripe-btn-primary px-12 py-4 font-bold shadow-xl shadow-stripe-purple/20">
+               <Button onClick={() => setIsModalOpen(true)} className="kinetic-btn-primary h-12 px-10">
                  Book Now
-               </button>
+               </Button>
             </div>
           )}
         </div>
 
-        {/* Sidebar Info */}
+        {/* Sidebar: Smart Commute */}
         <div className="space-y-6">
-           <div className="stripe-card p-10 bg-white border-stripe-border shadow-ambient overflow-hidden relative group rounded-[40px] text-left">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-stripe-purple/[0.03] blur-3xl -z-0"></div>
-              
-              <h3 className="text-[11px] font-bold text-stripe-navy tracking-widest uppercase mb-8 opacity-50 flex items-center gap-2 relative z-10">
-                <Bell className="w-4 h-4 text-stripe-purple" /> Smart Commute
+           <div className="bg-white rounded-2xl p-6 ghost-border space-y-6">
+              <h3 className="text-xs font-extrabold text-[#49607e] tracking-[0.25em] uppercase flex items-center gap-2" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                <Bell className="w-4 h-4 text-[#493ee5]" /> Smart Commute
               </h3>
               
-              <p className="text-[15px] text-stripe-slate mb-10 relative z-10 leading-relaxed font-light">
-                Based on your real-time GPS and current traffic data, we&apos;ll alert you exactly when it&apos;s time to head out.
+              <p className="text-sm text-[#49607e] leading-relaxed">
+                We&apos;ll alert you exactly when it&apos;s time to head out based on real-time GPS and traffic.
               </p>
               
-              <div className="space-y-4 relative z-10">
-                 <div className="p-6 bg-[#f6f9fc] rounded-[24px] border border-stripe-border/50 flex items-center justify-between group-hover:bg-white group-hover:border-stripe-purple/20 transition-all duration-500">
-                    <span className="text-sm text-stripe-slate font-medium">Avg. Commute</span>
-                    <span className="text-stripe-purple font-bold text-[16px]">~18 mins</span>
+              <div className="space-y-3">
+                 <div className="p-4 bg-[#f1f4f7] rounded-xl flex items-center justify-between">
+                    <span className="text-sm text-[#49607e] font-medium">Avg. Commute</span>
+                    <span className="text-[#493ee5] font-bold text-sm" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>~18 mins</span>
                  </div>
-                 <div className="p-6 bg-[#f6f9fc] rounded-[24px] border border-stripe-border/50 flex items-center justify-between group-hover:bg-white group-hover:border-stripe-purple/20 transition-all duration-500">
-                    <span className="text-sm text-stripe-slate font-medium">Traffic Status</span>
-                    <div className="text-green-600 font-bold uppercase text-[10px] tracking-widest bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">Optimal</div>
+                 <div className="p-4 bg-[#f1f4f7] rounded-xl flex items-center justify-between">
+                    <span className="text-sm text-[#49607e] font-medium">Traffic Status</span>
+                    <span className="text-green-600 font-bold uppercase text-[10px] tracking-widest bg-green-50 px-2.5 py-1 rounded-lg">Optimal</span>
                  </div>
               </div>
               
-              <button className="w-full mt-10 py-5 bg-stripe-purple text-white rounded-[20px] font-bold text-sm hover:bg-stripe-purple hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-stripe-purple/20 flex items-center justify-center gap-3">
+              <Button className="kinetic-btn-primary w-full h-11 text-sm gap-2">
                  <Navigation className="w-4 h-4" /> Enable Live Alerts
-              </button>
+              </Button>
            </div>
         </div>
       </div>
 
-      {/* Book Appointment Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-stripe-navy/40 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[32px] p-10 w-full max-w-md relative z-10 shadow-2xl border border-stripe-border"
-            >
-              <div className="flex items-center justify-between mb-8">
-                <div className="w-14 h-14 bg-stripe-purple/10 rounded-[20px] flex items-center justify-center text-stripe-purple">
-                   <Calendar className="w-7 h-7" />
-                </div>
-                <button onClick={() => setIsModalOpen(false)} className="text-stripe-slate hover:text-stripe-navy p-3 hover:bg-[#f6f9fc] rounded-full transition-all">
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+      {/* Book Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-3xl border-none shadow-ambient">
+          <div className="p-6 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)' }}>
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4 backdrop-blur-xl border border-white/20">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Schedule New</DialogTitle>
+            <DialogDescription className="text-white/70 text-sm mt-1">Plan your next visit with precision.</DialogDescription>
+          </div>
 
-              <div className="mb-8">
-                <h3 className="text-[26px] font-bold text-stripe-navy tracking-tight">Schedule New</h3>
-                <p className="text-stripe-slate mt-1 font-light">Plan your next visit with precision.</p>
-              </div>
-
-              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar mb-8">
-                <div className="text-[11px] font-bold text-stripe-slate uppercase tracking-wider pl-1">Select Institution</div>
-                {nearbyOrgs.length > 0 ? (
-                  nearbyOrgs.map((org, i) => (
+          <div className="p-6 space-y-5 bg-white">
+            <div>
+              <Label className="text-xs font-bold text-[#49607e] uppercase tracking-[0.15em] mb-2 block" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Select Institution</Label>
+              <ScrollArea className="h-[220px] pr-2">
+                <div className="space-y-2">
+                  {nearbyOrgs.length > 0 ? nearbyOrgs.map((org, i) => (
                     <div
                       key={i}
-                      onClick={() => {
-                        if (org.key) setFormData({...formData, queue_key: org.key});
-                      }}
+                      onClick={() => { if (org.key) setFormData({...formData, queue_key: org.key}); }}
                       className={cn(
-                        "p-5 border-2 rounded-[24px] cursor-pointer transition-all flex items-center justify-between group relative overflow-hidden",
-                        formData.queue_key === org.key 
-                          ? "border-stripe-purple bg-stripe-purple/[0.02] ring-4 ring-stripe-purple/5" 
-                          : "border-[#f6f9fc] bg-[#f6f9fc] hover:border-stripe-purple/20"
+                        "p-4 rounded-xl transition-all flex items-center justify-between",
+                        formData.queue_key === org.key && org.key
+                          ? "bg-[#493ee5]/5 ring-2 ring-[#493ee5]" 
+                          : org.key 
+                            ? "bg-[#f1f4f7] hover:bg-[#e5e8eb] cursor-pointer"
+                            : "opacity-60 saturate-50 cursor-not-allowed bg-[#f1f4f7] border border-[#e5e8eb]"
                       )}
                     >
-                      {org.key && (
-                        <div className="absolute top-0 right-0 py-1 px-3 bg-stripe-purple text-white text-[8px] font-black uppercase tracking-tighter rounded-bl-xl shadow-sm">
-                           Lineo Partnered
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-10 h-10 rounded-lg flex items-center justify-center",
+                          org.key ? "bg-[#493ee5] text-white" : "bg-[#ebeef1] text-[#49607e]"
+                        )}>
+                          {org.name.toLowerCase().includes("hospital") ? <HeartPulse className="w-5 h-5" /> : <Landmark className="w-5 h-5" />}
                         </div>
-                      )}
-                      <div className="flex items-center gap-4">
-                         <div className={cn(
-                           "w-10 h-10 rounded-xl flex items-center justify-center shadow-sm transition-transform group-hover:scale-110",
-                           org.key ? "bg-stripe-purple text-white" : "bg-white text-stripe-slate"
-                         )}>
-                            {org.name.toLowerCase().includes("hospital") ? <HeartPulse className="w-5 h-5" /> : <Landmark className="w-5 h-5" />}
-                         </div>
-                         <div className="text-left">
-                            <h4 className="font-bold text-stripe-navy text-sm leading-tight flex items-center gap-2">
-                               {org.name}
-                            </h4>
-                            <p className="text-[10px] text-stripe-slate font-bold uppercase tracking-widest mt-0.5">{org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Nearby'}</p>
-                         </div>
+                        <div>
+                          <h4 className="font-bold text-[#181c1e] text-sm" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{org.name}</h4>
+                          <p className="text-[10px] text-[#49607e] font-medium">
+                            {org.key 
+                              ? (org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Partner Active')
+                              : 'Not Partnered'}
+                          </p>
+                        </div>
                       </div>
-                      {formData.queue_key === org.key && <CheckCircle2 className="w-5 h-5 text-stripe-purple animate-in zoom-in" />}
+                      {formData.queue_key === org.key && org.key && <CheckCircle2 className="w-4 h-4 text-[#493ee5]" />}
                     </div>
-                  ))
-                ) : <div className="p-10 text-center text-stripe-slate text-sm font-bold animate-pulse">Scanning Nearby...</div>}
+                  )) : <div className="p-8 text-center text-[#49607e] text-sm font-bold animate-pulse">Scanning...</div>}
+                </div>
+              </ScrollArea>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <Label className="text-xs font-bold text-[#49607e] uppercase tracking-[0.15em] mb-2 block" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Time & Date</Label>
+                <div className="relative">
+                  <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#49607e]" />
+                  <input 
+                    type="datetime-local" 
+                    required
+                    value={formData.time}
+                    onChange={(e) => setFormData({...formData, time: e.target.value})}
+                    className="w-full pl-11 pr-4 py-3.5 bg-[#f1f4f7] rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-[#493ee5]/20 transition-all outline-none"
+                  />
+                </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-10">
-                <div className="space-y-4">
-                   <div className="text-[11px] font-bold text-stripe-slate uppercase tracking-wider pl-1 font-display">Time & Date</div>
-                   <div className="relative group">
-                      <Clock className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-stripe-slate group-focus-within:text-stripe-purple transition-colors" />
-                      <input 
-                        type="datetime-local" 
-                        required
-                        value={formData.time}
-                        onChange={(e) => setFormData({...formData, time: e.target.value})}
-                        className="w-full pl-16 pr-5 py-5 bg-[#f6f9fc] border border-transparent rounded-[24px] text-[18px] font-bold focus:bg-white focus:border-stripe-purple/20 transition-all outline-none"
-                      />
-                   </div>
-                </div>
-
-                <div className="pt-4">
-                   <button 
-                     type="submit" 
-                     disabled={isSubmitting}
-                     className="stripe-btn-primary py-5 w-full text-[16px] font-bold shadow-xl shadow-stripe-purple/20 flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                   >
-                     {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Plus className="w-5 h-5" /> Confirm Schedule</>}
-                   </button>
-                </div>
-              </form>
-            </motion.div>
+              <Button type="submit" disabled={isSubmitting} className="kinetic-btn-primary w-full h-12 text-sm gap-2">
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" /> Confirm Schedule</>}
+              </Button>
+            </form>
           </div>
-        )}
-      </AnimatePresence>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -319,13 +293,13 @@ export default function AppointmentsPage() {
 function StatusBadge({ status }: { status: string }) {
   if (status === "scheduled") {
     return (
-      <span className="px-3 py-1 bg-green-50 text-green-700 text-[10px] font-bold uppercase rounded-lg border border-green-100 flex items-center gap-1.5 shadow-sm">
-        <CheckCircle2 className="w-3.5 h-3.5" /> {status}
+      <span className="px-2.5 py-0.5 bg-green-50 text-green-700 text-[10px] font-bold uppercase rounded-lg flex items-center gap-1">
+        <CheckCircle2 className="w-3 h-3" /> {status}
       </span>
     );
   }
   return (
-    <span className="px-3 py-1 bg-[#f6f9fc] text-stripe-slate text-[10px] font-bold uppercase rounded-lg border border-stripe-border flex items-center gap-1.5">
+    <span className="px-2.5 py-0.5 bg-[#f1f4f7] text-[#49607e] text-[10px] font-bold uppercase rounded-lg">
       {status}
     </span>
   );

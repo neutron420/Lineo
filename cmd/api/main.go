@@ -74,6 +74,7 @@ func main() {
 	apptHandler := handler.NewAppointmentHandler(apptService)
 	paymentHandler := handler.NewPaymentHandler(paymentService)
 	feedbackHandler := handler.NewFeedbackHandler(feedbackService)
+	adminHandler := handler.NewAdminHandler()
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
@@ -186,6 +187,19 @@ func main() {
 				admin.POST("/upgrade-plan", orgHandler.UpgradePlan)
 				admin.POST("/staff", authHandler.AddStaff)
 				admin.GET("/feedback", feedbackHandler.GetByOrg)
+				
+				// Global Insights and Pipelines
+				admin.GET("/dashboard", adminHandler.GetSystemMetrics)
+				admin.GET("/analytics", adminHandler.GetPlatformAnalytics)
+				admin.GET("/verifications", adminHandler.GetVerifications)
+				admin.GET("/users", adminHandler.GetUsers)
+				admin.POST("/users/:id/ban", adminHandler.BanUser)
+				admin.PUT("/verifications/:id/status", adminHandler.UpdateVerificationStatus)
+				admin.PUT("/system/config", adminHandler.UpdateSystemConfig)
+				admin.GET("/payments", adminHandler.GetPayments)
+				admin.GET("/notifications", adminHandler.GetNotifications)
+				admin.POST("/broadcast", adminHandler.SendBroadcast)
+				admin.GET("/terminals", adminHandler.GetTerminals)
 			}
 		}
 	}

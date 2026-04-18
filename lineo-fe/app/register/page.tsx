@@ -81,10 +81,10 @@ export default function RegisterPage() {
               onClick={() => setSelectedRole('user')} 
             />
             <RoleCard 
-              label="Agent" 
-              active={selectedRole === 'agent'} 
+              label="Staff" 
+              active={selectedRole === 'staff'} 
               icon={<Heart className="w-4 h-4" />}
-              onClick={() => setSelectedRole('agent')} 
+              onClick={() => setSelectedRole('staff')} 
             />
             <RoleCard 
               label="Admin" 

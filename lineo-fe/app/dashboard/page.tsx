@@ -25,6 +25,18 @@ import {
   HeartPulse,
   Landmark,
   ShoppingCart,
+  Star as StarIcon,
+  Bell,
+  Settings as SettingsIcon,
+  LogOut,
+  ChevronRight,
+  TrendingUp,
+  Clock,
+  ExternalLink,
+  Info,
+  TriangleAlert,
+  UserPlus,
+  Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
@@ -32,6 +44,33 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { useLocation } from "@/context/LocationContext";
 import { useSocket } from "@/context/SocketContext";
+
+// Shadcn UI Components
+import { Button } from "@/components/ui/button";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter 
+} from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface TokenData {
   token_number: string;
@@ -49,6 +88,8 @@ interface Organization {
   address?: string;
   rating?: number;
   distance?: number;
+  lat?: number;
+  lng?: number;
 }
 
 interface Appointment {
@@ -58,15 +99,18 @@ interface Appointment {
 }
 
 interface SocketQueueData {
-  event?: { token_number: string };
+  event?: { token_number: string; action?: string };
   state?: {
     waiting_list: { token_number: string }[];
     currently_serving: { token_number: string } | null;
   };
 }
 
+// ─────────────────────────────────────────────────────
+// Main Dashboard Component
+// ─────────────────────────────────────────────────────
 export default function UserDashboard() {
-  const { coords, address: locationName, pincode } = useLocation();
+  const { coords, address: locationName } = useLocation();
   const { isConnected, subscribe, unsubscribe } = useSocket();
   const [activeToken, setActiveToken] = useState<TokenData | null>(null);
   const [nearbyOrgs, setNearbyOrgs] = useState<Organization[]>([]);
@@ -75,11 +119,20 @@ export default function UserDashboard() {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [joinQueueKey, setJoinQueueKey] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
+  const [activities, setActivities] = useState<{ id: string; title: string; subtitle: string; iconType: string; time: string }[]>([
+    { id: "init-1", title: "System Ready", subtitle: "Connected to Lineo Nodes", iconType: "check", time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+  ]);
 
+  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [isPriorityToggle, setIsPriorityToggle] = useState(false);
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackComment, setFeedbackComment] = useState("");
+
+  // ─── Data Fetching ──────────────────────────────────
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
@@ -113,15 +166,11 @@ export default function UserDashboard() {
     if (userData) {
       const parsed = JSON.parse(userData);
       setUser(parsed);
-      toast.success(`Welcome back, ${parsed.username}!`, {
-        description: "Your session is live and synchronized.",
-        icon: <Zap className="w-4 h-4 text-stripe-purple" />
-      });
     }
-
     fetchData();
   }, [fetchData]);
 
+  // ─── Real-time Socket ───────────────────────────────
   useEffect(() => {
     if (activeToken?.organization_id) {
         subscribe(activeToken.organization_id, (rawData: unknown) => {
@@ -130,6 +179,32 @@ export default function UserDashboard() {
              const newPos = data.state?.waiting_list?.findIndex((e) => e.token_number === activeToken.token_number);
              const isServing = data.state?.currently_serving?.token_number === activeToken.token_number;
              
+             if (data.event?.action) {
+               const actionText = data.event!.action!.replace(/_/g, ' ');
+               setActivities(prev => [{
+                 id: Math.random().toString(),
+                 title: `Token ${data.event!.token_number}`,
+                 subtitle: actionText,
+                 iconType: data.event!.action === 'ticket_completed' ? 'check' : 'info',
+                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+               }, ...prev].slice(0, 5));
+
+               window.dispatchEvent(new CustomEvent("lineo_notify", {
+                 detail: {
+                   title: `Token ${data.event!.token_number}`,
+                   description: `Status updated to ${actionText}`,
+                   type: data.event!.action === 'ticket_completed' ? "success" : "info"
+                 }
+               }));
+             }
+
+             if (data.event?.action === "ticket_completed") {
+                toast.success("Visit Completed", { description: "How was your experience?" });
+                setIsFeedbackModalOpen(true);
+                setActiveToken(null);
+                return;
+             }
+
              setActiveToken((prev) => {
                 if (!prev) return null;
                 return {
@@ -143,7 +218,7 @@ export default function UserDashboard() {
                 toast.success("It's your turn!", {
                    description: "Please proceed to the counter.",
                    duration: 10000,
-                   icon: <Zap className="w-4 h-4 text-stripe-purple" />
+                   icon: <Zap className="w-4 h-4 text-[#493ee5]" />
                 });
              }
           } else {
@@ -158,13 +233,18 @@ export default function UserDashboard() {
     fetchNearby();
   }, [fetchNearby]);
 
+  // ─── Actions ────────────────────────────────────────
   const handleJoinQueue = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPriorityToggle) {
+        toast.info("Priority Payment Active", { description: "Processing VIP Checkout via Razorpay..." });
+    }
+
     const promise = api.post("/queue/join", {
       queue_key: joinQueueKey,
       user_lat: coords.lat,
       user_lon: coords.lng,
-      priority: false
+      priority: isPriorityToggle
     });
 
     toast.promise(promise, {
@@ -201,611 +281,663 @@ export default function UserDashboard() {
 
   if (isLoading && nearbyOrgs.length === 0) {
     return (
-      <div className="h-[70vh] flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-12 h-12 text-stripe-purple animate-spin" />
-        <p className="text-stripe-slate font-medium text-sm animate-pulse tracking-widest uppercase">Syncing Live Data</p>
+      <div className="space-y-8 animate-pulse">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Main Content Skeleton */}
+          <div className="lg:col-span-8 space-y-8">
+            <div className="h-[340px] bg-[#f1f4f7] rounded-3xl w-full" />
+            <div className="grid grid-cols-3 gap-6">
+              {[1, 2, 3].map(i => <div key={i} className="h-28 bg-[#f1f4f7] rounded-2xl" />)}
+            </div>
+            <div className="h-[400px] bg-[#f1f4f7] rounded-3xl w-full" />
+          </div>
+          {/* Sidebar Skeleton */}
+          <div className="lg:col-span-4 space-y-8">
+            <div className="h-[260px] bg-slate-200/50 rounded-2xl w-full" />
+            <div className="h-[300px] bg-[#f1f4f7] rounded-2xl w-full" />
+            <div className="h-[200px] bg-[#f1f4f7] rounded-2xl w-full" />
+          </div>
+        </div>
       </div>
     );
   }
 
+  // ─────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────
   return (
-    <div className="space-y-12 text-left pb-20">
-      {/* Welcome Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          {mounted && (
-            <motion.h1 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="text-[36px] font-bold text-stripe-navy tracking-tight flex items-center gap-4"
-            >
-              Bonjour, {user?.username || "Quest"} <Smile className="w-10 h-10 text-stripe-purple/30" />
-            </motion.h1>
-          )}
-          <div className="flex items-center gap-3 mt-1.5 opacity-80">
-             <div className="flex items-center gap-2 px-3 py-1 bg-stripe-purple/10 text-stripe-purple rounded-lg border border-stripe-purple/10">
-                <MapPin className="w-3.5 h-3.5" />
-                <span className="text-[12px] font-black uppercase tracking-widest">{locationName}</span>
-             </div>
-             {pincode && (
-               <span className="text-[12px] font-bold text-stripe-slate bg-[#f6f9fc] px-3 py-1 rounded-lg border border-stripe-border/50">
-                 {pincode}
-               </span>
-             )}
-             <span className="w-1 h-1 rounded-full bg-stripe-border mx-1" />
-             <div className="text-stripe-slate text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-               Real-time Node
-               <span className={cn(
-                 "w-2 h-2 rounded-full",
-                 isConnected ? "bg-green-500 animate-pulse" : "bg-red-400"
-               )} />
-             </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/appointments" className="stripe-btn-secondary py-3 px-6 flex items-center gap-2 text-sm font-bold">
-            <Plus className="w-4 h-4" /> New Booking
-          </Link>
-          <button 
-            onClick={() => setIsJoinModalOpen(true)}
-            className="stripe-btn-primary py-3 px-7 flex items-center gap-2 text-sm font-bold shadow-2xl shadow-stripe-purple/30 hover:scale-[1.05] active:scale-95 transition-all"
-          >
-             <Zap className="w-4 h-4" /> Join Live Queue
-          </button>
-        </div>
-      </div>
+    <div className="space-y-8">
+      
+      {/* ━━━ DASHBOARD GRID ━━━ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Left Column: Active Queue & Stats */}
-        <div className="lg:col-span-2 space-y-10">
-          {activeToken ? (
-            <motion.div
-              layoutId="active-card"
-              className="stripe-card relative overflow-hidden group bg-white border-stripe-purple/20 ring-1 ring-stripe-purple/10 shadow-stripe-premium rounded-[40px] p-10"
-            >
-              <div className="absolute top-0 right-0 p-10">
-                <QrCode className="w-20 h-20 text-stripe-purple/10 group-hover:text-stripe-purple/20 transition-all duration-700" />
-              </div>
-
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-10 text-left relative z-10">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2.5 mb-4">
-                    <span className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                    </span>
-                    <span className="text-[12px] font-extrabold text-green-600 uppercase tracking-[0.2em]">Live Session Active</span>
-                  </div>
-                  <p className="text-stripe-slate text-sm font-bold tracking-tight">Institution: <span className="text-stripe-navy">{activeToken.queue_key}</span></p>
-                  <h2 className="text-[84px] font-extrabold text-stripe-navy tracking-tighter tabular-nums leading-none py-4 text-left">
-                    {activeToken.token_number}
-                  </h2>
-                  <div className="flex items-center gap-10 mt-6 pt-4 border-t border-stripe-border/50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-stripe-purple/5 flex items-center justify-center">
-                        <Users className="w-5 h-5 text-stripe-purple" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-stripe-navy font-bold text-lg leading-tight">{activeToken.position === 0 ? "At Counter" : `${activeToken.position}nd`}</span>
-                        <span className="text-stripe-slate text-[11px] font-bold uppercase tracking-widest">In line</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-stripe-purple/5 flex items-center justify-center">
-                        <Timer className="w-5 h-5 text-stripe-purple" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-stripe-navy font-bold text-lg leading-tight">~{activeToken.estimated_wait_mins}m</span>
-                        <span className="text-stripe-slate text-[11px] font-bold uppercase tracking-widest">Wait Time</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-4 min-w-[240px]">
-                  <button
-                    onClick={() => setIsTicketModalOpen(true)}
-                    className="stripe-btn-primary py-5 w-full flex items-center justify-center gap-3 font-bold text-base shadow-2xl shadow-stripe-purple/30 group/btn"
-                  >
-                    <QrCode className="w-5 h-5 group-hover/btn:scale-110 transition-transform" /> View Live Ticket
-                  </button>
-                  <button
-                    onClick={handleCancelToken}
-                    className="py-5 w-full bg-white border-2 border-red-50 text-red-600 rounded-3xl font-bold text-base hover:bg-red-50 hover:border-red-100 transition-all flex items-center justify-center gap-3"
-                  >
-                    <AlertCircle className="w-5 h-5" /> Release Slot
-                  </button>
-                </div>
-              </div>
-
-              {/* Progress Visualization */}
-              <div className="mt-12 space-y-4">
-                <div className="flex justify-between items-end">
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-bold text-stripe-slate uppercase tracking-[0.2em]">Queue Pulse</p>
-                    <p className="text-sm text-stripe-navy font-bold">Synchronizing every 5s</p>
-                  </div>
-                  <span className="text-2xl font-bold text-stripe-purple tabular-nums">{activeToken.position === 0 ? "100%" : `${Math.max(100 - activeToken.position * 10, 10)}%`}</span>
-                </div>
-                <div className="h-4 w-full bg-[#f6f9fc] rounded-2xl overflow-hidden p-1 border border-stripe-border/50">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: activeToken.position === 0 ? "100%" : `${Math.max(100 - activeToken.position * 10, 10)}%` }}
-                    className="h-full bg-stripe-purple rounded-xl shadow-[0_0_20px_rgba(83,58,253,0.4)] transition-all ease-out duration-1000"
-                  ></motion.div>
-                </div>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="stripe-card p-20 bg-white flex flex-col items-center justify-center text-center space-y-8 border-dashed border-2 border-stripe-border shadow-sm rounded-[48px]"
-            >
-              <div className="w-28 h-28 bg-stripe-purple/[0.04] rounded-full flex items-center justify-center text-stripe-purple/20 relative">
-                <Building2 className="w-12 h-12" />
-                <div className="absolute inset-0 rounded-full border border-stripe-purple/10 animate-ping"></div>
-              </div>
-              <div>
-                <h3 className="text-3xl font-bold text-stripe-navy tracking-tight">Instant Remote Entry</h3>
-                <p className="text-stripe-slate max-w-[400px] mx-auto mt-3 text-lg font-light leading-relaxed">Scan a code or join a medical, banking, or government queue from anywhere. No physical waiting required.</p>
-              </div>
-              <button
-                onClick={() => setIsJoinModalOpen(true)}
-                className="stripe-btn-primary px-14 py-5 font-extrabold text-lg shadow-2xl shadow-stripe-purple/40 hover:scale-105 active:scale-95 transition-all"
+        {/* ━━━ MAIN CONTENT (COL 8) ━━━ */}
+        <div className="lg:col-span-8 space-y-8">
+          
+          {/* ── Live Session Hub / Empty State ── */}
+          <AnimatePresence mode="wait">
+            {activeToken ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, y: -20 }}
+                key="active-token"
               >
-                Start New Session
-              </button>
-            </motion.div>
-          )}
+                <div className="glass-panel rounded-3xl p-8 relative overflow-hidden">
+                  {/* Decorative glow */}
+                  <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#493ee5]/10 rounded-full blur-3xl" />
+                  
+                  {/* Header */}
+                  <div className="flex justify-between items-start mb-10 relative z-10">
+                    <div>
+                      <h2 className="text-3xl font-extrabold text-[#181c1e] tracking-tight mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                        Live Session Hub
+                      </h2>
+                      <p className="text-[#49607e] font-medium text-sm">Currently serving • {activeToken.queue_key}</p>
+                    </div>
+                    <div className="flex items-center gap-2 bg-[#e2dfff] text-[#181c1e] px-4 py-2 rounded-full text-sm font-bold shadow-neobrutal" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                      <span className="w-2 h-2 rounded-full bg-[#493ee5] animate-pulse" />
+                      Active
+                    </div>
+                  </div>
 
-          {/* Quick Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <StatCard
-              title="Time Reclaimed"
-              value="12.4 hrs"
-              desc="Skipped linear waiting"
-              trend="+12% this week"
-              icon={<Zap className="w-6 h-6" />} />
-            <StatCard
-              title="Member Tier"
-              value="Premium"
-              desc="Priority priority enabled"
-              trend="Status: Ultra"
-              icon={<ArrowUpRight className="w-6 h-6 text-stripe-purple" />} />
+                  {/* Token Display Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                    {/* Current Token */}
+                    <div className="bg-white rounded-2xl p-6 ghost-border flex flex-col items-center justify-center text-center">
+                      <span className="text-[#49607e] font-semibold text-xs mb-3 uppercase tracking-[0.2em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                        Now Serving
+                      </span>
+                      <div className="text-7xl font-black text-[#493ee5] tracking-tighter leading-none" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                        {activeToken.token_number}
+                      </div>
+                      <p className="text-[#49607e] text-sm mt-4 font-medium">
+                        {activeToken.position === 0 ? "At Counter" : `Position #${activeToken.position} in line`}
+                      </p>
+                    </div>
+                    
+                    {/* Queue Details */}
+                    <div className="flex flex-col justify-center space-y-6">
+                      {/* Stats Row */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 bg-[#f1f4f7] rounded-xl p-4">
+                          <div className="flex items-center gap-2 text-[#49607e] text-xs font-semibold mb-1">
+                            <Clock className="w-3.5 h-3.5" />
+                            Wait Time
+                          </div>
+                          <div className="text-2xl font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                            {activeToken.estimated_wait_mins}<span className="text-base text-[#49607e] font-medium ml-0.5">m</span>
+                          </div>
+                        </div>
+                        <div className="flex-1 bg-[#f1f4f7] rounded-xl p-4">
+                          <div className="flex items-center gap-2 text-[#49607e] text-xs font-semibold mb-1">
+                            <Zap className="w-3.5 h-3.5" />
+                            Avg Speed
+                          </div>
+                          <div className="text-2xl font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                            4<span className="text-base text-[#49607e] font-medium ml-0.5">m/u</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Queue Pulse Bar */}
+                      <div>
+                        <div className="flex justify-between text-sm font-semibold mb-2">
+                          <span className="text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Queue Pulse</span>
+                          <span className="text-[#493ee5]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                            {activeToken.position === 0 ? "Serving Now" : `${Math.max(100 - activeToken.position * 10, 10)}% Capacity`}
+                          </span>
+                        </div>
+                        <div className="h-3 bg-[#e5e8eb] rounded-full overflow-hidden relative">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: activeToken.position === 0 ? "100%" : `${Math.max(100 - activeToken.position * 10, 10)}%` }}
+                            className="absolute top-0 left-0 h-full rounded-full pulse-glow"
+                            style={{ background: 'linear-gradient(90deg, #493ee5, #635bff)' }}
+                            transition={{ duration: 1.5, ease: "easeOut" }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-4 mt-8 relative z-10">
+                    <Button onClick={() => setIsTicketModalOpen(true)} className="kinetic-btn-primary flex-1 h-14 text-base gap-3">
+                      <QrCode className="w-5 h-5" /> View Digital Pass
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      onClick={handleCancelToken} 
+                      className="h-14 px-6 rounded-2xl font-semibold text-[#49607e] bg-[#f1f4f7] hover:bg-red-50 hover:text-red-600 transition-all"
+                      style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+                    >
+                      Cancel Spot
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                key="no-token"
+              >
+                <div className="glass-panel rounded-3xl p-8 relative overflow-hidden">
+                  <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#493ee5]/10 rounded-full blur-3xl" />
+                  
+                  <div className="flex justify-between items-start mb-10 relative z-10">
+                    <div>
+                      <h2 className="text-3xl font-extrabold text-[#181c1e] tracking-tight mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                        Live Session Hub
+                      </h2>
+                      <p className="text-[#49607e] font-medium text-sm">No active session — join a queue to get started</p>
+                    </div>
+                    <div className="flex items-center gap-2 bg-[#f1f4f7] text-[#49607e] px-4 py-2 rounded-full text-sm font-bold" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                      <span className="w-2 h-2 rounded-full bg-[#49607e]/40" />
+                      Idle
+                    </div>
+                  </div>
+
+                  <div className="relative z-10 flex flex-col items-center justify-center py-8 space-y-6">
+                    <div className="w-20 h-20 bg-[#f1f4f7] rounded-2xl flex items-center justify-center shadow-inner">
+                      <MapPulseIcon />
+                    </div>
+                    <div className="text-center space-y-2">
+                      <h3 className="text-xl font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Queue discovery pulse</h3>
+                      <p className="text-[#49607e] text-sm max-w-sm mx-auto">Join active queues for healthcare, finance, or retail instantly from nearby institutions.</p>
+                    </div>
+                    <Button onClick={() => setIsJoinModalOpen(true)} className="kinetic-btn-primary h-12 px-8 text-sm gap-2">
+                      <Search className="w-4 h-4" /> Search Live Queues
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── Stat Metric Cards ── */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <StatCard 
+              icon={<Clock className="w-[18px] h-[18px]" />}
+              label="Avg Wait Time"
+              value={activeToken ? `${activeToken.estimated_wait_mins}` : "14"}
+              unit="m"
+            />
+            <StatCard 
+              icon={<Users className="w-[18px] h-[18px]" />}
+              label="In Queue"
+              value={activeToken ? `${activeToken.position}` : "42"}
+            />
+            <StatCard 
+              icon={<CheckCircle2 className="w-[18px] h-[18px]" />}
+              label="Served Today"
+              value="128"
+            />
           </div>
 
-          {/* Nearby Discovery Section */}
-          <div className="space-y-8 pt-6 text-left">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-[24px] font-bold text-stripe-navy tracking-tight flex items-center gap-4">
-                  <MapIcon className="w-7 h-7 text-stripe-purple" /> Verified Nearby Institutions
-                </h3>
-                <p className="text-stripe-slate text-sm mt-1">Found {nearbyOrgs.length} locations within 5km radius</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <CategoryButton active={activeCategory === 'all'} label="All" onClick={() => setActiveCategory('all')} />
-                <CategoryButton active={activeCategory === 'hospital'} label="Hospitals" onClick={() => setActiveCategory('hospital')} />
-                <CategoryButton active={activeCategory === 'bank'} label="Banks" onClick={() => setActiveCategory('bank')} />
+          {/* ── Nearby / History Tabs ── */}
+          <Tabs defaultValue="nearby" className="w-full">
+            {/* Tab Header Bar — always on top */}
+            <div className="bg-white rounded-2xl p-4 ghost-border mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <h3 className="text-lg font-bold text-[#181c1e] hidden sm:block" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Discover</h3>
+                  <TabsList className="bg-[#f1f4f7] p-1 rounded-xl h-11">
+                    <TabsTrigger value="nearby" className="rounded-lg px-6 h-9 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#493ee5] text-sm font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Nearby</TabsTrigger>
+                    <TabsTrigger value="history" className="rounded-lg px-6 h-9 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#493ee5] text-sm font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>History</TabsTrigger>
+                  </TabsList>
+                </div>
+                
+                <div className="flex items-center bg-[#f1f4f7] rounded-xl px-1.5 py-1 gap-1">
+                  {['all', 'hospital', 'bank'].map((cat) => (
+                    <button 
+                      key={cat}
+                      className={cn(
+                        "rounded-lg h-8 px-4 text-xs font-bold capitalize transition-all",
+                        activeCategory === cat 
+                          ? "bg-white text-[#493ee5] shadow-sm" 
+                          : "text-[#49607e] hover:text-[#181c1e]"
+                      )}
+                      style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+                      onClick={() => setActiveCategory(cat)}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {nearbyOrgs.length > 0 ? nearbyOrgs.slice(0, 3).map((org, i) => (
-                <motion.div
-                  key={i}
-                  whileHover={{ y: -8, scale: 1.02 }}
-                  className="stripe-card p-8 cursor-pointer bg-white border-stripe-border hover:border-stripe-purple/30 transition-all shadow-ambient text-left group rounded-[32px]"
-                >
-                  <div className="w-14 h-14 bg-[#f6f9fc] group-hover:bg-stripe-purple/10 rounded-2xl flex items-center justify-center text-stripe-purple mb-6 transition-all duration-500">
-                    {org.types?.includes("hospital") || org.name.toLowerCase().includes("hospital") ? <HeartPulse className="w-7 h-7" /> : <Landmark className="w-7 h-7" />}
-                  </div>
-                  <h4 className="text-[17px] font-extrabold text-stripe-navy mb-2 line-clamp-1 group-hover:text-stripe-purple transition-colors">{org.name}</h4>
-                  <p className="text-[14px] text-stripe-slate mb-8 line-clamp-2 leading-relaxed font-light">{org.address || "Main Street, City Center"}</p>
-                  <div className="flex items-center justify-between mt-auto pt-6 border-t border-stripe-border/50">
-                    <div className="flex items-center gap-1.5 text-[12px] text-stripe-slate font-bold tracking-tight">
-                      <MapPin className="w-4 h-4 text-stripe-purple/40" /> {org.rating ? `${org.rating} Rating` : "1.2 KM"}
+            {/* Cards Grid — below the selector */}
+            <TabsContent value="nearby" className="mt-0 outline-none">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {nearbyOrgs.length > 0 ? nearbyOrgs.slice(0, 6).map((org, i) => (
+                  <motion.div
+                    key={i}
+                    whileHover={{ y: -4 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  >
+                    <div 
+                      onClick={() => {
+                        if (org.key) {
+                          setJoinQueueKey(org.key);
+                          setSelectedOrg(org);
+                          setIsJoinModalOpen(true);
+                        } else {
+                          toast.info("Partner Pending", { icon: <Info className="w-4 h-4" /> });
+                        }
+                      }}
+                      className="group cursor-pointer bg-white rounded-2xl p-5 ghost-border hover:shadow-ambient transition-all duration-300"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-[#f1f4f7] flex items-center justify-center text-[#49607e] group-hover:bg-[#493ee5] group-hover:text-white transition-all duration-300 shrink-0">
+                          {org.types?.includes("hospital") ? <HeartPulse className="w-6 h-6" /> : <Landmark className="w-6 h-6" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="font-bold text-[#181c1e] text-base truncate" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{org.name}</h4>
+                            <div className="flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg shrink-0">
+                              <StarIcon className="w-3 h-3 fill-amber-500" />
+                              {org.rating || "4.8"}
+                            </div>
+                          </div>
+                          <p className="text-xs text-[#49607e] font-medium truncate mt-0.5">{org.address || "Main Street, Central Node"}</p>
+                          <div className="flex items-center gap-4 mt-2">
+                            <div className="flex items-center gap-1.5 text-xs text-[#49607e]">
+                              <Users className="w-3.5 h-3.5 text-[#493ee5] opacity-60" />
+                              <span className="font-semibold text-[#181c1e]">4 ahead</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-xs text-[#49607e]">
+                              <Clock className="w-3.5 h-3.5 text-[#493ee5] opacity-60" />
+                              <span className="font-semibold text-[#181c1e]">~12m</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="px-3 py-1 rounded-lg text-[11px] font-extrabold uppercase bg-green-50 text-green-600 border border-green-100 shadow-sm">
-                      Open Now
-                    </div>
+                  </motion.div>
+                )) : [1, 2, 3, 4].map(i => (
+                  <Skeleton key={i} className="h-28 rounded-2xl bg-[#f1f4f7]" />
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="history" className="mt-0 outline-none">
+              <div className="space-y-3">
+                 {[
+                   { org: "SBI Main Branch", status: "Completed", time: "15m wait", color: "green" },
+                   { org: "Apollo Heart Center", status: "Active", time: "Joined", color: "blue" },
+                   { org: "HDFC Bank", status: "Completed", time: "22m wait", color: "green" }
+                 ].map((h, i) => (
+                   <div key={i} className="bg-white rounded-2xl p-5 flex items-center justify-between ghost-border hover:shadow-ambient transition-all duration-300">
+                      <div className="flex items-center gap-4">
+                        <div className={cn(
+                          "w-3 h-3 rounded-full",
+                          h.color === 'green' ? 'bg-green-500' : 'bg-[#493ee5] pulse-glow'
+                        )} />
+                        <div>
+                          <h5 className="text-base font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{h.org}</h5>
+                          <p className="text-xs text-[#49607e] font-medium">Today • {h.status}</p>
+                        </div>
+                      </div>
+                      <div className="bg-[#f1f4f7] px-4 py-1.5 rounded-xl text-sm font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                        {h.time}
+                      </div>
+                   </div>
+                 ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* ━━━ SIDEBAR (COL 4) ━━━ */}
+        <div className="lg:col-span-4 space-y-8">
+
+          {/* ── Digital Entry Pass (Light M3 Variant) ── */}
+          <div 
+            className="rounded-2xl p-6 bg-white ghost-border relative overflow-hidden group hover:shadow-ambient transition-all duration-300"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#493ee5]/5 rounded-full blur-2xl group-hover:bg-[#493ee5]/10 transition-colors pointer-events-none" />
+            <div className="relative z-10 flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-[#493ee5]/5 text-[#493ee5] rounded-2xl flex items-center justify-center mb-4 border border-[#493ee5]/10 group-hover:scale-105 transition-transform duration-300">
+                <QrCode className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-extrabold mb-1 tracking-tight text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Digital Entry Pass</h3>
+              <p className="text-[#49607e] text-xs font-medium mb-6">Scan to join the fast track instantly</p>
+              <button 
+                onClick={() => setIsJoinModalOpen(true)}
+                className="w-full py-3 rounded-xl font-bold text-sm text-white shadow-neobrutal hover:-translate-y-0.5 active:translate-y-0 transition-all font-manrope"
+                style={{ background: '#493ee5' }}
+              >
+                Generate Pass
+              </button>
+            </div>
+          </div>
+
+          {/* ── Recent Activity ── */}
+          <div className="bg-white rounded-2xl p-6 ghost-border">
+            <h3 className="text-lg font-bold text-[#181c1e] mb-5 pb-4 border-b border-[#e5e8eb]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+              Recent Activity
+            </h3>
+            <div className="space-y-4">
+              {activities.map(act => (
+                <div key={act.id} className="flex items-start gap-3.5">
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
+                    act.iconType === 'check' ? "bg-[#d9e3f9] text-[#181c1e]" : "bg-[#d2e4ff] text-[#181c1e]"
+                  )}>
+                    {act.iconType === 'check' ? <Check className="w-4 h-4" /> : <Info className="w-4 h-4" />}
                   </div>
-                </motion.div>
-              )) : [1, 2, 3].map(i => (
-                <div key={i} className="stripe-card p-8 bg-white border-stripe-border h-56 animate-pulse rounded-[32px]"></div>
+                  <div>
+                    <div className="text-sm font-bold text-[#181c1e] capitalize">{act.title}</div>
+                    <div className="text-xs text-[#49607e] capitalize">{act.time} • {act.subtitle}</div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
-        </div>
 
-        {/* Right Column: Appointments & History */}
-        <div className="space-y-10 text-left">
-          {/* Upcoming Appointments */}
-          <div className="stripe-card p-10 bg-white border-stripe-border shadow-stripe-premium text-left relative overflow-hidden group rounded-[40px]">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-stripe-purple/[0.03] -mr-16 -mt-16 rounded-full transition-transform group-hover:scale-150 duration-700"></div>
-
-            <h3 className="text-[12px] font-extrabold text-stripe-slate uppercase tracking-[0.2em] mb-8 flex items-center gap-2.5 relative z-10">
-              <Calendar className="w-4 h-4 text-stripe-purple" /> Scheduled Session
-            </h3>
-
+          {/* ── Appointment Preview ── */}
+          <div className="bg-white rounded-2xl p-6 ghost-border">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-xs font-extrabold uppercase tracking-[0.25em] text-[#49607e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Next Appointment</h3>
+              <Calendar className="w-4.5 h-4.5 text-[#493ee5]" />
+            </div>
+            
             {appointments.length > 0 ? (
-              <div className="space-y-8 relative z-10">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <p className="text-stripe-purple font-extrabold text-base">{new Date(appointments[0].start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Today</p>
-                    <h4 className="text-[28px] font-bold text-stripe-navy tracking-tight leading-tight">{appointments[0].queue_key}</h4>
-                  </div>
-                  <div className="px-3 py-1.5 bg-stripe-purple/5 text-stripe-purple text-[11px] font-extrabold uppercase rounded-lg border border-stripe-purple/10">
-                    Confirmed
-                  </div>
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <p className="text-[#493ee5] font-extrabold text-2xl tabular-nums" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                    {new Date(appointments[0].start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  <h4 className="text-lg font-bold text-[#181c1e] truncate" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{appointments[0].queue_key}</h4>
+                  <p className="text-xs text-[#49607e] font-medium flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 opacity-40" /> Sector 44, Business Hub
+                  </p>
                 </div>
-
-                <div className="p-6 bg-[#f6f9fc] rounded-[28px] border border-stripe-border/50 space-y-5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-stripe-slate font-bold uppercase tracking-widest">Entry ID</span>
-                    <span className="font-mono font-extrabold text-stripe-navy tracking-wider text-sm bg-white px-3 py-1.5 rounded-xl shadow-sm border border-stripe-border/50">
-                      {appointments[0].token_number}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-stripe-slate font-bold uppercase tracking-widest">Est. Check-in</span>
-                    <span className="text-stripe-navy font-extrabold text-[15px]">10:45 AM</span>
-                  </div>
-                </div>
-
-                <button className="w-full bg-stripe-navy text-white py-5 rounded-[22px] font-extrabold text-base hover:bg-stripe-navy/90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-2xl shadow-stripe-navy/20 flex items-center justify-center gap-4">
-                  <Navigation className="w-5 h-5 text-stripe-purple" /> Start Commute
-                </button>
+                <Button asChild className="kinetic-btn-primary w-full h-11 text-sm gap-2">
+                  <Link href="/dashboard/appointments">
+                    <Navigation className="w-4 h-4" /> Start Transit
+                  </Link>
+                </Button>
               </div>
             ) : (
-              <div className="text-center py-14 relative z-10">
-                <div className="w-20 h-20 bg-stripe-purple/[0.04] rounded-[24px] flex items-center justify-center mx-auto mb-6">
-                  <Calendar className="w-10 h-10 text-stripe-purple/30" />
+              <div className="text-center py-6 space-y-3">
+                <div className="w-14 h-14 bg-[#f1f4f7] rounded-xl flex items-center justify-center mx-auto opacity-50">
+                  <Calendar className="w-7 h-7 text-[#49607e]" />
                 </div>
-                <p className="text-stripe-slate text-base font-medium mb-8 italic">No bookings found for today.</p>
-                <Link href="/dashboard/appointments" className="stripe-btn-secondary px-10 py-4 text-xs font-extrabold uppercase tracking-[0.2em] inline-flex items-center justify-center gap-3 group">
-                  Book Now <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
-                </Link>
+                <div>
+                  <p className="text-[#181c1e] font-bold text-sm" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Idle Schedule</p>
+                  <p className="text-[#49607e] text-xs">Your calendar is currently open.</p>
+                </div>
+                <Button variant="ghost" className="rounded-xl text-[#493ee5] hover:bg-[#493ee5]/5 text-sm font-bold h-9" asChild style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                  <Link href="/dashboard/appointments">Select a Slot</Link>
+                </Button>
               </div>
             )}
           </div>
 
-          {/* Live Discovery Map */}
-          <div className="stripe-card p-2 bg-white border-stripe-border shadow-stripe-premium rounded-[40px] overflow-hidden group">
-            <div className="p-8 pb-4 text-left">
-              <h3 className="text-[12px] font-extrabold text-stripe-slate uppercase tracking-[0.2em] mb-1 flex items-center gap-2.5">
-                <MapIcon className="w-4 h-4 text-stripe-purple" /> Live Pulse Map
-              </h3>
-              <p className="text-stripe-navy font-bold text-sm">Real-time status of nearby institutions</p>
-            </div>
-            <div className="h-[320px] w-full rounded-[32px] overflow-hidden border border-stripe-border relative">
-              <iframe
+          {/* ── Map Preview ── */}
+          <div className="rounded-2xl overflow-hidden bg-white p-2">
+            <div className="relative h-[280px] w-full rounded-xl overflow-hidden">
+               <iframe
                 width="100%"
                 height="100%"
                 title="Nearby Map"
-                style={{ border: 0 }}
+                style={{ border: 0, filter: 'grayscale(0.1) contrast(1.05)' }}
                 loading="lazy"
                 allowFullScreen
-                referrerPolicy="no-referrer-when-downgrade"
-                src={`https://www.google.com/maps/embed/v1/view?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY?.replace('#', '')}&center=${coords.lat},${coords.lng}&zoom=15&maptype=roadmap`}
+                src={selectedOrg 
+                    ? `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY?.replace('#', '') || ''}&q=${selectedOrg.lat && selectedOrg.lng ? `${selectedOrg.lat},${selectedOrg.lng}` : encodeURIComponent(selectedOrg.name + ' ' + (locationName || ''))}&zoom=16`
+                    : `https://www.google.com/maps/embed/v1/view?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY?.replace('#', '')}&center=${coords.lat},${coords.lng}&zoom=15&maptype=roadmap`}
               ></iframe>
-              <div className="absolute bottom-5 left-5 right-5 bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-stripe-purple/10 flex items-center justify-between shadow-lg">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-extrabold text-stripe-purple uppercase tracking-[0.1em]">Target Coordinates</span>
-                  <span className="text-[11px] font-bold text-stripe-navy font-mono">{coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}</span>
-                </div>
-                <div className="flex gap-2">
-                  <div className="w-2 h-2 rounded-full bg-stripe-purple animate-ping"></div>
-                  <div className="w-2 h-2 rounded-full bg-stripe-purple"></div>
-                </div>
+              <div className="absolute inset-x-3 bottom-3 glass-panel p-3 rounded-xl flex items-center justify-between">
+                 <div>
+                    <p className="text-[9px] font-extrabold text-[#493ee5] uppercase tracking-[0.3em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Active Node</p>
+                    <p className="text-sm font-bold text-[#181c1e] truncate max-w-[160px]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{selectedOrg?.name || locationName || "Central Area"}</p>
+                 </div>
+                 <div className="w-9 h-9 rounded-xl bg-[#181c1e] flex items-center justify-center text-white shadow-neobrutal hover:rotate-12 transition-transform">
+                    <Navigation className="w-4 h-4" />
+                 </div>
               </div>
-            </div>
-
-            <div className="p-6 pt-4">
-              <button onClick={() => setIsCategoryModalOpen(true)} className="w-full py-4 bg-[#f6f9fc] text-stripe-slate hover:text-stripe-purple hover:bg-stripe-purple/5 rounded-2xl font-bold text-[13px] transition-all flex items-center justify-center gap-3">
-                <Search className="w-4 h-4" /> Browse Live Categories
-              </button>
-            </div>
-          </div>
-
-          {/* Activity Pulse */}
-          <div className="space-y-6 text-left px-4">
-            <h3 className="text-[12px] font-extrabold text-stripe-navy tracking-[0.2em] uppercase opacity-50 flex items-center gap-3">
-              <HistoryIcon className="w-4 h-4 text-stripe-purple" /> Activity Pulse
-            </h3>
-            <div className="space-y-4">
-              <ActivityRow org="SBI Bank" date="Managed Remote" time="18m wait" />
-              <ActivityRow org="Max Health" date="AI Scheduled" time="45m wait" />
-              <ActivityRow org="Apollo Care" date="Priority Entry" time="4m wait" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Join Queue Modal */}
-      <AnimatePresence>
-        {isJoinModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsJoinModalOpen(false)}
-              className="absolute inset-0 bg-stripe-navy/60 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 30 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 30 }}
-              className="bg-white rounded-[48px] p-12 w-full max-w-lg relative z-10 shadow-3xl border border-stripe-purple/10"
-            >
-              <div className="flex items-center justify-between mb-10">
-                <div className="w-16 h-16 bg-stripe-purple/10 rounded-[24px] flex items-center justify-center text-stripe-purple">
-                   <Building2 className="w-8 h-8" />
-                </div>
-                <button onClick={() => setIsJoinModalOpen(false)} className="text-stripe-slate hover:text-stripe-navy p-4 hover:bg-[#f6f9fc] rounded-full transition-all">
-                  <X className="w-8 h-8" />
-                </button>
-              </div>
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* MODALS                                         */}
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
 
-              <div className="mb-10 text-left">
-                <h3 className="text-3xl font-bold text-stripe-navy tracking-tight">Access Local Queues</h3>
-                <p className="text-stripe-slate mt-2 text-lg font-light">Select a nearby institution to secure your remote spot instantly.</p>
-              </div>
-
-              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {nearbyOrgs.length > 0 ? (
-                  nearbyOrgs.map((org, i) => (
-                    <motion.div
-                      key={i}
-                      whileHover={org.key ? { scale: 1.02 } : {}}
-                      whileTap={org.key ? { scale: 0.98 } : {}}
-                      onClick={() => {
-                        if (org.key) {
-                           setJoinQueueKey(org.key);
-                           setTimeout(() => {
-                              const form = document.getElementById('join-form') as HTMLFormElement;
-                              form?.requestSubmit();
-                           }, 100);
-                        } else {
-                           toast.info("Not a Partner Yet", {
-                             description: `${org.name} hasn't integrated Lineo queues yet. I've sent a partnership request!`,
-                             icon: <Building2 className="w-4 h-4 text-stripe-purple" />
-                           });
-                        }
-                      }}
-                      className={cn(
-                        "p-6 border-2 rounded-[32px] transition-all flex items-center justify-between group relative overflow-hidden",
-                        org.key 
-                          ? "border-[#f6f9fc] hover:border-stripe-purple/30 bg-[#f6f9fc] hover:bg-white cursor-pointer shadow-sm"
-                          : "border-transparent bg-[#f6f9fc]/50 opacity-60 cursor-not-allowed grayscale"
-                      )}
-                    >
-                      {org.key && (
-                         <div className="absolute top-0 right-0 py-1 px-4 bg-stripe-purple text-white text-[9px] font-black uppercase tracking-widest rounded-bl-2xl shadow-sm border-l border-b border-white/20">
-                            Partnered
-                         </div>
-                      )}
-                      
-                      <div className="flex items-center gap-5">
-                         <div className={cn(
-                           "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform",
-                           org.key ? "bg-white text-stripe-purple shadow-sm group-hover:scale-110" : "bg-stripe-slate/10 text-stripe-slate"
-                         )}>
-                            {org.name.toLowerCase().includes("hospital") ? <HeartPulse className="w-6 h-6" /> : <Landmark className="w-6 h-6" />}
-                         </div>
-                         <div className="text-left">
-                            <h4 className="font-bold text-stripe-navy text-lg leading-tight flex items-center gap-2">
-                               {org.name}
-                               {org.key && <CheckCircle2 className="w-4 h-4 text-stripe-purple" />}
-                            </h4>
-                            <p className="text-stripe-slate text-xs font-bold uppercase tracking-widest mt-0.5">
-                               {org.key ? (org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Partner Institution') : 'Global Registry'}
-                            </p>
-                         </div>
+      {/* ── Join Queue Modal ── */}
+      <Dialog open={isJoinModalOpen} onOpenChange={setIsJoinModalOpen}>
+        <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden rounded-3xl border-none shadow-ambient">
+          <div className="p-8 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)' }}>
+             <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-24 -mt-24 blur-3xl animate-pulse" />
+             <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center mb-5 backdrop-blur-xl border border-white/20">
+                <Building2 className="w-7 h-7" />
+             </div>
+             <DialogTitle className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Access Local Queues</DialogTitle>
+             <DialogDescription className="text-white/70 text-sm mt-1.5 font-medium">Connect with active nodes in your vicinity.</DialogDescription>
+          </div>
+          
+          <div className="p-6 space-y-5 bg-white">
+             <ScrollArea className="h-[350px] pr-3">
+                <div className="space-y-2.5">
+                  {nearbyOrgs.length > 0 ? (
+                    nearbyOrgs.map((org, i) => (
+                      <div
+                        key={i}
+                        onClick={() => {
+                          if (org.key) {
+                            setJoinQueueKey(org.key);
+                            setSelectedOrg(org);
+                          } else {
+                            toast.info("Partner Pending", { description: `${org.name} hasn't joined Lineo yet.` });
+                          }
+                        }}
+                        className={cn(
+                          "group p-4 rounded-2xl transition-all flex items-center justify-between",
+                          joinQueueKey === org.key && org.key 
+                            ? "bg-[#493ee5]/5 ring-2 ring-[#493ee5] shadow-inner cursor-pointer"
+                            : org.key 
+                              ? "bg-[#f1f4f7] hover:bg-[#e5e8eb] cursor-pointer"
+                              : "opacity-60 saturate-50 cursor-not-allowed bg-[#f1f4f7] border border-[#e5e8eb]"
+                        )}
+                      >
+                        <div className="flex items-center gap-4">
+                           <div className={cn(
+                             "w-12 h-12 rounded-xl flex items-center justify-center transition-all",
+                             org.key ? "bg-white text-[#493ee5] shadow-sm" : "bg-[#ebeef1] text-[#49607e]"
+                           )}>
+                              {org.types?.includes("hospital") ? <HeartPulse className="w-6 h-6" /> : <Landmark className="w-6 h-6" />}
+                           </div>
+                           <div>
+                              <h4 className="font-bold text-[#181c1e] text-base" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                                 {org.name}
+                              </h4>
+                              <p className="text-xs text-[#49607e] font-medium mt-0.5">
+                                 {org.key 
+                                    ? (org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Partner Active')
+                                    : 'Not on Lineo yet'}
+                              </p>
+                           </div>
+                        </div>
+                        {org.key && joinQueueKey === org.key && <CheckCircle2 className="w-5 h-5 text-[#493ee5]" />}
                       </div>
-                      {org.key ? (
-                        <Zap className="w-6 h-6 text-stripe-purple animate-pulse" />
-                      ) : (
-                        <div className="bg-stripe-slate/10 px-3 py-1.5 rounded-xl text-[9px] font-black text-stripe-slate uppercase">Offline</div>
-                      )}
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="text-center py-10 opacity-50">
-                     <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4 text-stripe-purple" />
-                     <p className="font-bold text-stripe-slate">Scanning for available queues...</p>
+                    ))
+                  ) : (
+                    <div className="text-center py-16 opacity-40">
+                       <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4 text-[#493ee5]" />
+                       <p className="font-bold text-sm text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Scanning Nodes...</p>
+                    </div>
+                  )}
+                </div>
+             </ScrollArea>
+
+             {joinQueueKey && (
+               <form onSubmit={handleJoinQueue} className="space-y-5 pt-5 border-t border-[#e5e8eb]">
+                  <div className="flex items-center justify-between p-5 bg-[#f1f4f7] rounded-2xl">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="priority-mode" className="text-base font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>VIP Priority Pass</Label>
+                      <p className="text-xs text-[#49607e] font-medium">Bypass the current queue (+₹150 fee)</p>
+                    </div>
+                    <Switch 
+                      id="priority-mode" 
+                      checked={isPriorityToggle} 
+                      onCheckedChange={setIsPriorityToggle}
+                      className="data-[state=checked]:bg-[#493ee5]"
+                    />
                   </div>
-                )}
-              </div>
-
-              <form id="join-form" onSubmit={handleJoinQueue} className="hidden">
-                 <input type="hidden" value={joinQueueKey} />
-              </form>
-
-              <div className="pt-10">
-                 <button 
-                   onClick={() => setIsJoinModalOpen(false)}
-                   className="py-3 w-full text-stripe-slate font-bold hover:text-stripe-navy transition-colors text-base"
-                 >
-                   Dismiss
-                 </button>
-              </div>
-            </motion.div>
+                  <Button type="submit" size="lg" className="kinetic-btn-primary w-full h-14 text-base">
+                    {isPriorityToggle ? <Zap className="w-5 h-5 mr-2" /> : <Plus className="w-5 h-5 mr-2" />}
+                    {isPriorityToggle ? "Secure VIP Access" : "Join Normal Queue"}
+                  </Button>
+               </form>
+             )}
           </div>
-        )}
-      </AnimatePresence>
+        </DialogContent>
+      </Dialog>
 
-      {/* Category Selection Modal */}
-      <AnimatePresence>
-        {isCategoryModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsCategoryModalOpen(false)}
-              className="absolute inset-0 bg-stripe-navy/60 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 50 }}
-              className="bg-white rounded-[48px] p-12 w-full max-w-2xl relative z-10 shadow-3xl border border-stripe-purple/10"
+      {/* ── Feedback Modal ── */}
+      <Dialog open={isFeedbackModalOpen} onOpenChange={setIsFeedbackModalOpen}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-8 bg-white border-none shadow-ambient">
+          <DialogHeader className="space-y-5">
+            <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto relative group">
+               <CheckCircle2 className="w-8 h-8 text-green-600 relative z-10 group-hover:scale-110 transition-transform" />
+               <div className="absolute inset-0 bg-green-200 rounded-2xl animate-ping opacity-20" />
+            </div>
+            <DialogTitle className="text-2xl font-extrabold text-[#181c1e] text-center tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Session Complete</DialogTitle>
+            <DialogDescription className="text-center text-[#49607e] text-sm font-medium pb-5 border-b border-[#e5e8eb]">
+              Your service node has closed. How was the experience?
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex justify-center gap-3 py-5">
+            {[1,2,3,4,5].map(star => (
+               <StarIcon 
+                 key={star} 
+                 onClick={() => setFeedbackRating(star)}
+                 className={cn("w-10 h-10 cursor-pointer transition-all hover:scale-125", feedbackRating >= star ? "text-amber-400 fill-amber-400 drop-shadow-lg" : "text-[#e5e8eb] hover:text-[#d7dadd]")} 
+               />
+            ))}
+          </div>
+
+          <div className="space-y-2">
+             <Label htmlFor="feedback-comment" className="text-xs font-bold text-[#49607e] uppercase tracking-[0.15em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Comments</Label>
+             <Textarea 
+               id="feedback-comment"
+               value={feedbackComment}
+               onChange={(e) => setFeedbackComment(e.target.value)}
+               placeholder="How was the service quality today?"
+               className="resize-none h-28 rounded-2xl bg-[#f1f4f7] border-none focus-visible:ring-[#493ee5] text-sm p-4"
+             />
+          </div>
+
+          <DialogFooter className="mt-6 flex-col sm:flex-col gap-2">
+            <Button 
+              onClick={() => {
+                if(feedbackRating === 0) return toast.error("Please provide a rating");
+                setIsFeedbackModalOpen(false);
+                toast.success("Feedback Received", { description: "Thank you for the pulse." });
+              }} 
+              className="kinetic-btn-primary w-full h-12 text-base"
             >
-               <div className="flex items-center justify-between mb-10">
-                  <h3 className="text-3xl font-bold text-stripe-navy tracking-tight">Global Categories</h3>
-                  <button onClick={() => setIsCategoryModalOpen(false)} className="text-stripe-slate hover:text-stripe-navy p-4 hover:bg-[#f6f9fc] rounded-full transition-all">
-                    <X className="w-8 h-8" />
-                  </button>
-               </div>
-               <div className="grid grid-cols-2 gap-6">
-                  <CategoryBox icon={<HeartPulse />} title="Hospitals" desc="Real-time clinical queues" onClick={() => { setActiveCategory('hospital'); setIsCategoryModalOpen(false); }} />
-                  <CategoryBox icon={<Landmark />} title="Banks" desc="Remote financial sessions" onClick={() => { setActiveCategory('bank'); setIsCategoryModalOpen(false); }} />
-                  <CategoryBox icon={<ShoppingCart />} title="Retail" desc="Premium check-in lanes" onClick={() => { setActiveCategory('shopping_mall'); setIsCategoryModalOpen(false); }} />
-                  <CategoryBox icon={<Building2 />} title="Government" desc="Verified citizen services" onClick={() => { setActiveCategory('post_office'); setIsCategoryModalOpen(false); }} />
-               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-      {/* Digital Pass Modal */}
-      <AnimatePresence>
-        {isTicketModalOpen && activeToken && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsTicketModalOpen(false)}
-              className="absolute inset-0 bg-stripe-navy/80 backdrop-blur-xl"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.8, y: 100 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 100 }}
-              className="relative w-full max-w-sm bg-white rounded-[40px] overflow-hidden shadow-4xl text-left"
+              Submit Feedback
+            </Button>
+            <Button 
+              variant="ghost" 
+              onClick={() => setIsFeedbackModalOpen(false)}
+              className="w-full h-10 rounded-xl text-[#49607e] hover:bg-[#f1f4f7] font-bold text-sm"
+              style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
             >
-              {/* Header */}
-              <div className="bg-stripe-purple p-8 text-white relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 -mr-16 -mt-16 rounded-full"></div>
-                <div className="relative z-10 flex flex-col gap-1">
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.3em] opacity-80">Lineo Digital Pass</p>
-                  <h2 className="text-2xl font-bold tracking-tight">Active Live Spot</h2>
-                </div>
+              Dismiss
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Digital Pass Modal ── */}
+      <Dialog open={isTicketModalOpen} onOpenChange={setIsTicketModalOpen}>
+        <DialogContent className="max-w-[400px] p-0 overflow-hidden rounded-3xl border-none shadow-ambient">
+           <div className="p-8 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #2d3133, #181c1e)' }}>
+              <div className="absolute top-0 right-0 w-40 h-40 bg-[#493ee5] opacity-25 -mr-20 -mt-20 rounded-full blur-[60px] animate-pulse" />
+              <div className="relative z-10 space-y-1">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.4em] opacity-50" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Pulse Log: {activeToken?.token_number}</p>
+                <h2 className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Lineo Pass</h2>
+              </div>
+           </div>
+           
+           <div className="p-8 space-y-8 bg-white">
+              <div className="flex justify-between items-start">
+                 <div className="space-y-0.5">
+                    <p className="text-[10px] font-extrabold text-[#49607e] uppercase tracking-[0.2em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Node Instance</p>
+                    <h3 className="text-lg font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{activeToken?.queue_key}</h3>
+                 </div>
+                 <span className="bg-[#493ee5]/10 text-[#493ee5] px-3 py-1 rounded-lg text-xs font-bold" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>ACTIVE</span>
               </div>
 
-              {/* Body */}
-              <div className="p-10 space-y-8">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-extrabold text-stripe-slate uppercase tracking-widest">Institution</p>
-                    <h3 className="text-xl font-bold text-stripe-navy">{activeToken.queue_key}</h3>
-                  </div>
-                  <div className="w-12 h-12 bg-[#f6f9fc] rounded-2xl flex items-center justify-center text-stripe-purple">
-                    <Building2 className="w-6 h-6" />
-                  </div>
-                </div>
-
-                {/* QR Code Section */}
-                <div className="bg-[#f6f9fc] p-8 rounded-[32px] flex flex-col items-center justify-center border border-stripe-border border-dashed relative group">
-                  <div className="w-48 h-48 bg-white rounded-2xl shadow-sm flex items-center justify-center text-stripe-navy relative overflow-hidden">
-                     <QrCode className="w-32 h-32 opacity-90 group-hover:scale-110 transition-transform duration-500" />
-                     {/* Scan animations */}
-                     <motion.div 
-                       animate={{ top: ['0%', '100%', '0%'] }}
-                       transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                       className="absolute left-0 right-0 h-0.5 bg-stripe-purple z-10 opacity-30 shadow-[0_0_10px_#533afd]"
-                     />
-                  </div>
-                  <p className="mt-6 text-2xl font-black text-stripe-navy tracking-[0.2em] font-mono">{activeToken.token_number}</p>
-                  <p className="text-[10px] font-bold text-stripe-slate uppercase tracking-widest mt-1">Token Serial ID</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-8">
-                   <div className="space-y-1">
-                      <p className="text-[10px] font-extrabold text-stripe-slate uppercase tracking-widest">Position</p>
-                      <div className="text-xl font-bold text-stripe-purple">#{activeToken.position}</div>
-                   </div>
-                   <div className="space-y-1">
-                      <p className="text-[10px] font-extrabold text-stripe-slate uppercase tracking-widest">Wait Time</p>
-                      <div className="text-xl font-bold text-stripe-navy">~{activeToken.estimated_wait_mins || 0}m</div>
-                   </div>
-                </div>
+              <div className="bg-[#f1f4f7] p-8 rounded-2xl flex flex-col items-center justify-center relative group">
+                 <div className="bg-white p-6 rounded-2xl shadow-ambient relative overflow-hidden border-none group-hover:scale-105 transition-transform duration-500">
+                    <QrCode className="w-28 h-28 text-[#181c1e]" />
+                    <motion.div 
+                      animate={{ top: ['0%', '100%', '0%'] }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                      className="absolute left-0 right-0 h-0.5 bg-[#493ee5] z-10 opacity-60"
+                      style={{ boxShadow: '0 0 15px #493ee5' }}
+                    />
+                 </div>
+                 <p className="mt-6 text-4xl font-black tracking-tight text-[#181c1e] tabular-nums" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{activeToken?.token_number}</p>
+                 <p className="text-[10px] font-extrabold text-[#49607e] uppercase tracking-[0.3em] mt-2 opacity-50" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>OFFICIAL ENTRY ID</p>
               </div>
 
-              <button 
-                onClick={() => setIsTicketModalOpen(false)}
-                className="w-full py-6 bg-stripe-navy text-white font-bold text-sm tracking-widest uppercase hover:bg-stripe-navy/90 transition-all"
-              >
-                Close Ticket
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+              <div className="grid grid-cols-2 gap-8 border-t border-[#e5e8eb] pt-6">
+                 <div className="space-y-0.5">
+                    <p className="text-[10px] font-extrabold text-[#49607e] uppercase tracking-[0.2em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Position</p>
+                    <div className="text-2xl font-extrabold text-[#493ee5]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>#{activeToken?.position}</div>
+                 </div>
+                 <div className="space-y-0.5">
+                    <p className="text-[10px] font-extrabold text-[#49607e] uppercase tracking-[0.2em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Estimated</p>
+                    <div className="text-2xl font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{activeToken?.estimated_wait_mins}m</div>
+                 </div>
+              </div>
+              
+              <Button onClick={() => setIsTicketModalOpen(false)} className="kinetic-btn-primary w-full h-12 text-base">Close Pass</Button>
+           </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function CategoryBox({ icon, title, desc, onClick }: { icon: React.ReactNode, title: string, desc: string, onClick: () => void }) {
+// ─────────────────────────────────────────────────────
+// Sub-Components
+// ─────────────────────────────────────────────────────
+
+function MapPulseIcon() {
   return (
-    <button onClick={onClick} className="p-8 rounded-[32px] border-2 border-stripe-border hover:border-stripe-purple/30 hover:bg-stripe-purple/[0.02] transition-all group text-left">
-       <div className="w-12 h-12 rounded-2xl bg-stripe-purple/10 flex items-center justify-center text-stripe-purple mb-6 group-hover:scale-110 transition-transform">
-          {icon}
-       </div>
-       <h4 className="text-xl font-bold text-stripe-navy mb-2">{title}</h4>
-       <p className="text-sm text-stripe-slate font-light leading-relaxed">{desc}</p>
-    </button>
+    <div className="relative">
+      <MapIcon className="w-10 h-10 text-[#493ee5] opacity-30" />
+      <motion.div 
+        animate={{ scale: [1, 1.4, 1], opacity: [0.4, 0, 0.4] }}
+        transition={{ duration: 2, repeat: Infinity }}
+        className="absolute inset-0 bg-[#493ee5]/15 rounded-full blur-xl"
+      />
+    </div>
   );
 }
 
-function CategoryButton({ active, label, onClick }: { active: boolean, label: string, onClick: () => void }) {
+function StatCard({ icon, label, value, unit }: { icon: React.ReactNode; label: string; value: string; unit?: string }) {
   return (
-    <button 
-      onClick={onClick}
-      className={cn(
-        "px-5 py-2 rounded-xl text-[13px] font-bold transition-all duration-300",
-        active 
-          ? "bg-stripe-purple text-white shadow-lg shadow-stripe-purple/20" 
-          : "bg-[#f6f9fc] text-stripe-slate hover:bg-stripe-border"
-      )}
-    >
-      {label}
-    </button>
-  );
-}
-
-function StatCard({ title, value, desc, trend, icon }: { title: string, value: string, desc: string, trend: string, icon: React.ReactNode }) {
-  return (
-    <div className="stripe-card p-10 bg-white hover:border-stripe-purple/30 hover:shadow-stripe-premium transition-all group rounded-[40px] text-left border-stripe-border shadow-sm">
-      <div className="flex items-center justify-between mb-8">
-         <div className="w-14 h-14 rounded-2xl bg-[#f6f9fc] flex items-center justify-center text-stripe-purple group-hover:bg-stripe-purple group-hover:text-white transition-all duration-500">
-            {icon}
-         </div>
-         <span className="text-[11px] font-extrabold text-green-600 bg-green-50 px-3 py-1.5 rounded-xl tracking-widest border border-green-100 shadow-sm">{trend}</span>
+    <div className="stat-card">
+      <span className="text-[#49607e] font-medium text-sm mb-4 flex items-center gap-2">
+        {icon} {label}
+      </span>
+      <div className="text-4xl font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+        {value}
+        {unit && <span className="text-xl text-[#49607e] font-medium">{unit}</span>}
       </div>
-      <p className="text-[14px] font-extrabold text-stripe-slate uppercase tracking-[0.2em] mb-3 font-display">{title}</p>
-      <h3 className="text-4xl font-light text-stripe-navy tabular-nums mb-3 tracking-tighter">{value}</h3>
-      <p className="text-[15px] text-stripe-slate/80 font-light">{desc}</p>
-    </div>
-  );
-}
-
-function ActivityRow({ org, date, time }: { org: string, date: string, time: string }) {
-  return (
-    <div className="flex items-center justify-between p-6 rounded-[32px] border border-transparent hover:border-stripe-border/50 hover:bg-white transition-all cursor-default group text-left">
-       <div className="flex items-center gap-5">
-          <div className="w-3 h-3 rounded-full bg-stripe-border group-hover:bg-stripe-purple group-hover:scale-150 transition-all duration-500"></div>
-          <div>
-            <h5 className="text-[16px] font-extrabold text-stripe-navy leading-tight group-hover:text-stripe-purple transition-colors">{org}</h5>
-            <p className="text-[13px] text-stripe-slate font-medium opacity-60 tracking-tight">{date}</p>
-          </div>
-       </div>
-       <div className="text-right">
-          <p className="text-[15px] font-extrabold text-stripe-navy tabular-nums">{time}</p>
-       </div>
     </div>
   );
 }

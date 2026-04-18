@@ -46,15 +46,18 @@ export default function LoginPage() {
       });
 
       const { data } = response.data;
-      sessionStorage.setItem("token", data.token);
-      sessionStorage.setItem("user", JSON.stringify(data.user));
-
       // Redirect based on role
       if (data.user.role === "admin") {
-        router.push("/admin/dashboard");
-      } else if (data.user.role === "agent") {
-        router.push("/agent/dashboard");
+        sessionStorage.setItem("admin_token", data.token);
+        sessionStorage.setItem("admin_user", JSON.stringify(data.user));
+        router.push("/admin");
+      } else if (data.user.role === "staff") {
+        sessionStorage.setItem("staff_token", data.token);
+        sessionStorage.setItem("staff_user", JSON.stringify(data.user));
+        router.push("/staff");
       } else {
+        sessionStorage.setItem("token", data.token);
+        sessionStorage.setItem("user", JSON.stringify(data.user));
         router.push("/dashboard");
       }
     } catch (err) {

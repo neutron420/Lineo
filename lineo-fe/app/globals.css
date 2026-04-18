@@ -4,139 +4,110 @@
 @config "../tailwind.config.ts";
 
 @theme {
-  /* You can also put custom theme values here in v4, but we'll use the config file for now */
+  /* The Kinetic Pulse — Design Tokens */
 }
 
 @layer base {
   body {
-    @apply bg-white text-stripe-navy antialiased;
-    font-family: var(--font-geist-sans), system-ui, sans-serif;
-    font-feature-settings: "ss01", "cv01", "cv11";
+    @apply bg-surface text-on-surface antialiased;
+    font-family: var(--font-inter), system-ui, sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply text-stripe-navy font-medium tracking-tight;
-    font-family: var(--font-outfit), system-ui, sans-serif;
-    font-feature-settings: "ss01";
+    @apply text-on-surface font-semibold tracking-tight;
+    font-family: var(--font-manrope), system-ui, sans-serif;
   }
 
   p {
-    @apply text-stripe-slate leading-relaxed;
-    font-feature-settings: "ss01";
+    @apply text-secondary leading-relaxed;
+  }
+}
+
+@layer utilities {
+  /* === Glassmorphism Panel === */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.04),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.2);
   }
 
-  input, button {
-    font-feature-settings: "ss01";
+  /* === Neo-Brutalist Shadows === */
+  .shadow-neobrutal {
+    box-shadow: 4px 4px 0px 0px #e2dfff;
   }
 
-  /* Feature #3 Tabular Numerals */
-  .tabular {
-    font-feature-settings: "tnum";
+  .shadow-neobrutal-lg {
+    box-shadow: 6px 6px 0px 0px #e2dfff;
   }
 
-  .font-handwritten {
-    font-family: var(--font-gochi-hand), cursive;
+  .shadow-neobrutal-primary {
+    box-shadow: 4px 4px 0px 0px #635bff;
+  }
+
+  /* === Ambient Elevation (Tonal Layering) === */
+  .shadow-ambient {
+    box-shadow: 0 40px 80px rgba(24, 28, 30, 0.06), 0 12px 24px rgba(24, 28, 30, 0.04);
+  }
+
+  .tonal-elevation {
+    box-shadow: 0 1px 3px rgba(24, 28, 30, 0.06), 0 20px 40px rgba(24, 28, 30, 0.04);
+  }
+
+  /* === Pulse Glow (Progress bars, live indicators) === */
+  .pulse-glow {
+    box-shadow: 0 0 20px #635bff;
+  }
+
+  /* === Ghost Border (when tonal contrast is insufficient) === */
+  .ghost-border {
+    border: 1px solid rgba(199, 196, 216, 0.15);
+  }
+
+  /* === Tonal Transition (standard card lift) === */
+  .tonal-transition {
+    box-shadow: 0 40px 40px rgba(24, 28, 30, 0.04);
   }
 }
 
 @layer components {
-  .stripe-btn-primary {
-    @apply bg-stripe-purple text-white px-5 py-2.5 rounded-stripe font-normal transition-all hover:bg-stripe-purpleHover shadow-sm active:scale-95 text-[15px];
+  /* === Primary CTA — Kinetic Pulse Style === */
+  .kinetic-btn-primary {
+    @apply bg-primary text-white px-8 py-3.5 rounded-2xl font-semibold transition-all duration-200;
+    font-family: var(--font-manrope), system-ui, sans-serif;
+    box-shadow: 4px 4px 0px 0px #e2dfff;
+  }
+  .kinetic-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 6px 6px 0px 0px #e2dfff;
+  }
+  .kinetic-btn-primary:active {
+    transform: translateY(2px);
+    box-shadow: 2px 2px 0px 0px #e2dfff;
   }
 
-  .stripe-btn-ghost {
-    @apply bg-transparent text-stripe-purple border border-stripe-border px-5 py-2.5 rounded-stripe font-normal transition-all hover:bg-stripe-border text-[15px];
+  /* === Glass Button === */
+  .kinetic-btn-glass {
+    @apply px-6 py-3 rounded-2xl font-semibold transition-all duration-200;
+    font-family: var(--font-manrope), system-ui, sans-serif;
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #493ee5;
+  }
+  .kinetic-btn-glass:hover {
+    background: rgba(255, 255, 255, 0.7);
   }
 
-  .stripe-card {
-    @apply bg-white border border-stripe-border rounded-stripe shadow-stripe-premium overflow-hidden;
+  /* === Stat Card === */
+  .stat-card {
+    @apply bg-white rounded-2xl p-6 transition-all duration-300;
+    border: 1px solid rgba(199, 196, 216, 0.12);
   }
-
-  .stripe-input {
-    @apply w-full px-4 py-2 border border-stripe-border rounded-stripe focus:outline-none focus:ring-2 focus:ring-stripe-purple/20 focus:border-stripe-purple transition-all text-stripe-navy placeholder:text-stripe-slate/50;
+  .stat-card:hover {
+    box-shadow: 0 20px 40px rgba(24, 28, 30, 0.06);
+    transform: translateY(-2px);
   }
-}
-
-/* Background Gradients for Hero sections */
-.stripe-bg-dark {
-  background-color: #1c1e54;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(83, 58, 253, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(234, 34, 97, 0.05) 0px, transparent 50%);
-}
-
-@theme inline {
-  --color-gradient-color: var(--gradient-color);
-  --color-sparkles-color: var(--sparkles-color);
-  
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-}
-
-:root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --primary: 221.2 83.2% 53.3%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 221.2 83.2% 53.3%;
-  --radius: 0.5rem;
-
-  --gradient-color: #8350e8;
-  --sparkles-color: #8350e8;
-}
-
-.dark {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --card: 222.2 84% 4.9%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 217.2 91.2% 59.8%;
-  --primary-foreground: 222.2 47.4% 11.2%;
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 224.3 76.3% 48%;
-
-  --gradient-color: #8350e8;
-  --sparkles-color: #ffffff;
 }

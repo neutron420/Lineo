@@ -54,6 +54,8 @@ func InitDB() {
 		&models.PaymentTransaction{},
 		&models.PaymentWebhookEvent{},
 		&models.Feedback{},
+		&models.Terminal{},
+		&models.Announcement{},
 	}
 
 	// Auto-migrate models. Some managed Postgres setups hit a pgx/sql interpolation

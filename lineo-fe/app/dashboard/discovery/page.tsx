@@ -14,12 +14,16 @@ import {
   Filter,
   Layers,
   Zap,
-  Calendar
+  Calendar,
+  Loader2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { useLocation } from '@/context/LocationContext';
 
 interface Organization {
   name: string;
@@ -35,84 +39,59 @@ interface Organization {
 
 export default function DiscoveryPage() {
   const router = useRouter();
-  const [coords, setCoords] = useState({ lat: 28.6139, lng: 77.2090 });
+  const { coords } = useLocation();
   const [activeCategory, setActiveCategory] = useState('all');
   const [nearbyOrgs, setNearbyOrgs] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedInstitution, setSelectedInstitution] = useState<Organization | null>(null);
+  const [hasFetched, setHasFetched] = useState(false);
 
   const fetchNearby = useCallback(async () => {
+    if (!coords.lat || !coords.lng) return;
     setIsLoading(true);
     try {
       const categoryParam = activeCategory !== 'all' ? `&type=${activeCategory}` : "";
-      const response = await api.get(`/search/nearby?lat=${coords.lat}&lng=${coords.lng}${categoryParam}`);
+      const response = await api.get(`/search/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=40000${categoryParam}`);
       setNearbyOrgs(response.data.data || []);
+      setHasFetched(true);
     } catch (err) {
       console.error("Discovery error:", err);
-      toast.error("Discovery Engine Offline", {
-        description: "Failed to fetch geo-tagged institutions."
-      });
+      if (hasFetched) {
+        toast.error("Discovery Engine Offline", {
+          description: "Failed to fetch geo-tagged institutions."
+        });
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [coords.lat, coords.lng, activeCategory]);
+  }, [coords.lat, coords.lng, activeCategory, hasFetched]);
 
   const handleJoinQueue = async (queueKey: string) => {
     if (!queueKey) return;
-    
-    // VERIFY LIVE GPS BEFORE JOINING
-    let liveLat = coords.lat;
-    let liveLon = coords.lng;
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        liveLat = pos.coords.latitude;
-        liveLon = pos.coords.longitude;
-        setCoords({ lat: liveLat, lng: liveLon });
-      });
-    }
-
     const promise = api.post("/queue/join", {
       queue_key: queueKey,
-      user_lat: liveLat,
-      user_lon: liveLon
+      user_lat: coords.lat,
+      user_lon: coords.lng
     });
-
     toast.promise(promise, {
-      loading: 'Securing your spot in the interactive queue...',
+      loading: 'Securing your spot in the queue...',
       success: () => {
         setTimeout(() => router.push('/dashboard'), 1500);
-        return 'Spot Secured! Redirecting to live dashboard...';
+        return 'Spot Secured! Redirecting to dashboard...';
       },
       error: 'Unable to join queue. The institution may be at capacity.'
     });
   };
 
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setCoords({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        },
-        () => console.warn("Location access denied, using default.")
-      );
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchNearby();
-  }, [fetchNearby]);
+  useEffect(() => { fetchNearby(); }, [fetchNearby]);
 
   const categories = [
-    { id: 'all', name: 'All Services', icon: <Layers className="w-4 h-4" /> },
-    { id: 'hospital', name: 'Health & Medical', icon: <HeartPulse className="w-4 h-4" /> },
-    { id: 'bank', name: 'Banks & Fintech', icon: <Landmark className="w-4 h-4" /> },
-    { id: 'it_park', name: 'Tech Hubs', icon: <Building2 className="w-4 h-4" /> },
-    { id: 'shopping_mall', name: 'Retail Centers', icon: <ShoppingBag className="w-4 h-4" /> },
+    { id: 'all', name: 'All Services', icon: <Layers className="w-3.5 h-3.5" /> },
+    { id: 'hospital', name: 'Healthcare', icon: <HeartPulse className="w-3.5 h-3.5" /> },
+    { id: 'bank', name: 'Banking', icon: <Landmark className="w-3.5 h-3.5" /> },
+    { id: 'it_park', name: 'Tech Hubs', icon: <Building2 className="w-3.5 h-3.5" /> },
+    { id: 'shopping_mall', name: 'Retail', icon: <ShoppingBag className="w-3.5 h-3.5" /> },
   ];
 
   const filteredOrgs = nearbyOrgs.filter(org => 
@@ -121,40 +100,40 @@ export default function DiscoveryPage() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-80px)] overflow-hidden bg-[#f6f9fc]">
+    <div className="flex h-[calc(100vh-96px)] overflow-hidden rounded-2xl">
       {/* Sidebar Discovery List */}
-      <div className="w-[450px] flex-shrink-0 bg-white border-r border-stripe-border flex flex-col shadow-2xl z-20 text-left">
-        <div className="p-8 border-b border-stripe-border space-y-6">
+      <div className="w-[420px] flex-shrink-0 bg-white flex flex-col z-20 ghost-border rounded-l-2xl">
+        <div className="p-6 space-y-5 border-b border-[#e5e8eb]">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-stripe-navy tracking-tight">Discovery Expo</h1>
-            <div className="bg-stripe-purple/10 text-stripe-purple px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
+            <h1 className="text-xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Discovery</h1>
+            <span className="bg-[#493ee5]/10 text-[#493ee5] px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
               Live Area
-            </div>
+            </span>
           </div>
 
           <div className="relative group">
-            <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-stripe-slate transition-colors group-focus-within:text-stripe-purple" />
-            </div>
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#49607e] group-focus-within:text-[#493ee5] transition-colors" />
             <input
               type="text"
-              placeholder="Search institutions, banks, clinics..."
-              className="w-full pl-14 pr-6 py-4 bg-[#f6f9fc] border border-transparent focus:border-stripe-purple/20 focus:bg-white rounded-2xl outline-none transition-all text-sm font-medium"
+              placeholder="Search institutions..."
+              className="w-full pl-11 pr-4 py-3 bg-[#f1f4f7] rounded-xl outline-none transition-all text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#493ee5]/10"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap border ${
+                className={cn(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap",
                   activeCategory === cat.id 
-                    ? 'bg-stripe-navy text-white border-stripe-navy shadow-lg shadow-stripe-navy/20' 
-                    : 'bg-white text-stripe-slate border-stripe-border hover:border-stripe-purple/40 hover:text-stripe-navy'
-                }`}
+                    ? 'bg-[#181c1e] text-white shadow-neobrutal' 
+                    : 'bg-[#f1f4f7] text-[#49607e] hover:text-[#181c1e]'
+                )}
+                style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
               >
                 {cat.icon}
                 {cat.name}
@@ -163,61 +142,62 @@ export default function DiscoveryPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
           {isLoading ? (
             Array(5).fill(0).map((_, i) => (
-              <div key={i} className="h-28 bg-[#f6f9fc] rounded-3xl animate-pulse" />
+              <div key={i} className="h-24 bg-[#f1f4f7] rounded-xl animate-pulse" />
             ))
           ) : filteredOrgs.length > 0 ? (
             filteredOrgs.map((org, idx) => (
               <motion.div
                 key={idx}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
+                transition={{ delay: idx * 0.04 }}
                 onClick={() => setSelectedInstitution(org)}
-                className={`p-6 bg-white border rounded-[32px] cursor-pointer transition-all ${
+                className={cn(
+                  "p-4 bg-white rounded-xl cursor-pointer transition-all",
                   selectedInstitution?.key === org.key 
-                    ? 'border-stripe-purple ring-4 ring-stripe-purple/5 shadow-stripe-premium' 
-                    : 'border-stripe-border hover:border-stripe-purple/30 hover:shadow-lg'
-                }`}
+                    ? 'ring-2 ring-[#493ee5] shadow-ambient bg-[#493ee5]/[0.02]' 
+                    : 'ghost-border hover:shadow-ambient'
+                )}
               >
-                <div className="flex items-start justify-between mb-3 text-left">
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-stripe-navy text-lg line-clamp-1">{org.name}</h3>
-                    <div className="flex items-center gap-2 text-stripe-slate text-[11px] font-bold uppercase tracking-wider">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="space-y-0.5">
+                    <h3 className="font-bold text-[#181c1e] text-sm line-clamp-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{org.name}</h3>
+                    <div className="flex items-center gap-1.5 text-[#49607e] text-[10px] font-bold uppercase tracking-wider">
                       <MapPin className="w-3 h-3" />
                       {org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Nearby'}
                     </div>
                   </div>
-                  <div className="bg-stripe-purple/5 p-3 rounded-2xl text-stripe-purple">
-                     {org.type === 'hospital' ? <HeartPulse className="w-5 h-5" /> : <Landmark className="w-5 h-5" />}
+                  <div className="bg-[#f1f4f7] p-2 rounded-lg text-[#493ee5]">
+                     {org.type === 'hospital' ? <HeartPulse className="w-4 h-4" /> : <Landmark className="w-4 h-4" />}
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-4 text-xs font-bold">
-                   <div className="flex items-center gap-1.5 text-amber-500 bg-amber-50 px-2.5 py-1 rounded-lg">
-                      <Star className="w-3.5 h-3.5 fill-current" />
+                <div className="flex items-center gap-3 text-[11px] font-bold">
+                   <div className="flex items-center gap-1 text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md">
+                      <Star className="w-3 h-3 fill-current" />
                       {org.rating || '4.5'}
                    </div>
-                   <div className="flex items-center gap-1.5 text-stripe-slate">
-                      <Clock className="w-3.5 h-3.5" />
-                      {org.wait_time || '15 mins wait'}
+                   <div className="flex items-center gap-1 text-[#49607e]">
+                      <Clock className="w-3 h-3" />
+                      {org.wait_time || '15 mins'}
                    </div>
                 </div>
               </motion.div>
             ))
           ) : (
-            <div className="text-center py-20">
-               <Building2 className="w-12 h-12 text-stripe-border mx-auto mb-4" />
-               <p className="text-stripe-slate font-bold">No results found in this area.</p>
+            <div className="text-center py-16">
+               <Building2 className="w-10 h-10 text-[#e5e8eb] mx-auto mb-3" />
+               <p className="text-[#49607e] font-bold text-sm">No results found.</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Main Map View */}
-      <div className="flex-1 relative bg-[#e5e7eb]">
+      <div className="flex-1 relative bg-[#e5e8eb] rounded-r-2xl overflow-hidden">
         <iframe
           width="100%"
           height="100%"
@@ -225,78 +205,62 @@ export default function DiscoveryPage() {
           style={{ border: 0 }}
           loading="lazy"
           allowFullScreen
-          referrerPolicy="no-referrer-when-downgrade"
-          src={`https://www.google.com/maps/embed/v1/view?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY?.replace('#', '')}&center=${selectedInstitution?.lat || coords.lat},${selectedInstitution?.lng || coords.lng}&zoom=${selectedInstitution ? 16 : 14}&maptype=roadmap`}
-        ></iframe>
+          src={selectedInstitution
+            ? `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY?.replace('#', '')}&q=${selectedInstitution.lat},${selectedInstitution.lng}&zoom=16`
+            : `https://www.google.com/maps/embed/v1/view?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY?.replace('#', '')}&center=${coords.lat},${coords.lng}&zoom=14&maptype=roadmap`
+          }
+        />
 
-        {/* Floating Map Controls */}
-        <div className="absolute top-8 right-8 space-y-3">
-           <button className="w-12 h-12 bg-white rounded-2xl shadow-xl flex items-center justify-center text-stripe-navy hover:text-stripe-purple transition-all border border-stripe-border">
-              <Navigation className="w-5 h-5" />
+        {/* Map Controls */}
+        <div className="absolute top-6 right-6 space-y-2">
+           <button className="w-10 h-10 bg-white rounded-xl shadow-ambient flex items-center justify-center text-[#181c1e] hover:text-[#493ee5] transition-all ghost-border">
+              <Navigation className="w-4 h-4" />
            </button>
-           <button className="w-12 h-12 bg-white rounded-2xl shadow-xl flex items-center justify-center text-stripe-navy hover:text-stripe-purple transition-all border border-stripe-border">
-              <Filter className="w-5 h-5" />
+           <button className="w-10 h-10 bg-white rounded-xl shadow-ambient flex items-center justify-center text-[#181c1e] hover:text-[#493ee5] transition-all ghost-border">
+              <Filter className="w-4 h-4" />
            </button>
         </div>
 
-        {/* Selected Institution Detail Card (Overlay) */}
+        {/* Selected Institution Overlay */}
         <AnimatePresence>
           {selectedInstitution && (
             <motion.div
-              initial={{ opacity: 0, y: 100 }}
+              initial={{ opacity: 0, y: 80 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 100 }}
-              className="absolute bottom-10 left-10 right-10 flex justify-center"
+              exit={{ opacity: 0, y: 80 }}
+              className="absolute bottom-6 left-6 right-6 flex justify-center"
             >
-              <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[40px] shadow-3xl border border-white max-w-2xl w-full flex items-center justify-between gap-8 text-left">
-                 <div className="flex-1 space-y-4">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-stripe-purple/10 text-stripe-purple rounded-full text-[10px] font-bold uppercase tracking-widest">
+              <div className="glass-panel p-6 rounded-2xl shadow-ambient max-w-xl w-full flex items-center justify-between gap-6">
+                 <div className="flex-1 space-y-3">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[#493ee5]/10 text-[#493ee5] rounded-full text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                        Highly Rated
+                    </span>
+                    <div>
+                       <h2 className="text-xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{selectedInstitution.name}</h2>
+                       <p className="text-[#49607e] text-xs font-medium mt-0.5">{selectedInstitution.address}</p>
                     </div>
-                    <div className="space-y-1">
-                       <h2 className="text-3xl font-bold text-stripe-navy tracking-tight">{selectedInstitution.name}</h2>
-                       <p className="text-stripe-slate text-sm font-medium">{selectedInstitution.address}</p>
-                    </div>
-                    <div className="flex gap-10 items-center justify-between py-4 border-y border-stripe-border/50">
-                       <div className="space-y-1">
-                          <p className="text-[10px] font-extrabold text-stripe-slate uppercase tracking-widest">Commute Pulse</p>
-                          <div className="flex items-center gap-2">
-                             <div className="bg-emerald-500 w-2 h-2 rounded-full animate-pulse"></div>
-                             <p className="text-emerald-600 font-bold text-sm">Optimal Route Found</p>
-                          </div>
+                    <div className="flex gap-6 items-center text-xs">
+                       <div>
+                          <p className="text-[10px] font-bold text-[#49607e] uppercase tracking-wider">Distance</p>
+                          <p className="text-[#181c1e] font-bold">{(selectedInstitution.distance / 1000).toFixed(1)} km</p>
                        </div>
-                       <div className="flex gap-8">
-                          <div className="space-y-0.5">
-                             <p className="text-[10px] font-extrabold text-stripe-slate uppercase tracking-wider">Distance</p>
-                             <p className="text-stripe-navy font-bold text-sm">{(selectedInstitution.distance / 1000).toFixed(1)} km</p>
-                          </div>
-                          <div className="space-y-0.5">
-                             <p className="text-[10px] font-extrabold text-stripe-slate uppercase tracking-wider">Est. Travel</p>
-                             <p className="text-stripe-navy font-bold text-sm">{Math.ceil((selectedInstitution.distance / 1000) * 3)} mins</p>
-                          </div>
+                       <div>
+                          <p className="text-[10px] font-bold text-[#49607e] uppercase tracking-wider">Est. Travel</p>
+                          <p className="text-[#181c1e] font-bold">{Math.ceil((selectedInstitution.distance / 1000) * 3)} mins</p>
                        </div>
                     </div>
                  </div>
                  
-                 <div className="flex flex-col gap-3 min-w-[200px]">
+                 <div className="flex flex-col gap-2 min-w-[150px]">
                     {selectedInstitution.key && (
-                      <button 
-                        onClick={() => handleJoinQueue(selectedInstitution.key!)}
-                        className="bg-stripe-purple text-white px-10 py-5 rounded-3xl font-bold text-sm shadow-xl shadow-stripe-purple/30 hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
-                      >
+                      <Button onClick={() => handleJoinQueue(selectedInstitution.key!)} className="kinetic-btn-primary h-11 text-sm gap-2">
                          <Zap className="w-4 h-4" /> Secure Spot
-                      </button>
+                      </Button>
                     )}
-                    <button 
-                      onClick={() => router.push('/dashboard/appointments')}
-                      className="bg-white border-2 border-stripe-purple text-stripe-purple px-10 py-5 rounded-3xl font-bold text-sm transition-all hover:bg-stripe-purple/5 flex items-center justify-center gap-2"
-                    >
+                    <Button variant="ghost" onClick={() => router.push('/dashboard/appointments')} className="h-10 text-[#493ee5] hover:bg-[#493ee5]/5 rounded-xl text-sm font-bold gap-2" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                        <Calendar className="w-4 h-4" /> Book Ahead
-                    </button>
-                    <button 
-                      onClick={() => setSelectedInstitution(null)}
-                      className="text-stripe-slate font-bold text-xs py-2 hover:text-stripe-navy transition-all"
-                    >
+                    </Button>
+                    <button onClick={() => setSelectedInstitution(null)} className="text-[#49607e] font-bold text-[11px] py-1 hover:text-[#181c1e] transition-all">
                        Dismiss
                     </button>
                  </div>
