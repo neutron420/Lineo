@@ -1,6 +1,7 @@
 import { Manrope, Inter } from "next/font/google";
 import "./globals.css";
 import { Metadata } from "next";
+import { LocationProvider } from "@/context/LocationContext";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -25,7 +26,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${manrope.variable} ${inter.variable} h-full antialiased scroll-smooth`}>
       <body className="min-h-full flex flex-col font-body bg-surface text-on-surface">
-        {children}
+        <LocationProvider>
+          {children}
+        </LocationProvider>
       </body>
     </html>
   );

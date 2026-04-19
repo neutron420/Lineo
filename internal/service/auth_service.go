@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -13,9 +14,10 @@ import (
 
 	"queueless/internal/models"
 	"queueless/internal/repository"
-	"queueless/pkg/db"
 	"queueless/pkg/config"
+	"queueless/pkg/db"
 	"queueless/pkg/utils"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -26,6 +28,7 @@ type AuthService interface {
 	ResetPassword(token, newPass string) error
 	VerifyTurnstile(token string) bool
 	AddStaff(adminOrgID uint, req models.RegisterRequest) (*models.User, error)
+	RegisterOrganization(req models.OrgRegistrationRequest) (*models.User, error)
 }
 
 type authService struct {
@@ -104,6 +107,16 @@ func (s *authService) LoginUser(req models.LoginRequest) (string, *models.User, 
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil { return "", nil, errors.New("invalid email or password") }
+
+	// VERIFICATION GATE: Admins/Staff of unverified organizations cannot login
+	if (user.Role == models.RoleAdmin || user.Role == models.RoleStaff) && user.OrganizationID != nil {
+		var org models.Organization
+		if err := db.DB.First(&org, *user.OrganizationID).Error; err == nil {
+			if !org.IsVerified {
+				return "", nil, errors.New("your organization is pending approval. please wait for system administrator verification")
+			}
+		}
+	}
 
 	token, _ := utils.GenerateToken(user)
 	return token, user, nil
@@ -189,4 +202,66 @@ func (s *authService) AddStaff(adminOrgID uint, req models.RegisterRequest) (*mo
 
 	err := s.userRepo.CreateUser(user)
 	return user, err
+}
+
+func (s *authService) RegisterOrganization(req models.OrgRegistrationRequest) (*models.User, error) {
+	if config.Secret("TURNSTILE_SECRET_KEY") != "" {
+		if req.TurnstileToken == "" {
+			return nil, errors.New("captcha token is required")
+		}
+		if !s.VerifyTurnstile(req.TurnstileToken) {
+			return nil, errors.New("invalid captcha token")
+		}
+	}
+
+	tx := db.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 1. Create Organization
+	org := &models.Organization{
+		Name:           req.OrgName,
+		Type:           req.OrgType,
+		Address:        req.Address,
+		Pincode:        req.Pincode,
+		State:          req.State,
+		Latitude:       req.Lat,
+		Longitude:      req.Lng,
+		OwnerName:      req.OwnerName,
+		OwnerPhone:     req.OwnerPhone,
+		OfficeImageURL: req.OfficeImageURL,
+		CertPdfURL:     req.CertPdfURL,
+		PTaxPaperURL:   req.PTaxPaperURL,
+		IsVerified:     false, // CRITICAL: Must be false by default
+	}
+
+	if err := tx.Create(org).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to create organization: %v", err)
+	}
+
+	// 2. Create Admin User
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	user := &models.User{
+		Username:       req.Username,
+		Email:          req.Email,
+		Password:       string(hashedPassword),
+		Role:           models.RoleAdmin,
+		OrganizationID: &org.ID,
+		PhoneNumber:    req.OwnerPhone,
+	}
+
+	if err := tx.Create(user).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to create admin user: %v", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }

@@ -80,6 +80,18 @@ func InitDB() {
 		}
 	}
 
+	// MANUAL MIGRATION: Ensure all new organization fields exist (Neon GORM fallback doesn't always add columns)
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS pincode text").Error
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS state text").Error
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS latitude double precision").Error
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS longitude double precision").Error
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS owner_name text").Error
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS owner_phone text").Error
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS office_image_url text").Error
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS cert_pdf_url text").Error
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS ptax_paper_url text").Error
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS is_verified boolean DEFAULT false").Error
+
 	slog.Info("database connection established and migrated")
 
 	// Explicit high-cardinality indexes for analytics/compliance queries.

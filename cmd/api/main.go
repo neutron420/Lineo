@@ -74,6 +74,7 @@ func main() {
 	apptHandler := handler.NewAppointmentHandler(apptService)
 	paymentHandler := handler.NewPaymentHandler(paymentService)
 	feedbackHandler := handler.NewFeedbackHandler(feedbackService)
+	uploadHandler := handler.NewUploadHandler()
 	adminHandler := handler.NewAdminHandler()
 
 	gin.SetMode(gin.ReleaseMode)
@@ -130,6 +131,7 @@ func main() {
 			auth.POST("/login", authHandler.Login)
 			auth.POST("/forgot-password", authHandler.ForgotPassword)
 			auth.POST("/reset-password", authHandler.ResetPassword)
+			auth.POST("/register-org", authHandler.RegisterOrganization)
 		}
 
 		v1.POST("/org", orgHandler.CreateOrganization)
@@ -138,11 +140,14 @@ func main() {
 		v1.GET("/queue/:key/position/:token", queueHandler.GetPosition)
 		v1.GET("/search/nearby", mapHandler.SearchNearby)
 		v1.GET("/search/address", mapHandler.GetAddress)
+		v1.POST("/upload", uploadHandler.Upload)
 		v1.POST("/payments/razorpay/webhook", paymentHandler.RazorpayWebhook)
 
 		protected := v1.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
+			protected.GET("/org/my", orgHandler.GetMyOrganization)
+			protected.POST("/org/queue", orgHandler.CreateQueue)
 			protected.GET("/queue/active", queueHandler.GetActiveTicket)
 			protected.GET("/queue/history", queueHandler.GetUserHistory)
 			protected.POST("/queue/join", queueHandler.Enqueue)

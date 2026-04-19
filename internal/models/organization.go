@@ -9,11 +9,17 @@ type Organization struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
 	Name        string         `gorm:"uniqueIndex;not null" json:"name"`
 	Type        string         `gorm:"not null" json:"type"` // e.g., "bank", "clinic", "hospital"
+	// Location & Identity
 	Address     string         `json:"address"`
+	Pincode     string         `json:"pincode"`
+	State       string         `json:"state"`
 	Latitude    float64        `json:"latitude"`
 	Longitude   float64        `json:"longitude"`
 	
-	// Verification Documents (Stored in S3 usually)
+	OwnerName   string         `json:"owner_name"`
+	OwnerPhone  string         `json:"owner_phone"`
+	
+	// Verification Documents (Stored in R2/S3)
 	OfficeImageURL string         `json:"office_image_url"`
 	CertPdfURL     string         `json:"cert_pdf_url"`
 	PTaxPaperURL   string         `json:"ptax_paper_url"`

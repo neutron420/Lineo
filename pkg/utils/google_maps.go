@@ -19,15 +19,25 @@ func NewGoogleMapsClient() *GoogleMapsClient {
 	}
 }
 
+type QueueInfo struct {
+	Name     string `json:"name"`
+	Key      string `json:"key"`
+	IsPaused bool   `json:"is_paused"`
+}
+
 type Place struct {
-	Name     string  `json:"name"`
-	Address  string  `json:"vicinity"`
-	PlaceID  string  `json:"place_id"`
-	Lat      float64 `json:"lat"`
-	Lng      float64 `json:"lng"`
-	Rating   float32 `json:"rating"`
-	UserRatingsTotal int `json:"user_ratings_total"`
-	Key      string  `json:"key"`
+	Name             string      `json:"name"`
+	Address          string      `json:"address"`
+	Vicinity         string      `json:"vicinity"`
+	PlaceID          string      `json:"place_id"`
+	Lat              float64     `json:"lat"`
+	Lng              float64     `json:"lng"`
+	Rating           float32     `json:"rating"`
+	UserRatingsTotal int         `json:"user_ratings_total"`
+	Key              string      `json:"key"`
+	Type             string      `json:"type"`
+	Partnered        bool        `json:"partnered"`
+	Queues           []QueueInfo `json:"queues,omitempty"`
 }
 
 // SearchNearby finds hospitals, clinics, or banks using Google Places API
@@ -76,12 +86,15 @@ func (g *GoogleMapsClient) SearchNearby(lat, lng float64, radius int, placeType 
 	for _, r := range result.Results {
 		places = append(places, Place{
 			Name:             r.Name,
-			Address:          r.Vicinity,
+			Address:          r.Vicinity, // Use vicinity as address for Google results
+			Vicinity:         r.Vicinity,
 			PlaceID:          r.PlaceID,
 			Lat:              r.Geometry.Location.Lat,
 			Lng:              r.Geometry.Location.Lng,
 			Rating:           r.Rating,
 			UserRatingsTotal: r.UserRatingsTotal,
+			Type:             placeType, // Pass back the requested type
+			Partnered:        false,
 		})
 	}
 
@@ -145,9 +158,15 @@ func (g *GoogleMapsClient) GetDistanceMatrix(originLat, originLng, destLat, dest
 	var result struct {
 		Rows []struct {
 			Elements []struct {
-				Distance struct { Text string `json:"text"`; Value int `json:"value"` } `json:"distance"`
-				DurationInTraffic struct { Text string `json:"text"`; Value int `json:"value"` } `json:"duration_in_traffic"`
-				Status   string `json:"status"`
+				Distance struct {
+					Text  string `json:"text"`
+					Value int    `json:"value"`
+				} `json:"distance"`
+				DurationInTraffic struct {
+					Text  string `json:"text"`
+					Value int    `json:"value"`
+				} `json:"duration_in_traffic"`
+				Status string `json:"status"`
 			} `json:"elements"`
 		} `json:"rows"`
 		Status string `json:"status"`

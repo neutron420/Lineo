@@ -17,6 +17,8 @@ interface User {
   id: number;
   email: string;
   role: string;
+  org_name: string;
+  is_verified: boolean;
   created_at: string;
 }
 
@@ -102,6 +104,7 @@ export default function AllUsersPage() {
                 <th className="px-6 py-4 text-xs font-bold text-[#49607e] uppercase tracking-widest">Identity UID</th>
                 <th className="px-6 py-4 text-xs font-bold text-[#49607e] uppercase tracking-widest">Account / Email</th>
                 <th className="px-6 py-4 text-xs font-bold text-[#49607e] uppercase tracking-widest">Clearance Role</th>
+                <th className="px-6 py-4 text-xs font-bold text-[#49607e] uppercase tracking-widest">Affiliated Org</th>
                 <th className="px-6 py-4 text-xs font-bold text-[#49607e] uppercase tracking-widest">Account Born</th>
                 <th className="px-6 py-4 text-xs font-bold text-[#49607e] uppercase tracking-widest text-right">Emergency Actions</th>
               </tr>
@@ -153,6 +156,16 @@ export default function AllUsersPage() {
                     }`}>
                       {user.role}
                     </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-[#181c1e]">{user.org_name}</span>
+                      {user.is_verified && (
+                        <div className="bg-[#493ee5] rounded-full p-0.5" title="Verified Protocol">
+                          <CheckCircle2 className="h-3 w-3 text-white" />
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-xs font-semibold text-[#49607e]">
                     {new Date(user.created_at).toLocaleDateString()}

@@ -15,6 +15,7 @@ type OrganizationService interface {
 	UpdateOrgConfig(orgID uint, req models.OrganizationConfigRequest) (*models.OrganizationConfig, error)
 	DeleteOrgConfig(orgID uint) error
 	UpgradePlan(orgID uint, plan string, months int) error
+	GetOrganizationByID(id uint) (*models.Organization, error)
 }
 
 type organizationService struct {
@@ -43,16 +44,16 @@ func (s *organizationService) CreateQueueForOrg(orgID uint, name, queueKey strin
 
 	queueCount, err := s.orgRepo.GetQueueCountByOrg(orgID)
 	if err == nil {
-		limit := 1 // Default for free
+		limit := 3 // Generous default for free/testing
 		switch org.SubscriptionStatus {
-case "pro":
-			limit = 5
+		case "pro":
+			limit = 10
 		case "enterprise":
 			limit = 100
 		}
 
 		if queueCount >= limit {
-			return nil, fmt.Errorf("queue limit reached for %s plan (%d). please upgrade to create more queues", org.SubscriptionStatus, limit)
+			return nil, fmt.Errorf("unit limit reached for %s plan (%d). please upgrade to launch more units", org.SubscriptionStatus, limit)
 		}
 	}
 
@@ -84,4 +85,8 @@ func (s *organizationService) DeleteOrgConfig(orgID uint) error {
 func (s *organizationService) UpgradePlan(orgID uint, plan string, months int) error {
 	expiry := time.Now().AddDate(0, months, 0)
 	return s.orgRepo.UpdateSubscription(orgID, plan, &expiry)
+}
+
+func (s *organizationService) GetOrganizationByID(id uint) (*models.Organization, error) {
+	return s.orgRepo.GetOrganizationByID(id)
 }

@@ -8,7 +8,7 @@ import (
 type MapService interface {
 	SearchNearby(lat, lng float64, radius int, orgType string) ([]utils.Place, error)
 	GetAddress(lat, lng float64) (string, error)
-	SearchPartnered(lat, lng float64, radius int) ([]utils.Place, error)
+	SearchPartnered(lat, lng float64, radius int, orgType string) ([]utils.Place, error)
 }
 
 type mapService struct {
@@ -23,20 +23,33 @@ func NewMapService(orgRepo repository.OrganizationRepository) MapService {
 	}
 }
 
-func (s *mapService) SearchPartnered(lat, lng float64, radius int) ([]utils.Place, error) {
-	orgs, err := s.orgRepo.GetNearbyOrgs(lat, lng, float64(radius))
+func (s *mapService) SearchPartnered(lat, lng float64, radius int, orgType string) ([]utils.Place, error) {
+	orgs, err := s.orgRepo.GetNearbyOrgs(lat, lng, float64(radius), orgType)
 	if err != nil { return nil, err }
 
 	places := make([]utils.Place, 0)
 	for _, o := range orgs {
+		queues := make([]utils.QueueInfo, 0)
 		key := ""
-		if len(o.Queues) > 0 { key = o.Queues[0].QueueKey }
+		for _, q := range o.Queues {
+			queues = append(queues, utils.QueueInfo{
+				Name:     q.Name,
+				Key:      q.QueueKey,
+				IsPaused: q.IsPaused,
+			})
+			if key == "" { key = q.QueueKey }
+		}
+
 		places = append(places, utils.Place{
-			Name:    o.Name,
-			Address: o.Address,
-			Lat:     o.Latitude,
-			Lng:     o.Longitude,
-			Key:     key,
+			Name:      o.Name,
+			Address:   o.Address,
+			Vicinity:  o.Address,
+			Lat:       o.Latitude,
+			Lng:       o.Longitude,
+			Key:       key,
+			Type:      o.Type,
+			Partnered: true,
+			Queues:    queues,
 		})
 	}
 	return places, nil

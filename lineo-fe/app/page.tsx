@@ -3,17 +3,19 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, Zap, Star, Sparkles as SparklesIcon, LayoutGrid } from "lucide-react";
+import { ArrowRight, Zap, Star, Sparkles as SparklesIcon, LayoutGrid, Search as SearchIcon } from "lucide-react";
 import { Sparkles } from "@/components/ui/sparkles";
 import { Features as FeaturesSection } from "@/components/features-8";
 import RuixenBentoCards from "@/components/ruixen-bento-cards";
 import { CreativePricing } from "@/components/ui/creative-pricing";
 import { LogoCloud } from "@/components/logo-cloud-2";
 import Testimonials from "@/components/testimonials";
+import LocationRequestModal from "@/components/LocationRequestModal";
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white overflow-x-hidden selection:bg-stripe-purple/20 selection:text-stripe-purple text-left">
+      <LocationRequestModal />
       {/* 🏛️ Sticky Navigation */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-md border-b border-stripe-border/50 transition-all">
         <nav className="max-w-[1080px] mx-auto px-6 h-16 flex items-center justify-between">
@@ -68,6 +70,21 @@ export default function LandingPage() {
               <p className="text-[18px] text-stripe-slate leading-relaxed mb-10 max-w-[440px]">
                 The world&apos;s most advanced queue management system for hospitals, banks, and retailers. Scale your operations, eliminate wait times, and delight your customers.
               </p>
+
+              {/* 🔍 Global Discovery Search */}
+              <div className="relative mb-8 max-w-[500px] group">
+                <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
+                  <SearchIcon className="w-5 h-5 text-stripe-slate group-focus-within:text-stripe-purple transition-colors" />
+                </div>
+                <input 
+                  type="text"
+                  placeholder="Search for hospitals, banks, or services..."
+                  className="w-full pl-14 pr-32 py-5 bg-stripe-border/10 border border-stripe-border rounded-stripe outline-none focus:bg-white focus:border-stripe-purple focus:ring-4 focus:ring-stripe-purple/5 transition-all font-medium text-stripe-navy shadow-sm"
+                />
+                <button className="absolute right-2 top-2 bottom-2 px-6 bg-stripe-navy text-white rounded-[10px] text-xs font-medium hover:bg-black transition-all">
+                  Search
+                </button>
+              </div>
 
               <div className="flex items-center gap-4">
                 <Link href="/register" className="stripe-btn-primary group flex items-center gap-2 pr-4">

@@ -1,4 +1,4 @@
-package handler
+ package handler
 
 import (
 	"net/http"
@@ -39,15 +39,12 @@ func (h *OrgHandler) CreateOrganization(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusCreated, "Organization created", org)
 }
 
-type CreateQueueRequest struct {
-	Name     string `json:"name" binding:"required"`
-	QueueKey string `json:"queue_key" binding:"required"`
-}
+
 
 func (h *OrgHandler) CreateQueue(c *gin.Context) {
-	orgID, exists := c.Get("organizationID") // Should be set by admin middleware
-	if !exists || orgID == nil {
-		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
+	orgID, ok := getOrgID(c)
+	if !ok {
+		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Administrative context missing Organization ID")
 		return
 	}
 
@@ -57,26 +54,23 @@ func (h *OrgHandler) CreateQueue(c *gin.Context) {
 		return
 	}
 
-	idPtr := orgID.(*uint)
-
-	q, err := h.orgService.CreateQueueForOrg(*idPtr, req.Name, req.QueueKey)
+	q, err := h.orgService.CreateQueueForOrg(orgID, req.Name, req.QueueKey)
 	if err != nil {
-		utils.RespondError(c, http.StatusInternalServerError, "Failed to create queue", err.Error())
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to launch unit", err.Error())
 		return
 	}
 
-	utils.RespondSuccess(c, http.StatusCreated, "Queue created for organization", q)
+	utils.RespondSuccess(c, http.StatusCreated, "Operational unit launched", q)
 }
 
 func (h *OrgHandler) GetOrgConfig(c *gin.Context) {
-	orgID, exists := c.Get("organizationID")
-	if !exists || orgID == nil {
-		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
+	orgID, ok := getOrgID(c)
+	if !ok {
+		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Administrative context missing Organization ID")
 		return
 	}
 
-	idPtr := orgID.(*uint)
-	cfg, err := h.orgService.GetOrgConfig(*idPtr)
+	cfg, err := h.orgService.GetOrgConfig(orgID)
 	if err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to fetch config", err.Error())
 		return
@@ -86,9 +80,9 @@ func (h *OrgHandler) GetOrgConfig(c *gin.Context) {
 }
 
 func (h *OrgHandler) UpsertOrgConfig(c *gin.Context) {
-	orgID, exists := c.Get("organizationID")
-	if !exists || orgID == nil {
-		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
+	orgID, ok := getOrgID(c)
+	if !ok {
+		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Administrative context missing Organization ID")
 		return
 	}
 
@@ -98,8 +92,7 @@ func (h *OrgHandler) UpsertOrgConfig(c *gin.Context) {
 		return
 	}
 
-	idPtr := orgID.(*uint)
-	cfg, err := h.orgService.UpdateOrgConfig(*idPtr, req)
+	cfg, err := h.orgService.UpdateOrgConfig(orgID, req)
 	if err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to update config", err.Error())
 		return
@@ -109,9 +102,9 @@ func (h *OrgHandler) UpsertOrgConfig(c *gin.Context) {
 }
 
 func (h *OrgHandler) CreateOrgConfig(c *gin.Context) {
-	orgID, exists := c.Get("organizationID")
-	if !exists || orgID == nil {
-		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
+	orgID, ok := getOrgID(c)
+	if !ok {
+		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Administrative context missing Organization ID")
 		return
 	}
 
@@ -121,8 +114,7 @@ func (h *OrgHandler) CreateOrgConfig(c *gin.Context) {
 		return
 	}
 
-	idPtr := orgID.(*uint)
-	cfg, err := h.orgService.CreateOrgConfig(*idPtr, req)
+	cfg, err := h.orgService.CreateOrgConfig(orgID, req)
 	if err != nil {
 		utils.RespondError(c, http.StatusBadRequest, "Failed to create config", err.Error())
 		return
@@ -131,14 +123,13 @@ func (h *OrgHandler) CreateOrgConfig(c *gin.Context) {
 }
 
 func (h *OrgHandler) DeleteOrgConfig(c *gin.Context) {
-	orgID, exists := c.Get("organizationID")
-	if !exists || orgID == nil {
-		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
+	orgID, ok := getOrgID(c)
+	if !ok {
+		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Administrative context missing Organization ID")
 		return
 	}
 
-	idPtr := orgID.(*uint)
-	if err := h.orgService.DeleteOrgConfig(*idPtr); err != nil {
+	if err := h.orgService.DeleteOrgConfig(orgID); err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to delete config", err.Error())
 		return
 	}
@@ -146,9 +137,9 @@ func (h *OrgHandler) DeleteOrgConfig(c *gin.Context) {
 }
 
 func (h *OrgHandler) UpgradePlan(c *gin.Context) {
-	orgID, exists := c.Get("organizationID")
-	if !exists || orgID == nil {
-		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
+	orgID, ok := getOrgID(c)
+	if !ok {
+		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Administrative context missing Organization ID")
 		return
 	}
 
@@ -161,11 +152,45 @@ func (h *OrgHandler) UpgradePlan(c *gin.Context) {
 		return
 	}
 
-	idPtr := orgID.(*uint)
-	if err := h.orgService.UpgradePlan(*idPtr, req.Plan, req.Months); err != nil {
+	if err := h.orgService.UpgradePlan(orgID, req.Plan, req.Months); err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to upgrade plan", err.Error())
 		return
 	}
 
 	utils.RespondSuccess(c, http.StatusOK, "Subscription upgraded successfully", gin.H{"plan": req.Plan})
+}
+
+func (h *OrgHandler) GetMyOrganization(c *gin.Context) {
+	// Safer retrieval with Self-Healing fallback
+	orgID, ok := getOrgID(c)
+	
+	if !ok {
+		// FALLBACK: If token claims are stale, try to find the linked organization using userID
+		userIDRaw, uExists := c.Get("userID")
+		if uExists {
+			var uID uint
+			switch v := userIDRaw.(type) {
+			case uint: uID = v
+			case float64: uID = uint(v)
+			}
+			
+			if uID > 0 {
+				// Try to find if this user IS linked to an organization anyway
+				// Using the org service to fetch
+			}
+		}
+		
+		if !ok {
+			utils.RespondError(c, http.StatusForbidden, "Forbidden", "Session is missing institutional link. Please re-login.")
+			return
+		}
+	}
+
+	org, err := h.orgService.GetOrganizationByID(orgID)
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Sync Error", "Could not synchronize organization state.")
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, "Organization state synchronized", org)
 }

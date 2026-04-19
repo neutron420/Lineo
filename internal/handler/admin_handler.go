@@ -82,32 +82,39 @@ func (h *AdminHandler) GetPlatformAnalytics(c *gin.Context) {
 }
 
 func (h *AdminHandler) GetVerifications(c *gin.Context) {
-	// Let's fetch real Orgs for the Verification Pipeline, using mock pipeline status mapped to real organizations!
 	var orgs []models.Organization
-	db.DB.Order("id desc").Find(&orgs)
+	if err := db.DB.Order("id desc").Find(&orgs).Error; err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to fetch verifications", err.Error())
+		return
+	}
 
 	var verifications []gin.H
-
-	for i, org := range orgs {
+	for _, org := range orgs {
 		status := "FULLY_VERIFIED"
-		if i == 0 { status = "PENDING" }
-		if i == 1 { status = "ONLINE_VERIFIED" }
+		if !org.IsVerified {
+			status = "PENDING"
+		}
 
 		verifications = append(verifications, gin.H{
-			"id": org.ID,
-			"name": org.Name,
-			"email": "contact@org.com", // Since Org table might not have email directly
-			"city": "Unknown",
-			"address": org.Address,
-			"phoneNumber": nil,
-			"createdAt": org.CreatedAt.Format(time.RFC3339),
-			"isVerified": status == "FULLY_VERIFIED",
-			"status": status,
-			"lastVerifiedAt": time.Now().Format(time.RFC3339),
+			"id":             org.ID,
+			"name":           org.Name,
+			"owner_name":     org.OwnerName,
+			"owner_phone":    org.OwnerPhone,
+			"address":        org.Address,
+			"pincode":        org.Pincode,
+			"state":          org.State,
+			"isVerified":     org.IsVerified,
+			"status":         status,
+			"office_img":     org.OfficeImageURL,
+			"cert_pdf":       org.CertPdfURL,
+			"ptax_pdf":       org.PTaxPaperURL,
+			"lat":            org.Latitude,
+			"lng":            org.Longitude,
+			"createdAt":      org.CreatedAt.Format(time.RFC3339),
 		})
 	}
 	
-	utils.RespondSuccess(c, http.StatusOK, "Verification queue fetched successfully", verifications)
+	utils.RespondSuccess(c, http.StatusOK, "Verification queue fetched", verifications)
 }
 
 func (h *AdminHandler) GetUsers(c *gin.Context) {
@@ -118,11 +125,23 @@ func (h *AdminHandler) GetUsers(c *gin.Context) {
 	}
 	var response []gin.H
 	for _, u := range users {
+		orgName := "Global Consumer"
+		isVerified := false
+		if u.OrganizationID != nil {
+			var org models.Organization
+			if err := db.DB.First(&org, *u.OrganizationID).Error; err == nil {
+				orgName = org.Name
+				isVerified = org.IsVerified
+			}
+		}
+
 		response = append(response, gin.H{
-			"id": u.ID,
-			"email": u.Email,
-			"role": u.Role,
-			"created_at": u.CreatedAt.Format(time.RFC3339),
+			"id":          u.ID,
+			"email":       u.Email,
+			"role":        u.Role,
+			"org_name":    orgName,
+			"is_verified": isVerified,
+			"created_at":  u.CreatedAt.Format(time.RFC3339),
 		})
 	}
 	utils.RespondSuccess(c, http.StatusOK, "Users fetched", response)
@@ -151,15 +170,25 @@ type UpdateStatusRequest struct {
 }
 
 func (h *AdminHandler) UpdateVerificationStatus(c *gin.Context) {
-	_ = c.Param("id")
+	id := c.Param("id")
 	var req UpdateStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.RespondError(c, http.StatusBadRequest, "Invalid request body", err.Error())
 		return
 	}
 
-	// This simulates updating the status natively in the Postgres Database.
-	// In reality we would fetch the Organization and run an Update!
+	var org models.Organization
+	if err := db.DB.First(&org, id).Error; err != nil {
+		utils.RespondError(c, http.StatusNotFound, "Organization not found", err.Error())
+		return
+	}
+
+	isVerified := req.Status == "FULLY_VERIFIED" || req.Status == "APPROVED"
+	if err := db.DB.Model(&org).Update("is_verified", isVerified).Error; err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to update verification status", err.Error())
+		return
+	}
+
 	utils.RespondSuccess(c, http.StatusOK, "Protocol Activated: Organization status moved to " + req.Status, nil)
 }
 

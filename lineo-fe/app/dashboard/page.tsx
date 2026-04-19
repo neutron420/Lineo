@@ -36,7 +36,8 @@ import {
   Info,
   TriangleAlert,
   UserPlus,
-  Check
+  Check,
+  Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
@@ -90,6 +91,8 @@ interface Organization {
   distance?: number;
   lat?: number;
   lng?: number;
+  partnered?: boolean;
+  queues?: { name: string; key: string; is_paused: boolean }[];
 }
 
 interface Appointment {
@@ -236,6 +239,23 @@ export default function UserDashboard() {
   useEffect(() => {
     fetchNearby();
   }, [fetchNearby]);
+
+  // ─── Discovery Pulse ───────────────────────────────
+  const [prevOrgCount, setPrevOrgCount] = useState(0);
+  useEffect(() => {
+    const partneredCount = nearbyOrgs.filter(o => o.partnered).length;
+    if (prevOrgCount > 0 && partneredCount > prevOrgCount) {
+      const latest = nearbyOrgs.find(o => o.partnered);
+      if (latest) {
+        toast.info("Discovery Pulse", {
+          description: `New institutional node [${latest.name}] is now live nearby!`,
+          icon: <Activity className="w-4 h-4 text-[#493ee5]" />,
+          duration: 6000
+        });
+      }
+    }
+    setPrevOrgCount(partneredCount);
+  }, [nearbyOrgs, prevOrgCount]);
 
   // ─── Actions ────────────────────────────────────────
   const handleJoinQueue = async (e: React.FormEvent) => {
@@ -822,7 +842,7 @@ export default function UserDashboard() {
                                       {org.name}
                                     </h4>
                                     <p className="text-xs text-[#49607e] font-medium mt-0.5">
-                                      {org.key 
+                                      {org.partnered 
                                           ? (org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Partner Active')
                                           : 'Not on Lineo yet'}
                                     </p>
@@ -856,6 +876,38 @@ export default function UserDashboard() {
                 </div>
              </ScrollArea>
 
+             {selectedOrg && selectedOrg.partnered && selectedOrg.queues && (
+                <div className="space-y-4">
+                  <Label className="text-xs font-bold text-[#49607e] uppercase tracking-[0.2em]">Operational Units Available</Label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {selectedOrg.queues.map((q) => (
+                      <button
+                        key={q.key}
+                        onClick={() => setJoinQueueKey(q.key)}
+                        disabled={q.is_paused}
+                        className={cn(
+                          "flex items-center justify-between p-4 rounded-xl border transition-all text-left",
+                          joinQueueKey === q.key 
+                            ? "border-[#493ee5] bg-[#493ee5]/5 shadow-sm" 
+                            : "border-transparent bg-[#f1f4f7] hover:bg-[#e2dfff]/30",
+                          q.is_paused && "opacity-40 cursor-not-allowed grayscale"
+                        )}
+                      >
+                        <div>
+                          <p className="font-bold text-[#181c1e] text-sm" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{q.name}</p>
+                          <p className="text-[10px] text-[#49607e] font-extrabold uppercase mt-0.5">{q.key}</p>
+                        </div>
+                        {q.is_paused ? (
+                          <Badge variant="outline" className="text-[9px] bg-red-50 text-red-600 border-red-100">SUSPENDED</Badge>
+                        ) : (
+                          joinQueueKey === q.key && <CheckCircle2 className="w-4 h-4 text-[#493ee5]" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+             )}
+
              {joinQueueKey && (
                <form onSubmit={handleJoinQueue} className="space-y-5 pt-5 border-t border-[#e5e8eb]">
                   <div className="flex items-center justify-between p-5 bg-[#f1f4f7] rounded-2xl">
@@ -872,7 +924,7 @@ export default function UserDashboard() {
                   </div>
                   <Button type="submit" size="lg" className="kinetic-btn-primary w-full h-14 text-base">
                     {isPriorityToggle ? <Zap className="w-5 h-5 mr-2" /> : <Plus className="w-5 h-5 mr-2" />}
-                    {isPriorityToggle ? "Secure VIP Access" : "Join Normal Queue"}
+                    {isPriorityToggle ? `Join VIP: ${joinQueueKey}` : `Join Queue: ${joinQueueKey}`}
                   </Button>
                </form>
              )}
@@ -940,54 +992,58 @@ export default function UserDashboard() {
 
       {/* ── Digital Pass Modal ── */}
       <Dialog open={isTicketModalOpen} onOpenChange={setIsTicketModalOpen}>
-        <DialogContent className="max-w-[400px] p-0 overflow-hidden rounded-3xl border-none shadow-ambient">
-           <div className="p-8 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #2d3133, #181c1e)' }}>
-              <div className="absolute top-0 right-0 w-40 h-40 bg-[#493ee5] opacity-25 -mr-20 -mt-20 rounded-full blur-[60px] animate-pulse" />
-              <div className="relative z-10 space-y-1">
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.4em] opacity-50" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Pulse Log: {activeToken?.token_number}</p>
-                <h2 className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Lineo Pass</h2>
+        <DialogContent className="max-w-[360px] p-0 overflow-hidden rounded-[32px] !border-0 !ring-0 !outline-none shadow-[0_32px_128px_-16px_rgba(73,62,229,0.15)] bg-white h-auto">
+           {/* Silent Accessibility Helpers */}
+           <DialogTitle className="sr-only">Lineo Digital Entry Pass</DialogTitle>
+           <DialogDescription className="sr-only">Verified token for your current queue position and estimated wait time.</DialogDescription>
+
+           <div className="p-6 bg-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#493ee5]/10 -mr-16 -mt-16 rounded-full blur-[60px]" />
+              <div className="relative z-10">
+                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#493ee5] mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Vector ID: {activeToken?.token_number}</p>
+                <div className="flex items-center justify-between">
+                   <h2 className="text-xl font-black tracking-tight text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Lineo Pass</h2>
+                   <div className="bg-[#493ee5] text-white px-3 py-1 rounded-full text-[8px] font-black tracking-widest shadow-lg" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>ACTIVE</div>
+                </div>
+                <DialogDescription className="sr-only">Digital entry pass for Lineo queue system</DialogDescription>
               </div>
            </div>
-           
-           <div className="p-8 space-y-8 bg-white">
-              <div className="flex justify-between items-start">
-                 <div className="space-y-0.5">
-                    <p className="text-[10px] font-extrabold text-[#49607e] uppercase tracking-[0.2em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Node Instance</p>
-                    <h3 className="text-lg font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{activeToken?.queue_key}</h3>
+
+           <div className="p-6 space-y-6 bg-white">
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-xl bg-[#493ee5]/5 flex items-center justify-center text-[#493ee5]">
+                    <QrCode className="w-5 h-5" />
                  </div>
-                 <span className="bg-[#493ee5]/10 text-[#493ee5] px-3 py-1 rounded-lg text-xs font-bold" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>ACTIVE</span>
+                 <div>
+                    <p className="text-[9px] font-black text-[#49607e] uppercase tracking-[0.1em]">Access Node</p>
+                    <h3 className="text-sm font-black text-[#181c1e] tracking-tight truncate max-w-[180px]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{activeToken?.queue_key}</h3>
+                 </div>
               </div>
 
-              <div className="bg-[#f1f4f7] p-8 rounded-2xl flex flex-col items-center justify-center relative group">
-                 <div className="bg-white p-4 rounded-2xl shadow-ambient relative overflow-hidden border-none group-hover:scale-105 transition-transform duration-500">
+              <div className="bg-[#f8fafc] p-6 rounded-[24px] flex flex-col items-center justify-center relative group border border-[#f1f4f7]/50 shadow-inner">
+                 <div className="bg-white p-4 rounded-[18px] shadow-sm relative overflow-hidden border border-[#493ee5]/5">
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${activeToken?.token_number}-${activeToken?.queue_key}`} 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${activeToken?.token_number}-${activeToken?.queue_key}`} 
                       alt="QR Pass"
-                      className="w-40 h-40 relative z-0"
-                    />
-                    <motion.div 
-                      animate={{ top: ['0%', '100%', '0%'] }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                      className="absolute left-0 right-0 h-0.5 bg-[#493ee5] z-10 opacity-60"
-                      style={{ boxShadow: '0 0 15px #493ee5' }}
+                      className="w-28 h-28 relative z-0"
                     />
                  </div>
-                 <p className="mt-6 text-4xl font-black tracking-tight text-[#181c1e] tabular-nums" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{activeToken?.token_number}</p>
-                 <p className="text-[10px] font-extrabold text-[#49607e] uppercase tracking-[0.3em] mt-2 opacity-50" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>OFFICIAL ENTRY ID</p>
+                 <p className="mt-4 text-4xl font-black tracking-tighter text-[#493ee5] tabular-nums" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{activeToken?.token_number}</p>
+                 <p className="text-[8px] font-black text-[#49607e] uppercase tracking-[0.3em] mt-1 opacity-40">Verified Entry</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-8 border-t border-[#e5e8eb] pt-6">
+              <div className="grid grid-cols-2 gap-4 pt-2">
                  <div className="space-y-0.5">
-                    <p className="text-[10px] font-extrabold text-[#49607e] uppercase tracking-[0.2em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Position</p>
-                    <div className="text-2xl font-extrabold text-[#493ee5]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>#{activeToken?.position}</div>
+                    <p className="text-[9px] font-black text-[#49607e] uppercase tracking-[0.1em]">Queue Pos</p>
+                    <div className="text-xl font-black text-[#181c1e]">#{activeToken?.position}</div>
                  </div>
-                 <div className="space-y-0.5">
-                    <p className="text-[10px] font-extrabold text-[#49607e] uppercase tracking-[0.2em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Estimated</p>
-                    <div className="text-2xl font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{activeToken?.estimated_wait_mins}m</div>
+                 <div className="space-y-0.5 text-right">
+                    <p className="text-[9px] font-black text-[#49607e] uppercase tracking-[0.1em]">Wait Time</p>
+                    <div className="text-xl font-black text-[#493ee5]">{activeToken?.estimated_wait_mins}m</div>
                  </div>
               </div>
               
-              <Button onClick={() => setIsTicketModalOpen(false)} className="kinetic-btn-primary w-full h-12 text-base">Close Pass</Button>
+              <Button onClick={() => setIsTicketModalOpen(false)} className="kinetic-btn-primary w-full h-14 text-base font-black rounded-2xl shadow-xl active:scale-95 transition-all">Dismiss Pass</Button>
            </div>
         </DialogContent>
       </Dialog>

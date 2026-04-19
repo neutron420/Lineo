@@ -107,3 +107,19 @@ func (h *AuthHandler) AddStaff(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusCreated, "Staff member added successfully", user)
 }
 
+func (h *AuthHandler) RegisterOrganization(c *gin.Context) {
+	var req models.OrgRegistrationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	user, err := h.authService.RegisterOrganization(req)
+	if err != nil {
+		utils.RespondError(c, http.StatusConflict, "Organization registration failed", err.Error())
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusCreated, "Organization registered and pending verification", user)
+}
+

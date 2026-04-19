@@ -119,19 +119,7 @@ func (h *QueueHandler) CancelTicket(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusOK, "Ticket cancelled", nil)
 }
 
-func getOrgID(c *gin.Context) (uint, bool) {
-	orgIDRaw, exists := c.Get("organizationID")
-	if !exists || orgIDRaw == nil {
-		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
-		return 0, false
-	}
-	idPtr := orgIDRaw.(*uint)
-	if idPtr == nil {
-		utils.RespondError(c, http.StatusForbidden, "Forbidden", "Admin is not tied to an organization")
-		return 0, false
-	}
-	return *idPtr, true
-}
+
 
 func (h *QueueHandler) CallNext(c *gin.Context) {
 	queueKey := c.Param("key")

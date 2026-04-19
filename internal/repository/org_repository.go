@@ -2,10 +2,12 @@ package repository
 
 import (
 	"errors"
-	"time"
-	"gorm.io/gorm"
+	"fmt"
 	"queueless/internal/models"
 	database "queueless/pkg/db"
+	"time"
+
+	"gorm.io/gorm"
 )
 
 type OrganizationRepository interface {
@@ -14,7 +16,7 @@ type OrganizationRepository interface {
 	CreateQueueDef(def *models.QueueDef) error
 	GetQueueDefByKey(key string) (*models.QueueDef, error)
 	UpdateQueueDefPause(key string, isPaused bool) error
-	GetNearbyOrgs(lat, lng float64, radius float64) ([]models.Organization, error)
+	GetNearbyOrgs(lat, lng float64, radius float64, orgType string) ([]models.Organization, error)
 	GetOrCreateOrgConfig(orgID uint) (*models.OrganizationConfig, error)
 	CreateOrgConfig(orgID uint, req models.OrganizationConfigRequest) (*models.OrganizationConfig, error)
 	UpdateOrgConfig(orgID uint, req models.OrganizationConfigRequest) (*models.OrganizationConfig, error)
@@ -29,15 +31,28 @@ func (r *organizationRepository) GetQueueCountByOrg(orgID uint) (int, error) {
 	return int(count), err
 }
 
-func (r *organizationRepository) GetNearbyOrgs(lat, lng float64, radius float64) ([]models.Organization, error) {
+func (r *organizationRepository) GetNearbyOrgs(lat, lng float64, radius float64, orgType string) ([]models.Organization, error) {
 	var orgs []models.Organization
-	// Approximate 1km = 0.01 degrees for bounding box
 	deg := (radius / 1000.0) * 0.01
 
-	err := r.db.Preload("Queues").
+	query := r.db.Preload("Queues").
+		Where("is_verified = ?", true).
 		Where("latitude BETWEEN ? AND ?", lat-deg, lat+deg).
-		Where("longitude BETWEEN ? AND ?", lng-deg, lng+deg).
-		Find(&orgs).Error
+		Where("longitude BETWEEN ? AND ?", lng-deg, lng+deg)
+
+	if orgType != "" && orgType != "all" {
+		query = query.Where("type = ?", orgType)
+	}
+
+	err := query.Find(&orgs).Error
+	if err == nil {
+		fmt.Printf("[DEBUG] Search: %f, %f Radius: %f (deg: %f) Type: %s -> Found: %d\n", lat, lng, radius, deg, orgType, len(orgs))
+		for _, o := range orgs {
+			fmt.Printf("  - Found Org: %s (Verified: %v, Lat: %f, Lng: %f)\n", o.Name, o.IsVerified, o.Latitude, o.Longitude)
+		}
+	} else {
+		fmt.Printf("[DEBUG] DB Error in search: %v\n", err)
+	}
 
 	return orgs, err
 }

@@ -138,50 +138,55 @@ export default function AppointmentsPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.08 }}
                   whileHover={{ y: -3 }}
-                  className="bg-white rounded-2xl p-5 ghost-border hover:shadow-ambient transition-all flex flex-col md:flex-row gap-5 md:items-center group"
+                  className="bg-white rounded-[32px] p-6 border border-[#e5e8eb] hover:border-[#493ee5]/30 hover:shadow-[0_32px_64px_-16px_rgba(73,62,229,0.08)] transition-all flex flex-col md:flex-row gap-6 md:items-center group relative overflow-hidden"
                 >
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-[#493ee5] opacity-0 group-hover:opacity-[0.03] rounded-full blur-[80px] -mr-32 -mt-32 transition-opacity duration-500" />
+                  
                   {/* Date Badge */}
-                  <div className="w-16 h-16 bg-[#493ee5]/5 rounded-xl flex flex-col items-center justify-center text-[#493ee5] shrink-0 group-hover:bg-[#493ee5] group-hover:text-white transition-all duration-300">
-                     <span className="text-[10px] uppercase font-bold tracking-tight opacity-70">
+                  <div className="w-20 h-20 bg-[#493ee5]/5 rounded-[22px] flex flex-col items-center justify-center text-[#493ee5] shrink-0 group-hover:bg-[#493ee5] group-hover:text-white group-hover:rotate-6 transition-all duration-500 shadow-sm border border-[#493ee5]/10">
+                     <span className="text-[10px] uppercase font-black tracking-[0.2em] opacity-60">
                        {date.toLocaleString('default', { month: 'short' })}
                      </span>
-                     <span className="text-xl font-extrabold leading-none" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{date.getDate()}</span>
+                     <span className="text-3xl font-black leading-none mt-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{date.getDate()}</span>
                   </div>
 
-                  <div className="flex-1 space-y-1.5">
-                    <div className="flex items-center gap-2">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-3">
                        <StatusBadge status={appt.status} />
-                       <span className="text-[#49607e] text-[10px] font-bold uppercase tracking-widest opacity-40">Token: {appt.token_number}</span>
+                       <div className="h-4 w-px bg-slate-100" />
+                       <span className="text-[#49607e] text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Vector ID: {appt.token_number}</span>
                     </div>
-                    <h3 className="text-lg font-bold text-[#181c1e] group-hover:text-[#493ee5] transition-colors" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{appt.queue_key}</h3>
-                    <div className="flex items-center gap-5 text-xs text-[#49607e]">
-                       <span className="flex items-center gap-1.5 font-medium"><Clock className="w-3.5 h-3.5 text-[#493ee5]/50" /> {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                       <span className="flex items-center gap-1.5 font-medium"><MapPin className="w-3.5 h-3.5 text-[#493ee5]/50" /> 2.4 KM Away</span>
+                    <h3 className="text-2xl font-black text-[#181c1e] tracking-tight group-hover:text-[#493ee5] transition-colors" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{appt.queue_key}</h3>
+                    <div className="flex items-center gap-6 text-xs text-[#49607e] font-bold opacity-60">
+                       <span className="flex items-center gap-2 uppercase tracking-wide"><Clock className="w-4 h-4 text-[#493ee5]" /> {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                       <span className="flex items-center gap-2 uppercase tracking-wide"><MapPin className="w-4 h-4 text-[#493ee5]" /> 2.4 KM Distance</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                     <button className="px-4 py-2 bg-[#f1f4f7] rounded-xl text-xs font-bold text-[#181c1e] hover:bg-[#e5e8eb] transition-colors" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                  <div className="flex items-center gap-3 z-10">
+                     <button className="px-6 py-3 bg-white border border-[#e5e8eb] rounded-2xl text-xs font-black text-[#181c1e] hover:bg-[#493ee5] hover:text-white hover:border-[#493ee5] transition-all shadow-sm active:scale-95" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                        Reschedule
                      </button>
-                     <button className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-[#f1f4f7] transition-all">
-                       <MoreVertical className="w-4 h-4 text-[#49607e]" />
+                     <button className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 border border-transparent hover:border-[#e5e8eb] hover:bg-white transition-all group/btn">
+                       <MoreVertical className="w-5 h-5 text-[#49607e] group-hover/btn:text-[#493ee5]" />
                      </button>
                   </div>
                 </motion.div>
               );
             })
           ) : (
-            <div className="bg-white rounded-2xl p-16 flex flex-col items-center justify-center text-center space-y-5 ghost-border">
-               <div className="w-20 h-20 bg-[#f1f4f7] rounded-2xl flex items-center justify-center">
-                  <CalendarDays className="w-10 h-10 text-[#49607e]/30" />
+            <div className="bg-white rounded-[40px] p-24 flex flex-col items-center justify-center text-center space-y-8 border border-[#e5e8eb] relative overflow-hidden backdrop-blur-xl shadow-sm">
+               <div className="absolute inset-0 bg-grid-slate-100/50 [mask-image:radial-gradient(ellipse_at_center,white,transparent)]" />
+               <div className="w-24 h-24 bg-[#493ee5]/5 rounded-[32px] flex items-center justify-center relative group">
+                  <div className="absolute inset-0 bg-[#493ee5] opacity-20 rounded-[32px] blur-2xl group-hover:opacity-40 transition-opacity" />
+                  <CalendarDays className="w-12 h-12 text-[#493ee5] relative" />
                </div>
-               <div className="space-y-1">
-                 <h3 className="text-xl font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Your calendar is clear</h3>
-                 <p className="text-[#49607e] max-w-[300px] mx-auto text-sm">Schedule a remote appointment to minimize your wait.</p>
+               <div className="space-y-2 relative">
+                 <h3 className="text-3xl font-black text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Calendar Inertia</h3>
+                 <p className="text-[#49607e] max-w-[340px] mx-auto text-sm font-medium leading-relaxed">Your professional schedule is currently static. Initialize a bridge to your favorite institutions.</p>
                </div>
-               <Button onClick={() => setIsModalOpen(true)} className="kinetic-btn-primary h-12 px-10">
-                 Book Now
+               <Button onClick={() => setIsModalOpen(true)} className="kinetic-btn-primary h-14 px-12 text-md shadow-2xl relative">
+                 Schedule First Vector
                </Button>
             </div>
           )}
@@ -384,16 +389,42 @@ export default function AppointmentsPage() {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === "scheduled") {
+  const s = status.toLowerCase();
+  if (s === "scheduled" || s === "confirmed") {
     return (
-      <span className="px-2.5 py-0.5 bg-green-50 text-green-700 text-[10px] font-bold uppercase rounded-lg flex items-center gap-1">
-        <CheckCircle2 className="w-3 h-3" /> {status}
+      <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase rounded-lg flex items-center gap-1.5 border border-emerald-100 shadow-sm">
+        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+        {s}
+      </span>
+    );
+  }
+  if (s === "pending") {
+    return (
+      <span className="px-3 py-1 bg-amber-50 text-amber-600 text-[10px] font-black uppercase rounded-lg flex items-center gap-1.5 border border-amber-100 shadow-sm">
+        <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+        {s}
+      </span>
+    );
+  }
+  if (s === "completed") {
+    return (
+      <span className="px-3 py-1 bg-[#493ee5]/5 text-[#493ee5] text-[10px] font-black uppercase rounded-lg flex items-center gap-1.5 border border-[#493ee5]/10 shadow-sm">
+        <CheckCircle2 className="w-3 h-3" />
+        {s}
+      </span>
+    );
+  }
+  if (s === "cancelled") {
+    return (
+      <span className="px-3 py-1 bg-rose-50 text-rose-600 text-[10px] font-black uppercase rounded-lg flex items-center gap-1.5 border border-rose-100 shadow-sm">
+        <X className="w-3 h-3" />
+        {s}
       </span>
     );
   }
   return (
-    <span className="px-2.5 py-0.5 bg-[#f1f4f7] text-[#49607e] text-[10px] font-bold uppercase rounded-lg">
-      {status}
+    <span className="px-3 py-1 bg-slate-50 text-slate-500 text-[10px] font-black uppercase rounded-lg border border-slate-100">
+      {s}
     </span>
   );
 }

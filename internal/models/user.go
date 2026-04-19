@@ -61,6 +61,33 @@ type RegisterRequest struct {
 	CounterNumber  int    `json:"counter_number"`
 }
 
+type OrgRegistrationRequest struct {
+	// User Details
+	Username string `json:"username" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=6"`
+
+	// Org Details
+	OrgName string `json:"org_name" binding:"required"`
+	OrgType string `json:"org_type" binding:"required"`
+	Address string `json:"address" binding:"required"`
+	Pincode string `json:"pincode" binding:"required"`
+	State   string `json:"state" binding:"required"`
+	Lat     float64 `json:"lat"`
+	Lng     float64 `json:"lng"`
+
+	// Owner details
+	OwnerName  string `json:"owner_name" binding:"required"`
+	OwnerPhone string `json:"owner_phone" binding:"required"`
+
+	// Document URLs (Frontend should upload to R2 then send URLs)
+	OfficeImageURL string `json:"office_image_url"`
+	CertPdfURL     string `json:"cert_pdf_url"`
+	PTaxPaperURL   string `json:"ptax_paper_url"`
+
+	TurnstileToken string `json:"turnstile_token"`
+}
+
 type TokenResponse struct {
 	Token string `json:"token"`
 	User  User   `json:"user"`

@@ -14,19 +14,21 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
-  User
+  User,
+  LayoutDashboard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { SocketProvider } from "@/context/SocketContext";
 import { motion } from "framer-motion";
 
-function StaffHeader() {
-  const [user] = useState<{ email?: string } | null>(() => {
-    if (typeof window === "undefined") return null;
+function OrgHeader() {
+  const [user, setUser] = useState<{ email?: string } | null>(null);
+
+  useEffect(() => {
     const userStr = sessionStorage.getItem("staff_user");
-    return userStr ? JSON.parse(userStr) : null;
-  });
+    if (userStr) setUser(JSON.parse(userStr));
+  }, []);
 
   return (
     <header className="h-20 bg-white/80 backdrop-blur-xl sticky top-0 z-30 flex items-center justify-between px-8 border-b border-[#e5e8eb]">
@@ -49,7 +51,7 @@ function StaffHeader() {
         <div className="h-6 w-px bg-[#e5e8eb]" />
         <div className="flex items-center gap-4">
           <div className="text-right hidden xl:block">
-            <p className="text-sm font-bold text-[#181c1e] tracking-tight leading-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{user?.email || "System Agent"}</p>
+            <p className="text-sm font-bold text-[#181c1e] tracking-tight leading-tight uppercase" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{user?.email?.split('@')[0] || "System Agent"}</p>
             <p className="text-[10px] text-[#493ee5] uppercase tracking-[0.15em] font-extrabold mt-0.5" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>OPERATIONS LEVEL 2</p>
           </div>
           <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-neobrutal" style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)' }}>
@@ -61,7 +63,7 @@ function StaffHeader() {
   );
 }
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function OrgLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
 
@@ -74,10 +76,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, []);
 
   const navItems = [
-    { name: "Live Operations", href: "/staff", icon: Building2 },
-    { name: "Manage Queues", href: "/staff/queues", icon: Users },
-    { name: "Analytics", href: "/staff/analytics", icon: BarChart3 },
-    { name: "Settings", href: "/staff/settings", icon: Settings },
+    { name: "Live Terminal", href: "/org", icon: LayoutDashboard },
+    { name: "Unit Vectors", href: "/org/queues", icon: Users },
+    { name: "Personnel", href: "/org/settings?tab=team", icon: User },
+    { name: "Strategic Intel", href: "/org/analytics", icon: BarChart3 },
+    { name: "Global Config", href: "/org/settings", icon: Settings },
   ];
 
   const handleLogout = () => {
@@ -105,7 +108,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
             {!isCollapsed && (
               <div>
-                <span className="text-xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Lineo<span className="text-[#493ee5]">.hq</span></span>
+                <span className="text-xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Lineo<span className="text-[#493ee5]">.org</span></span>
               </div>
             )}
           </div>
@@ -156,7 +159,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <StaffHeader />
+          <OrgHeader />
           <main className="flex-1 p-5 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 overflow-y-auto">
             {children}
           </main>

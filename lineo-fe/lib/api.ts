@@ -14,7 +14,7 @@ api.interceptors.request.use((config) => {
 
     if (path.startsWith('/admin')) {
       token = sessionStorage.getItem('admin_token');
-    } else if (path.startsWith('/staff')) {
+    } else if (path.startsWith('/staff') || path.startsWith('/org')) {
       token = sessionStorage.getItem('staff_token');
     } else {
       token = sessionStorage.getItem('token');

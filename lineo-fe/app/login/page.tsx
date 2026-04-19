@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, Loader2, Mail, Lock, ShieldCheck, AlertCircle } from "lucide-react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import api from "@/lib/api";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AxiosError } from "axios";
 
 interface AuthResponse {
@@ -15,17 +15,22 @@ interface AuthResponse {
     user: {
       role: string;
       username: string;
+      organization_id?: number | null;
     };
   };
 }
 
-export default function LoginPage() {
+function LoginContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const isPending = searchParams.get("pending") === "true";
+  const isRegistered = searchParams.get("registered") === "true";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,18 +51,23 @@ export default function LoginPage() {
       });
 
       const { data } = response.data;
-      // Redirect based on role
-      if (data.user.role === "admin") {
+      const user = data.user;
+      
+      // Redirect based on role and organization context
+      if (user.role === "admin" && !user.organization_id) {
+        // Global Super Admin
         sessionStorage.setItem("admin_token", data.token);
-        sessionStorage.setItem("admin_user", JSON.stringify(data.user));
+        sessionStorage.setItem("admin_user", JSON.stringify(user));
         router.push("/admin");
-      } else if (data.user.role === "staff") {
+      } else if (user.role === "staff" || (user.role === "admin" && user.organization_id)) {
+        // Organization Staff or Organization Owner
         sessionStorage.setItem("staff_token", data.token);
-        sessionStorage.setItem("staff_user", JSON.stringify(data.user));
-        router.push("/staff");
+        sessionStorage.setItem("staff_user", JSON.stringify(user));
+        router.push("/org");
       } else {
+        // Normal Consumer
         sessionStorage.setItem("token", data.token);
-        sessionStorage.setItem("user", JSON.stringify(data.user));
+        sessionStorage.setItem("user", JSON.stringify(user));
         router.push("/dashboard");
       }
     } catch (err) {
@@ -91,6 +101,20 @@ export default function LoginPage() {
         {error && (
           <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg flex items-center gap-2">
             <AlertCircle className="w-4 h-4" /> {error}
+          </div>
+        )}
+
+        {(isPending || isRegistered) && !error && (
+          <div className="mb-6 p-4 bg-[#493ee5]/5 border border-[#493ee5]/10 text-[#493ee5] text-sm rounded-xl flex items-start gap-3">
+             <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
+             <div>
+                <p className="font-bold">{isPending ? "Verification Pending" : "Registration Success"}</p>
+                <p className="text-[13px] opacity-80 mt-1">
+                  {isPending 
+                    ? "Your institution is currently being audited by our system administrators. Access will be granted once verification is complete." 
+                    : "Your account has been created. You can now sign in using your credentials."}
+                </p>
+             </div>
           </div>
         )}
 
@@ -163,5 +187,17 @@ export default function LoginPage() {
         <Link href="/terms" className="hover:text-stripe-navy transition-colors">Terms</Link>
       </footer>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+       <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="w-10 h-10 animate-spin text-stripe-purple" />
+       </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"queueless/internal/service"
@@ -40,13 +41,27 @@ func (h *MapHandler) SearchNearby(c *gin.Context) {
 	}
 
 	// 1. Fetch Partnered Institutions from our DB
-	partnered, _ := h.mapService.SearchPartnered(lat, lng, radius)
+	partnered, _ := h.mapService.SearchPartnered(lat, lng, radius, orgType)
 	
 	// 2. Fetch from Google Maps
 	nearby, _ := h.mapService.SearchNearby(lat, lng, radius, orgType)
 	
-	// Merge and Prioritize
-	allResults := append(partnered, nearby...)
+	// Merge and De-duplicate (Prioritize Partnered Orgs)
+	finalMap := make(map[string]utils.Place)
+	for _, p := range partnered {
+		finalMap[strings.ToLower(p.Name)] = p
+	}
+	for _, n := range nearby {
+		lowerName := strings.ToLower(n.Name)
+		if _, exists := finalMap[lowerName]; !exists {
+			finalMap[lowerName] = n
+		}
+	}
+	
+	allResults := make([]utils.Place, 0, len(finalMap))
+	for _, v := range finalMap {
+		allResults = append(allResults, v)
+	}
 
 	utils.RespondSuccess(c, http.StatusOK, "Nearby places found", allResults)
 }

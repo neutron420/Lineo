@@ -21,8 +21,18 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
 
   const reverseGeocode = useCallback(async (lat: number, lng: number) => {
     try {
-      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY?.replace('#', '');
-      const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`);
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
+      if (!apiKey) {
+        console.warn("Satellite link offline: Missing API Key");
+        setAddress("Location Active");
+        return { neighborhood: "Main City", pin: "" };
+      }
+
+      const cleanKey = apiKey.replace('#', '');
+      const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${cleanKey}`);
+      
+      if (!response.ok) throw new Error(`Protocol Error: ${response.status}`);
+      
       const data = await response.json();
       if (data.results && data.results.length > 0) {
         const parts = data.results[0].address_components;
@@ -35,7 +45,8 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
         return { neighborhood, pin };
       }
     } catch (err) {
-      console.error("Geocoding failed", err);
+      console.error("Geocoding failed:", err instanceof Error ? err.message : "Network Interrupted");
+      setAddress("Main City");
     }
     return { neighborhood: "Main City", pin: "" };
   }, []);

@@ -16,6 +16,7 @@ import {
   Activity
 } from "lucide-react";
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
+import { GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_ID, getGoogleMapsApiKey } from "@/lib/maps-config";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -53,8 +54,9 @@ export default function GlobalMapPage() {
   const [selectedItem, setSelectedItem] = useState<MapPinItem | null>(null);
 
   const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || ""
+    id: GOOGLE_MAPS_ID,
+    googleMapsApiKey: getGoogleMapsApiKey(),
+    libraries: GOOGLE_MAPS_LIBRARIES as any
   });
 
   const fetchData = useCallback(async () => {

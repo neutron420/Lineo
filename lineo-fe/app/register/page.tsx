@@ -73,25 +73,19 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-3 gap-3 mb-8">
+          <div className="grid grid-cols-2 gap-4 mb-8">
             <RoleCard 
-              label="Standard" 
+              label="Individual" 
               active={selectedRole === 'user'} 
               icon={<User className="w-4 h-4" />}
               onClick={() => setSelectedRole('user')} 
             />
-            <RoleCard 
-              label="Staff" 
-              active={selectedRole === 'staff'} 
-              icon={<Heart className="w-4 h-4" />}
-              onClick={() => setSelectedRole('staff')} 
-            />
-            <RoleCard 
-              label="Admin" 
-              active={selectedRole === 'admin'} 
-              icon={<Landmark className="w-4 h-4" />}
-              onClick={() => setSelectedRole('admin')} 
-            />
+            <Link href="/register-org" className="block">
+              <div className="p-3 rounded-stripe border flex flex-col items-center gap-2 transition-all border-stripe-border bg-white text-stripe-slate hover:border-stripe-purple/50 hover:bg-stripe-purple/5 cursor-pointer h-full">
+                <Landmark className="w-4 h-4" />
+                <span className="text-xs font-bold">Organization</span>
+              </div>
+            </Link>
           </div>
 
           <div className="space-y-2">

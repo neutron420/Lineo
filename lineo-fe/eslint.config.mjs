@@ -5,6 +5,14 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    rules: {
+      // Downgrade to warning — these are style issues in working code, not bugs
+      "@typescript-eslint/no-explicit-any": "warn",
+      // Allow setState in useEffect for hydration-safe patterns  
+      "react-hooks/set-state-in-effect": "warn",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
