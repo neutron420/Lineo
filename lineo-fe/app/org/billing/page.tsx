@@ -132,54 +132,114 @@ export default function BillingPage() {
 
   const fetchOrgStatus = async () => {
     try {
-      const resp = await api.get("/org/settings/profile"); // Assuming this profile exists
-      setOrg(resp.data.data);
-    } catch (err) {
+      setIsLoading(true);
+      const resp = await api.get("/org/my");
+      if (resp.data && resp.data.data) {
+        setOrg(resp.data.data);
+      } else {
+        toast.error("Profile Data Missing", { description: "Received an empty response from server." });
+      }
+    } catch (err: any) {
       console.error("Failed to fetch org status", err);
+      if (err.response?.status === 404) {
+        toast.error("Institution Not Found", { description: "Could not link your session to an organization." });
+      } else {
+        toast.error("Connectivity Protocol Error", { description: "Failed to establish telemetry link with backend." });
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handleUpgrade = async (tier: any) => {
+    if (!org) return;
     if (tier.level <= (org?.subscription_tier || 0)) {
       toast.info("Active Tier", { description: "You are already on this or a higher plan." });
       return;
     }
 
     setIsProcessing(tier.level);
-    
-    // Simulate Razorpay Handshake
-    toast.info(`Initiating Protocol: ${tier.name}`, { 
-      description: `Connecting to Razorpay for ${tier.name} Tier...` 
-    });
 
     try {
-      // In a real app: 
-      // 1. const order = await api.post("/payment/create-order", { tier: tier.level });
-      // 2. Open Razorpay Checkout with order.id
-      
-      setTimeout(async () => {
-        // Simulate Success Callback
-        try {
-          await api.post("/org/billing/upgrade", { 
-            tier_level: tier.level,
-            payment_id: "pay_simulated_" + Math.random().toString(36).substring(7)
-          });
-          
-          toast.success("Tier Pulse Activated!", { 
-            description: `Successfully upgraded to ${tier.name} Plan.` 
-          });
-          fetchOrgStatus();
-        } catch (err) {
-          toast.error("Upgrade Sync Failed", { description: "Payment verified but DB update failed." });
-        } finally {
-          setIsProcessing(null);
-        }
-      }, 2000);
+      // 1. Load Razorpay SDK
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded) {
+        toast.error("Razorpay SDK failed to load. Check your internet connection.");
+        setIsProcessing(null);
+        return;
+      }
 
-    } catch (err) {
-      toast.error("Payment Handshake Error", { description: "Razorpay portal is unreachable." });
+      // 2. Create Order in Backend
+      const orderResp = await api.post("/payments/razorpay/order", {
+        org_id: org.id,
+        amount: tier.price * 100, // Razorpay works in paise
+        currency: "INR",
+        receipt: `receipt_org_${org.id}_tier_${tier.level}`
+      });
+
+      const orderData = orderResp.data.data;
+
+      // 3. Open Razorpay Checkout
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_your_key_id", // Fallback for dev
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "Lineo SaaS",
+        description: `Upgrade to ${tier.name} Plan`,
+        image: "/logo.png",
+        order_id: orderData.id,
+        handler: async (response: any) => {
+          try {
+            // 4. Verify Payment in Backend
+            await api.post("/payments/razorpay/verify", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
+
+            // 5. Final Upgrade Sync
+            await api.post("/admin/upgrade-plan", { 
+               plan: tier.name.toLowerCase(),
+               months: 12 // Defaulting to annual for pulse activation
+            });
+
+            toast.success("Tier Pulse Activated!", { 
+              description: `Successfully upgraded to ${tier.name} Plan.` 
+            });
+            fetchOrgStatus();
+          } catch (err) {
+            toast.error("Upgrade Sync Failed", { description: "Payment captured but account update failed. Contact support." });
+          }
+        },
+        prefill: {
+          name: org.owner_name || "",
+          email: org.email || "",
+          contact: org.owner_phone || ""
+        },
+        theme: {
+          color: "#493ee5"
+        }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+
+    } catch (err: any) {
+      console.error("Payment Order Error:", err);
+      toast.error("Handshake Error", { 
+        description: err.response?.data?.message || "Could not initiate payment order." 
+      });
+    } finally {
       setIsProcessing(null);
     }
   };
