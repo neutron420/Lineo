@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { useSocket } from "@/context/SocketContext";
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface QueueEntry {
   token_number: string;
@@ -150,16 +151,51 @@ export default function OrgDashboard() {
   };
 
   const handleCallNext = async () => {
-    if (!activeQueue) return;
+    if (!activeQueue || !queueState || queueState.waiting_list.length === 0) return;
+    
+    // OPTIMISTIC UPDATE: Move first person in waiting to currently serving
+    const nextInLine = queueState.waiting_list[0];
+    const originalState = { ...queueState };
+    
+    setQueueState({
+      ...queueState,
+      currently_serving: nextInLine,
+      waiting_list: queueState.waiting_list.slice(1)
+    });
+
     try {
       setIsActionLoading(true);
       const resp = await api.post(`/staff/queue/${activeQueue}/next`);
       toast.success("Called next ticket", { 
         description: `Now serving ${resp.data.data.token_number}` 
       });
+      // Final sync with server to ensure consistency
       await fetchQueueState(activeQueue);
     } catch (err: any) {
+      setQueueState(originalState); // Rollback on error
       toast.error(err.response?.data?.message || "Failed to call next ticket");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleCompleteCurrent = async () => {
+    if (!activeQueue || !queueState?.currently_serving) return;
+    
+    const originalState = { ...queueState };
+    // OPTIMISTIC: Clear currently serving
+    setQueueState({ ...queueState, currently_serving: null });
+
+    try {
+      setIsActionLoading(true);
+      await api.post(`/staff/queue/${activeQueue}/complete`);
+      toast.success("Session Completed", { 
+        description: "User archived. Terminal is now IDLE." 
+      });
+      await fetchQueueState(activeQueue);
+    } catch (err: any) {
+      setQueueState(originalState);
+      toast.error(err.response?.data?.message || "Failed to complete session");
     } finally {
       setIsActionLoading(false);
     }
@@ -178,22 +214,66 @@ export default function OrgDashboard() {
 
   const togglePause = async () => {
     if (!activeQueue || !queueState) return;
+    
+    const nextStatus = !queueState.is_paused;
+    const originalStatus = queueState.is_paused;
+    
+    // OPTIMISTIC UPDATE
+    setQueueState({ ...queueState, is_paused: nextStatus });
+
     try {
-      const nextStatus = !queueState.is_paused;
       await api.post(`/staff/queue/${activeQueue}/pause`, { is_paused: nextStatus });
       toast.info(nextStatus ? "Unit Suspended" : "Unit Operational");
-      setQueueState({ ...queueState, is_paused: nextStatus });
     } catch (err: any) {
+      setQueueState({ ...queueState, is_paused: originalStatus }); // Rollback
       toast.error("Failed to update unit status");
     }
   };
 
+	
+
   if (isLoading) {
     return (
-      <div className="flex h-[70vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 text-[#493ee5] animate-spin" />
-          <p className="text-[#49607e] font-medium animate-pulse text-sm">Synchronizing Live Feed...</p>
+      <div className="space-y-8 w-full animate-pulse">
+        {/* Header Skeleton */}
+        <div className="flex flex-col md:flex-row justify-between gap-6">
+          <div className="space-y-3">
+            <Skeleton className="h-6 w-32 rounded-md" />
+            <Skeleton className="h-12 w-64 rounded-xl" />
+            <Skeleton className="h-4 w-48 rounded-lg" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-14 w-40 rounded-2xl" />
+            <Skeleton className="h-14 w-40 rounded-2xl" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Main Content Area Skeleton */}
+          <div className="lg:col-span-8 space-y-8">
+            <div className="bg-white/50 border border-slate-100 rounded-[40px] p-12 min-h-[500px] flex flex-col items-center justify-center space-y-6">
+              <Skeleton className="h-8 w-48 rounded-full" />
+              <Skeleton className="h-40 w-64 rounded-3xl" />
+              <Skeleton className="h-16 w-96 rounded-2xl" />
+            </div>
+            <div className="grid grid-cols-2 gap-8">
+              <Skeleton className="h-48 w-full rounded-[32px]" />
+              <Skeleton className="h-48 w-full rounded-[32px]" />
+            </div>
+          </div>
+
+          {/* Sidebar Area Skeleton */}
+          <div className="lg:col-span-4">
+            <div className="bg-white/50 border border-slate-100 rounded-[40px] p-10 h-[600px] space-y-6">
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-8 w-40" />
+                <Skeleton className="h-8 w-20 rounded-full" />
+              </div>
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-24 w-full rounded-[28px]" />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -311,13 +391,22 @@ export default function OrgDashboard() {
                        </div>
                     </div>
                     
-                    <button
-                      onClick={handleCallNext}
-                      disabled={isActionLoading}
-                      className="w-full max-w-lg py-6 bg-[#493ee5] text-white rounded-[24px] font-black text-lg hover:opacity-90 active:scale-95 transition-all shadow-[0_32px_64px_-12px_rgba(73,62,229,0.3)] flex items-center justify-center gap-4 group"
-                    >
-                      {isActionLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <><CheckCircle2 className="w-6 h-6 group-hover:scale-110 transition-transform" /> Mission Complete & Next</>}
-                    </button>
+                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-lg">
+                      <button
+                        onClick={handleCompleteCurrent}
+                        disabled={isActionLoading}
+                        className="w-full sm:flex-1 py-6 bg-white text-[#181c1e] border border-[#181c1e]/10 rounded-[28px] font-black text-lg hover:bg-slate-50 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-3"
+                      >
+                        <CheckCircle2 className="w-6 h-6 text-emerald-500" /> Complete
+                      </button>
+                      <button
+                        onClick={handleCallNext}
+                        disabled={isActionLoading || (queueState?.waiting_list?.length || 0) === 0}
+                        className="w-full sm:flex-1 py-6 bg-[#493ee5] text-white rounded-[28px] font-black text-lg hover:opacity-90 active:scale-95 transition-all shadow-[0_32px_64px_-12px_rgba(73,62,229,0.3)] flex items-center justify-center gap-3 group"
+                      >
+                        {isActionLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <><ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" /> Next</>}
+                      </button>
+                    </div>
                   </motion.div>
                 ) : (
                   <motion.div 

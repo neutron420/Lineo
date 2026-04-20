@@ -80,6 +80,7 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
     { name: "Unit Vectors", href: "/org/queues", icon: Users },
     { name: "Personnel", href: "/org/settings?tab=team", icon: User },
     { name: "Strategic Intel", href: "/org/analytics", icon: BarChart3 },
+    { name: "Subscription Pulse", href: "/org/billing", icon: ShieldCheck },
     { name: "Global Config", href: "/org/settings", icon: Settings },
   ];
 
@@ -128,11 +129,26 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
                   )}
                   style={isActive ? { background: 'linear-gradient(135deg, #493ee5, #635bff)', fontFamily: 'var(--font-manrope), sans-serif' } : { fontFamily: 'var(--font-manrope), sans-serif' }}
                 >
-                  <item.icon className={cn(
-                    "w-[18px] h-[18px] transition-transform duration-200 shrink-0",
-                    isActive ? "text-white" : "text-[#49607e] group-hover:text-[#493ee5] group-hover:scale-110"
-                  )} />
-                  {!isCollapsed && <span>{item.name}</span>}
+                  <motion.div
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                    className="shrink-0"
+                  >
+                    <item.icon className={cn(
+                      "w-[18px] h-[18px] transition-transform duration-200",
+                      isActive ? "text-white" : "text-[#49607e] group-hover:text-[#493ee5]"
+                    )} />
+                  </motion.div>
+                  {!isCollapsed && (
+                    <motion.span 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="whitespace-nowrap"
+                    >
+                      {item.name}
+                    </motion.span>
+                  )}
                 </Link>
               );
             })}

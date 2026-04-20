@@ -70,6 +70,16 @@
   .tonal-transition {
     box-shadow: 0 40px 40px rgba(24, 28, 30, 0.04);
   }
+
+  /* === Scan Animation === */
+  .animate-scan {
+    animation: scan 2s linear infinite;
+  }
+
+  @keyframes scan {
+    0% { top: 0; }
+    100% { top: 100%; }
+  }
 }
 
 @layer components {

@@ -39,6 +39,7 @@ import {
   Check,
   Activity
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
 import Link from "next/link";
@@ -626,11 +627,26 @@ export default function UserDashboard() {
             <div className="relative z-10 flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-[#493ee5]/5 text-[#493ee5] rounded-2xl flex items-center justify-center mb-4 border border-[#493ee5]/10 group-hover:scale-105 transition-transform duration-300">
                 {activeToken ? (
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${activeToken.token_number}-${activeToken.queue_key}`} 
-                    alt="QR Code"
-                    className="w-12 h-12"
-                  />
+                  <div className="relative group/qr p-2 bg-white rounded-xl">
+                    <QRCodeSVG 
+                      value={`${activeToken.token_number}-${activeToken.queue_key}`} 
+                      size={64}
+                      level="H"
+                      includeMargin={false}
+                      fgColor="#493ee5"
+                      bgColor="transparent"
+                      imageSettings={{
+                        src: "/favicon.ico",
+                        x: undefined,
+                        y: undefined,
+                        height: 12,
+                        width: 12,
+                        excavate: true,
+                      }}
+                    />
+                    {/* Animated scanning line effect */}
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-[#493ee5]/30 animate-scan pointer-events-none" />
+                  </div>
                 ) : (
                   <QrCode className="w-8 h-8" />
                 )}

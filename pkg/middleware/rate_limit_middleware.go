@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"time"
+
 	"github.com/gin-gonic/gin"
 	"queueless/pkg/redis"
 	"queueless/pkg/utils"
@@ -17,7 +18,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 		}
 
 		key := "rate_limit_v2:" + c.ClientIP()
-		
+
 		// Use Redis INCR for rate limiting (Distributed)
 		count, err := redis.Client.Incr(context.Background(), key).Result()
 		if err != nil {
@@ -26,15 +27,14 @@ func RateLimitMiddleware() gin.HandlerFunc {
 		}
 
 		if count == 1 {
-			// First request, set expiration (10 requests per 10 seconds)
+			// First request, set expiration (100 requests per 10 seconds)
 			redis.Client.Expire(context.Background(), key, 10*time.Second)
 		}
 
-		if count > 20 { // 2 emails per second limit (burst)
-			utils.RespondError(c, http.StatusTooManyRequests, "Rate limit exceeded", "Too many requests from this IP")
+		if count > 200 { // 20 requests per second limit (burst)
+			utils.RespondError(c, http.StatusTooManyRequests, "Protocol Congestion", "Too many requests from this IP. Please wait a moment.")
 			return
 		}
 		c.Next()
 	}
 }
-

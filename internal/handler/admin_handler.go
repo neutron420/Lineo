@@ -184,7 +184,20 @@ func (h *AdminHandler) UpdateVerificationStatus(c *gin.Context) {
 	}
 
 	isVerified := req.Status == "FULLY_VERIFIED" || req.Status == "APPROVED"
-	if err := db.DB.Model(&org).Update("is_verified", isVerified).Error; err != nil {
+	
+	updateData := map[string]interface{}{
+		"is_verified": isVerified,
+	}
+
+	// If approving for the first time, ensure they are on the Starter Tier
+	if isVerified && org.SubscriptionStatus == "" {
+		updateData["subscription_status"] = "starter"
+		updateData["subscription_tier"] = 0
+		updateData["max_queues"] = 2
+		updateData["daily_ticket_limit"] = 50
+	}
+
+	if err := db.DB.Model(&org).Updates(updateData).Error; err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to update verification status", err.Error())
 		return
 	}

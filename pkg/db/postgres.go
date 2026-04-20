@@ -20,15 +20,27 @@ func InitDB() {
 	dsn := config.Secret("DATABASE_URL")
 	if dsn == "" {
 		dsn = fmt.Sprintf(
-			"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
+			"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC prepare_threshold=0",
 			config.Secret("DB_HOST"), config.Secret("DB_USER"), config.Secret("DB_PASSWORD"),
 			config.Secret("DB_NAME"), config.Secret("DB_PORT"),
 		)
+	} else {
+		// Ensure prepare_threshold=0 is present in the provided DATABASE_URL
+		if !strings.Contains(dsn, "prepare_threshold=0") {
+			if strings.Contains(dsn, "?") {
+				dsn += "&prepare_threshold=0"
+			} else {
+				dsn += "?prepare_threshold=0"
+			}
+		}
 	}
 
 	var err error
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Error), // Only show real errors now!
+	DB, err = gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true, // Disables prepared statements entirely — fixes 'cached plan' on Neon
+	}), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Error),
 	})
 	if err != nil {
 		slog.Error("failed to connect to database", "error", err)
@@ -91,6 +103,10 @@ func InitDB() {
 	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS cert_pdf_url text").Error
 	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS ptax_paper_url text").Error
 	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS is_verified boolean DEFAULT false").Error
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS subscription_status text DEFAULT 'starter'").Error
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS subscription_tier integer DEFAULT 0").Error
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS max_queues integer DEFAULT 2").Error
+	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS daily_ticket_limit integer DEFAULT 50").Error
 
 	slog.Info("database connection established and migrated")
 

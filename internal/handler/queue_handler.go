@@ -137,6 +137,21 @@ func (h *QueueHandler) CallNext(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusOK, "Called next user", entry)
 }
 
+func (h *QueueHandler) CompleteSession(c *gin.Context) {
+	queueKey := c.Param("key")
+	orgID, ok := getOrgID(c)
+	if !ok {
+		return
+	}
+
+	err := h.queueService.CompleteTicket(queueKey, orgID)
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to complete session", err.Error())
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, "Session completed successfully", nil)
+}
+
 func (h *QueueHandler) MarkHolding(c *gin.Context) {
 	queueKey := c.Param("key")
 	orgID, ok := getOrgID(c)

@@ -30,8 +30,11 @@ type Organization struct {
 	CloseTime   string         `gorm:"default:'18:00'" json:"close_time"` // 18:00
 
 	// Feature #4: SaaS Subscription
-	SubscriptionStatus string    `gorm:"default:'free'" json:"subscription_status"` // free, pro, enterprise
+	SubscriptionStatus string    `gorm:"default:'starter'" json:"subscription_status"` // starter, standard, pro, scale, enterprise
+	SubscriptionTier   int       `gorm:"default:0" json:"subscription_tier"`           // 0 to 4
 	SubscriptionExpiry *time.Time `json:"subscription_expiry"`
+	MaxQueues          int       `gorm:"default:2" json:"max_queues"`
+	DailyTicketLimit   int       `gorm:"default:50" json:"daily_ticket_limit"`
 	
 	Admins      []User         `gorm:"foreignKey:OrganizationID" json:"admins,omitempty"`
 	Queues      []QueueDef     `gorm:"foreignKey:OrganizationID" json:"queues,omitempty"`

@@ -80,10 +80,6 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
-	r.Use(middleware.LoggerMiddleware())
-	r.Use(gin.Recovery())
-	r.Use(middleware.RateLimitMiddleware())
-
 	corsConfig := cors.DefaultConfig()
 	corsConfig.AllowCredentials = true
 	corsConfig.AddAllowHeaders("Authorization", "Content-Type", "X-Idempotency-Key")
@@ -108,6 +104,10 @@ func main() {
 		corsConfig.AllowCredentials = false
 	}
 	r.Use(cors.New(corsConfig))
+
+	r.Use(middleware.LoggerMiddleware())
+	r.Use(gin.Recovery())
+	r.Use(middleware.RateLimitMiddleware())
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -165,6 +165,7 @@ func main() {
 			staff.Use(middleware.StaffMiddleware())
 			{
 				staff.POST("/queue/:key/next", queueHandler.CallNext)
+				staff.POST("/queue/:key/complete", queueHandler.CompleteSession)
 				staff.POST("/queue/:key/hold", queueHandler.MarkHolding)
 				staff.POST("/queue/:key/pause", queueHandler.PauseQueue)
 				staff.GET("/queue/:key/analytics", queueHandler.GetAnalytics)
@@ -179,6 +180,7 @@ func main() {
 				admin.POST("/queue", orgHandler.CreateQueue)
 				// Backward-compatible aliases for existing admin clients.
 				admin.POST("/queue/:key/next", queueHandler.CallNext)
+				admin.POST("/queue/:key/complete", queueHandler.CompleteSession)
 				admin.POST("/queue/:key/hold", queueHandler.MarkHolding)
 				admin.POST("/queue/:key/pause", queueHandler.PauseQueue)
 				admin.GET("/queue/:key/analytics", queueHandler.GetAnalytics)

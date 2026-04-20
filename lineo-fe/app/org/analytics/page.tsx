@@ -27,6 +27,7 @@ import {
   Cell
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const HOUR_DATA = [
   { time: "09 AM", count: 12 },
@@ -49,11 +50,43 @@ const WEEK_DATA = [
   { day: "Sat", processed: 120 },
 ];
 
+
 export default function OrgAnalyticsPage() {
   const [range, setRange] = useState("7d");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate telemetry sync
+    const timer = setTimeout(() => setIsLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8 w-full animate-pulse">
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-48 rounded-xl" />
+            <Skeleton className="h-4 w-64 rounded-lg" />
+          </div>
+          <div className="flex gap-3">
+             <Skeleton className="h-12 w-48 rounded-xl" />
+             <Skeleton className="h-12 w-12 rounded-xl" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+           {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-40 w-full rounded-[32px]" />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+           <Skeleton className="lg:col-span-8 h-[450px] w-full rounded-[32px]" />
+           <Skeleton className="lg:col-span-4 h-[450px] w-full rounded-[32px]" />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-[1400px] mx-auto space-y-8">
+    <div className="space-y-8 w-full">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
            <h1 className="text-4xl font-black text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>

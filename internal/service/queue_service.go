@@ -39,6 +39,39 @@ type QueueService interface {
 	ReorderPriority(queueKey, tokenNumber string, position int, orgID uint, actorID uint) error
 	GetTicketStatus(tokenNumber string) (*models.QueueHistory, error)
 	GetPeakHoursByOrg(orgID uint, rangeExpr string) (map[string]int, error)
+	CompleteTicket(queueKey string, orgID uint) error
+}
+
+// ... implementation ...
+
+func (s *queueService) CompleteTicket(queueKey string, orgID uint) error {
+	if err := s.verifyOwnership(queueKey, orgID); err != nil {
+		return err
+	}
+
+	currentServing, _ := s.repo.GetCurrentServing(queueKey)
+	if currentServing == nil {
+		return errors.New("no active session to complete")
+	}
+
+	now := time.Now()
+	var history models.QueueHistory
+	db.DB.Where("token_number = ?", currentServing.TokenNumber).First(&history)
+
+	if history.ServedAt != nil {
+		duration := int(now.Sub(*history.ServedAt).Seconds())
+		db.DB.Model(&history).Updates(map[string]interface{}{
+			"serving_duration": duration,
+		})
+	}
+
+	if err := s.transitionTicketWithCtx(context.Background(), orgID, 0, queueKey, currentServing.TokenNumber, models.StatusServing, models.StatusCompleted, nil); err != nil {
+		return err
+	}
+	
+	db.DB.Model(&models.Appointment{}).Where("token_number = ?", currentServing.TokenNumber).Update("status", models.ApptCompleted)
+	
+	return s.repo.SetCurrentServing(queueKey, nil)
 }
 
 type queueService struct {

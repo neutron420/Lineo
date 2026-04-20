@@ -18,6 +18,7 @@ import {
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Queue {
   id: number;
@@ -81,16 +82,42 @@ export default function OrgQueuesPage() {
     }
   };
 
+	
+
   if (loading) {
     return (
-      <div className="flex h-[70vh] items-center justify-center">
-        <Loader2 className="w-10 h-10 text-[#493ee5] animate-spin" />
+      <div className="space-y-8 w-full animate-pulse">
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-48 rounded-xl" />
+            <Skeleton className="h-4 w-64 rounded-lg" />
+          </div>
+          <Skeleton className="h-14 w-40 rounded-2xl" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-white border border-slate-100 rounded-[32px] p-8 space-y-6">
+              <div className="flex justify-between items-center">
+                <Skeleton className="w-14 h-14 rounded-2xl" />
+                <Skeleton className="w-10 h-8 rounded-xl" />
+              </div>
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-8 w-2/3" />
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-6">
+                <Skeleton className="h-16 w-full rounded-2xl" />
+                <Skeleton className="h-16 w-full rounded-2xl" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto space-y-8">
+    <div className="space-y-8 w-full">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
            <h1 className="text-4xl font-black text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
