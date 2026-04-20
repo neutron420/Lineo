@@ -15,7 +15,7 @@ import (
 type MockMapService struct {
 	SearchNearbyFunc    func(lat, lng float64, radius int, orgType string) ([]utils.Place, error)
 	GetAddressFunc      func(lat, lng float64) (string, error)
-	SearchPartneredFunc func(lat, lng float64, radius int) ([]utils.Place, error)
+	SearchPartneredFunc func(lat, lng float64, radius int, orgType string) ([]utils.Place, error)
 }
 
 func (m *MockMapService) SearchNearby(lat, lng float64, radius int, orgType string) ([]utils.Place, error) {
@@ -32,9 +32,9 @@ func (m *MockMapService) GetAddress(lat, lng float64) (string, error) {
 	return "", nil
 }
 
-func (m *MockMapService) SearchPartnered(lat, lng float64, radius int) ([]utils.Place, error) {
+func (m *MockMapService) SearchPartnered(lat, lng float64, radius int, orgType string) ([]utils.Place, error) {
 	if m.SearchPartneredFunc != nil {
-		return m.SearchPartneredFunc(lat, lng, radius)
+		return m.SearchPartneredFunc(lat, lng, radius, orgType)
 	}
 	return nil, nil
 }
@@ -98,7 +98,7 @@ func TestMapHandler_SearchNearby(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockSvc := &MockMapService{
-		SearchPartneredFunc: func(lat, lng float64, radius int) ([]utils.Place, error) {
+		SearchPartneredFunc: func(lat, lng float64, radius int, orgType string) ([]utils.Place, error) {
 			return []utils.Place{
 				{Name: "Partnered Hospital", Lat: 28.6, Lng: 77.2, Key: "hosp123"},
 			}, nil
