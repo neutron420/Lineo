@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,21 +18,34 @@ func RateLimitMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		key := "rate_limit_v2:" + c.ClientIP()
+		// Permissive rate limit for development
+		limit := 1000 
+		if os.Getenv("ENV") == "production" {
+			limit = 200 // 200 requests per window in production
+		}
 
-		// Use Redis INCR for rate limiting (Distributed)
+		key := "rate_limit_v4:" + c.ClientIP()
+
+		// Atomic increment with Redis
 		count, err := redis.Client.Incr(context.Background(), key).Result()
 		if err != nil {
-			c.Next() // Fallback to allow if Redis has issues
+			c.Next()
 			return
 		}
 
 		if count == 1 {
-			// First request, set expiration (100 requests per 10 seconds)
-			redis.Client.Expire(context.Background(), key, 10*time.Second)
+			redis.Client.Expire(context.Background(), key, 60*time.Second)
+		} else {
+			// Periodic TTL check to recover from orphan keys without full pipeline on every request
+			if count % 10 == 0 {
+				ttl, _ := redis.Client.TTL(context.Background(), key).Result()
+				if ttl == -1 {
+					redis.Client.Expire(context.Background(), key, 60*time.Second)
+				}
+			}
 		}
 
-		if count > 200 { // 20 requests per second limit (burst)
+		if count > int64(limit) {
 			utils.RespondError(c, http.StatusTooManyRequests, "Protocol Congestion", "Too many requests from this IP. Please wait a moment.")
 			return
 		}

@@ -17,8 +17,10 @@ const (
 
 type PaymentTransaction struct {
 	ID                uint           `gorm:"primaryKey" json:"id"`
-	OrgID             uint           `gorm:"index;not null" json:"org_id"`
+	OrgID             uint           `gorm:"index" json:"org_id"`
+	Organization      Organization   `gorm:"foreignKey:OrgID" json:"organization,omitempty"`
 	UserID            uint           `gorm:"index;not null" json:"user_id"`
+	User              User           `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Provider          string         `gorm:"index;not null" json:"provider"`
 	ProviderOrderID   string         `gorm:"index" json:"provider_order_id"`
 	ProviderPaymentID string         `gorm:"index" json:"provider_payment_id"`
@@ -57,7 +59,7 @@ type RazorpayWebhookRequest struct {
 }
 
 type RazorpayOrderRequest struct {
-	OrgID    uint   `json:"org_id" binding:"required"`
+	OrgID    uint   `json:"org_id"`
 	Amount   int64  `json:"amount" binding:"required"`
 	Currency string `json:"currency"`
 	Receipt  string `json:"receipt"`

@@ -14,17 +14,37 @@ const (
 	RoleStaff Role = "staff" // Counter staff member
 )
 
+type SubscriptionTier string
+
+const (
+	TierBasic     SubscriptionTier = "basic"     // 3 joins, 2 appts
+	TierPlus      SubscriptionTier = "plus"      // 15 joins, 10 appts
+	TierUnlimited SubscriptionTier = "unlimited" // No limits + VIP defaults
+)
+
 type User struct {
 	ID             uint   `gorm:"primaryKey" json:"id"`
 	Username       string `gorm:"uniqueIndex;not null" json:"username"`
 	Email          string `gorm:"uniqueIndex;not null" json:"email"`
 	Password       string `gorm:"not null" json:"-"`
 	PhoneNumber    string `json:"phone_number"`
+	DOB            string `json:"dob"`
+	Gender         string `json:"gender"`
+	HasDisability  bool   `json:"has_disability"`
+	DisabilityType string `json:"disability_type"`
 	Role           Role   `gorm:"type:varchar(20);default:'user'" json:"role"`
 	OrganizationID *uint  `gorm:"index" json:"organization_id"`
 
 	// Feature #2: Desk Assignment
 	CounterNumber int `gorm:"default:0" json:"counter_number"`
+
+	// Subscription & Scaling
+	SubscriptionTier SubscriptionTier `gorm:"type:varchar(20);default:'basic'" json:"subscription_tier"`
+	DailyJoins       int              `gorm:"default:0" json:"daily_joins"`
+	DailyAppts       int              `gorm:"default:0" json:"daily_appts"`
+	LastActionDate   *time.Time       `json:"last_action_date"`
+	SubscriptionExp  *time.Time       `json:"subscription_expiry"`
+	RazorpayID       string           `json:"-"`
 
 	// Forgot Password logic
 	ResetToken    string     `json:"-"`
@@ -56,6 +76,10 @@ type RegisterRequest struct {
 	Password       string `json:"password" binding:"required,min=6"`
 	Role           string `json:"role"`
 	PhoneNumber    string `json:"phone_number"`
+	DOB            string `json:"dob"`
+	Gender         string `json:"gender"`
+	HasDisability  bool   `json:"has_disability"`
+	DisabilityType string `json:"disability_type"`
 	OrganizationID *uint  `json:"organization_id"`
 	TurnstileToken string `json:"turnstile_token"`
 	CounterNumber  int    `json:"counter_number"`

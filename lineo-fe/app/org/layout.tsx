@@ -15,7 +15,8 @@ import {
   ChevronRight,
   ShieldCheck,
   User,
-  LayoutDashboard
+  LayoutDashboard,
+  Calendar
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
@@ -68,16 +69,19 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
+    if (pathname === "/org/login") return;
+    
     const userStr = sessionStorage.getItem("staff_user");
     if (!userStr) {
-      window.location.href = "/login";
+      window.location.href = "/org/login";
       return;
     }
-  }, []);
+  }, [pathname]);
 
   const navItems = [
     { name: "Live Terminal", href: "/org", icon: LayoutDashboard },
-    { name: "Unit Vectors", href: "/org/queues", icon: Users },
+    { name: "Queue Operations", href: "/org/queues", icon: Users },
+    { name: "Appointments", href: "/org/appointments", icon: Calendar },
     { name: "Personnel", href: "/org/settings?tab=team", icon: User },
     { name: "Strategic Intel", href: "/org/analytics", icon: BarChart3 },
     { name: "Subscription Pulse", href: "/org/billing", icon: ShieldCheck },
@@ -87,8 +91,19 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
   const handleLogout = () => {
     sessionStorage.removeItem("staff_token");
     sessionStorage.removeItem("staff_user");
-    window.location.href = "/login";
+    window.location.href = "/org/login";
   };
+
+  if (pathname === "/org/login") {
+     return (
+        <div className="min-h-screen bg-[#f7fafd] flex transition-all duration-300 font-sans">
+           <Toaster position="top-right" expand={true} richColors closeButton />
+           <main className="flex-1 w-full animate-in fade-in duration-700">
+              {children}
+           </main>
+        </div>
+     );
+  }
 
   return (
     <SocketProvider>
@@ -100,7 +115,7 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
           "bg-white hidden md:flex flex-col sticky top-0 h-screen transition-all duration-300 z-40 border-r border-[#e5e8eb]",
           isCollapsed ? "w-[72px]" : "w-[260px]"
         )}>
-          <div className={cn(
+           <div className={cn(
             "p-5 flex items-center gap-3 transition-all border-b border-[#e5e8eb]",
             isCollapsed ? "justify-center px-3" : "justify-start"
           )}>

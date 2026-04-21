@@ -4,30 +4,48 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
-  LayoutDashboard, 
-  Calendar, 
-  History as HistoryIcon, 
-  Settings, 
-  LogOut, 
-  Search,
-  User,
+  Zap,
+  Activity,
+  HeartPulse,
+  Clock,
+  Users,
+  Loader2,
+  BarChart3,
+  Calendar,
   ChevronLeft,
   ChevronRight,
-  Map as MapIcon,
-  BarChart3,
+  HistoryIcon,
+  LayoutDashboard,
   LifeBuoy,
-  Share2
+  LogOut,
+  MapIcon,
+  Search,
+  Settings,
+  Share2,
+  User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Toaster } from "sonner";
-import { motion } from "framer-motion";
+import { Toaster, toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 import { LocationProvider, useLocation } from "@/context/LocationContext";
-import { SocketProvider } from "@/context/SocketContext";
+import { SocketProvider, useSocket } from "@/context/SocketContext";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import api from "@/lib/api";
 
 interface UserData {
   username: string;
   email?: string;
+  subscription_tier?: string;
+  daily_joins?: number;
+  daily_appts?: number;
+}
+
+interface SocketQueueData {
+  event?: { token_number: string; action?: string };
+  state?: {
+    waiting_list: { token_number: string; username: string; has_disability: boolean }[];
+    currently_serving: { token_number: string; username: string; has_disability: boolean } | null;
+  };
 }
 
 function GlobalHeader() {
@@ -55,7 +73,7 @@ function GlobalHeader() {
   const handleLogout = () => {
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/user/login";
   };
 
   if (!mounted) return (
@@ -100,6 +118,9 @@ function GlobalHeader() {
           >
             <Share2 className="w-4 h-4" />
           </motion.button>
+          
+          <LiveQueuePopover />
+          
           <NotificationCenter />
         </div>
         <div className="h-6 w-px bg-[#e5e8eb]" />
@@ -118,7 +139,7 @@ function GlobalHeader() {
 
         <div className="flex items-center gap-4">
           <div className="text-right hidden xl:block">
-            <p className="text-sm font-bold text-[#181c1e] leading-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{user?.username || "Quest"}</p>
+            <p className="text-sm font-bold text-[#181c1e] leading-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{user?.username || "Authenticated User"}</p>
             <p className="text-[10px] text-[#493ee5] uppercase tracking-[0.12em] font-extrabold mt-0.5" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Verified Account</p>
           </div>
           <motion.div 
@@ -135,13 +156,158 @@ function GlobalHeader() {
   );
 }
 
+function LiveQueuePopover() {
+  const { subscribe, unsubscribe } = useSocket();
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeToken, setActiveToken] = useState<any>(null);
+  const [queueMatrix, setQueueMatrix] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchActive = async () => {
+      try {
+        const resp = await api.get("/queue/active");
+        if (resp.data.data) {
+          setActiveToken(resp.data.data);
+          // Initial fetch of matrix
+          const matrixResp = await api.get(`/queue/${resp.data.data.queue_key}/state`);
+          setQueueMatrix(matrixResp.data.data);
+        }
+      } catch (err) {
+        console.error("Layout Active Token Fetch Error", err);
+      }
+    };
+    fetchActive();
+    
+    // Listen for queue join events globally if needed, or just poll occasionally
+    const interval = setInterval(fetchActive, 30000); // 30s fallback
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (activeToken?.organization_id) {
+      subscribe(activeToken.organization_id, (data: any) => {
+        if (data.state) {
+          setQueueMatrix(data.state);
+        }
+        if (data.event?.action === "ticket_completed" && data.event?.token_number === activeToken.token_number) {
+            setActiveToken(null);
+            setQueueMatrix(null);
+        }
+      });
+      return () => unsubscribe(activeToken.organization_id);
+    }
+  }, [activeToken, subscribe, unsubscribe]);
+
+  if (!activeToken) return null;
+
+  return (
+    <div className="relative">
+      <motion.button
+        onClick={() => setIsOpen(!isOpen)}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        className={cn(
+          "flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all font-bold text-xs shadow-sm border",
+          isOpen ? "bg-[#493ee5] text-white border-transparent shadow-neobrutal" : "bg-white text-[#493ee5] border-[#493ee5]/10"
+        )}
+      >
+        <div className="relative">
+           <Zap className={cn("w-3.5 h-3.5", isOpen ? "text-white" : "text-[#493ee5]")} />
+           <span className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-sm" />
+        </div>
+        <span>Live Queue</span>
+      </motion.button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              className="absolute right-0 mt-3 w-80 bg-white rounded-[24px] shadow-2xl border border-[#e5e8eb] z-50 overflow-hidden"
+            >
+              <div className="p-5 bg-[#181c1e] text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#493ee5]/10 -mr-16 -mt-16 rounded-full blur-[40px]" />
+                <div className="flex items-center justify-between mb-3 relative z-10">
+                  <p className="text-[10px] font-black tracking-[0.2em] text-[#493ee5] uppercase">Live Matrix</p>
+                  <Activity className="w-3.5 h-3.5 text-[#493ee5] animate-pulse" />
+                </div>
+                <h3 className="font-extrabold text-sm tracking-tight relative z-10">Node: {activeToken.queue_key}</h3>
+              </div>
+
+              <div className="p-4 max-h-[360px] overflow-y-auto">
+                {queueMatrix?.waiting_list ? (
+                  <div className="space-y-2">
+                    <p className="text-[9px] font-black text-[#49607e] uppercase tracking-widest mb-3">Waiting Participants</p>
+                    {queueMatrix.waiting_list.map((entry: any, i: number) => (
+                      <div 
+                        key={entry.token_number}
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-xl transition-all",
+                          entry.token_number === activeToken.token_number ? "bg-[#493ee5]/5 border border-[#493ee5]/10" : "bg-[#f1f4f7]/50"
+                        )}
+                      >
+                         <div className="flex items-center gap-3">
+                            <span className={cn(
+                              "w-6 h-6 rounded-lg text-[10px] font-black flex items-center justify-center",
+                              entry.token_number === activeToken.token_number ? "bg-[#493ee5] text-white" : "bg-white text-[#49607e] border border-[#e5e8eb]"
+                            )}>{i + 1}</span>
+                            <span className="text-xs font-bold text-[#181c1e]">
+                               {entry.username?.split(' ')[0]} {entry.username?.split(' ')[1] ? entry.username?.split(' ')[1][0] + "." : ""}
+                            </span>
+                         </div>
+                         {entry.has_disability && <HeartPulse className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />}
+                         {entry.token_number === activeToken.token_number && <span className="text-[8px] font-black text-[#493ee5] uppercase bg-[#493ee5]/10 px-1.5 py-0.5 rounded-full">YOU</span>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-10 text-center opacity-30">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-[#493ee5]" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">Connecting Pulse...</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 bg-[#f8fafc] border-t border-[#e5e8eb] flex items-center justify-between">
+                 <div className="flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-[#493ee5]" />
+                    <span className="text-[10px] font-bold text-[#49607e] uppercase tracking-tight">Wait: {activeToken.estimated_wait_mins}m</span>
+                 </div>
+                 <Link href="/dashboard" onClick={() => setIsOpen(false)} className="text-[10px] font-black text-[#493ee5] uppercase hover:underline">Full Dashboard</Link>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [user, setUser] = useState<UserData | null>(null);
   const pathname = usePathname();
+
+  useEffect(() => {
+    const userData = sessionStorage.getItem("user");
+    if (!userData) {
+      window.location.href = "/user/login";
+      return;
+    }
+    try {
+      setUser(JSON.parse(userData));
+    } catch (e) {
+      console.error("Layout user parse error", e);
+    }
+  }, []);
 
   const mainNavItems = [
     { name: "Live Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -152,6 +318,7 @@ export default function DashboardLayout({
   ];
 
   const footerNavItems = [
+    { name: "My Subscription", href: "/dashboard/settings/billing", icon: Zap },
     { name: "Settings", href: "/dashboard/settings", icon: Settings },
     { name: "Support", href: "/dashboard/support", icon: LifeBuoy, status: "Online" },
   ];
@@ -160,7 +327,7 @@ export default function DashboardLayout({
   return (
     <LocationProvider>
       <SocketProvider>
-        <div className="min-h-screen bg-[#f7fafd] flex transition-all duration-300 font-sans selection:bg-[#493ee5]/10 selection:text-[#493ee5]">
+        <div className="h-screen bg-[#f7fafd] flex transition-all duration-300 font-sans selection:bg-[#493ee5]/10 selection:text-[#493ee5] overflow-hidden">
           <Toaster position="top-right" expand={true} richColors closeButton />
           
           {/* ━━━ Sidebar ━━━ */}
@@ -260,21 +427,52 @@ export default function DashboardLayout({
                 );
               })}
 
-              {/* Feature Card (Progress Bar) - Moved to absolute bottom */}
-              {!isCollapsed && (
+              {/* Subscription Usage Card */}
+              {!isCollapsed && user && (
                 <div className="mt-4 p-4 rounded-2xl bg-[#f7fafd] border border-[#e5e8eb] shadow-sm relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-[#493ee5]/10 to-transparent rounded-bl-full -mr-8 -mt-8" />
-                  <h4 className="text-sm font-bold text-[#181c1e] mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Used space</h4>
-                  <p className="text-xs text-[#49607e] mb-3 leading-relaxed">Your team has used 80% of your available space. Need more?</p>
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-[#493ee5]/5 to-transparent rounded-bl-full -mr-8 -mt-8" />
                   
-                  <div className="w-full bg-[#e5e8eb] rounded-full h-1.5 mb-3 overflow-hidden">
-                    <div className="bg-[#493ee5] h-1.5 rounded-full" style={{ width: '80%' }}></div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-bold text-[#181c1e] capitalize" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{user.subscription_tier || 'Basic'} Plan</h4>
+                    <span className="text-[10px] font-black text-[#493ee5] uppercase tracking-wider">Quota</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between text-[10px] font-bold text-[#49607e] mb-1 uppercase tracking-tight">
+                        <span>Joins</span>
+                        <span>{user.daily_joins || 0}/{user.subscription_tier === 'plus' ? '15' : user.subscription_tier === 'unlimited' ? '∞' : '3'}</span>
+                      </div>
+                      <div className="w-full bg-[#e5e8eb] rounded-full h-1 overflow-hidden">
+                        <div 
+                          className="bg-[#493ee5] h-full rounded-full transition-all duration-1000" 
+                          style={{ width: `${Math.min(((user.daily_joins || 0) / (user.subscription_tier === 'plus' ? 15 : user.subscription_tier === 'unlimited' ? 100 : 3)) * 100, 100)}%` }} 
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-[10px] font-bold text-[#49607e] mb-1 uppercase tracking-tight">
+                        <span>Appointments</span>
+                        <span>{user.daily_appts || 0}/{user.subscription_tier === 'plus' ? '10' : user.subscription_tier === 'unlimited' ? '∞' : '2'}</span>
+                      </div>
+                      <div className="w-full bg-[#fce7f3] rounded-full h-1 overflow-hidden">
+                        <div 
+                          className="bg-pink-500 h-full rounded-full transition-all duration-1000" 
+                          style={{ width: `${Math.min(((user.daily_appts || 0) / (user.subscription_tier === 'plus' ? 10 : user.subscription_tier === 'unlimited' ? 100 : 2)) * 100, 100)}%` }} 
+                        />
+                      </div>
+                    </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <button className="text-xs font-bold text-white bg-[#181c1e] hover:bg-[#493ee5] transition-colors py-1.5 px-3 rounded-lg w-full" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
-                      Upgrade plan
-                    </button>
+                  <div className="flex items-center gap-2 mt-4">
+                    <Link 
+                      href="/dashboard/settings/billing"
+                      className="text-[11px] font-bold text-center text-white bg-[#181c1e] hover:bg-[#493ee5] transition-all py-2 px-3 rounded-lg w-full" 
+                      style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+                    >
+                      {user.subscription_tier === 'unlimited' ? 'Manage Billing' : 'Upgrade Limits'}
+                    </Link>
                   </div>
                 </div>
               )}

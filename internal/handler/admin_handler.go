@@ -211,34 +211,108 @@ func (h *AdminHandler) UpdateSystemConfig(c *gin.Context) {
 }
 
 func (h *AdminHandler) GetPayments(c *gin.Context) {
-	// Let's create a robust query for Razorpay verification logs or map orgs to mock transactions dynamically
-	var orgs []models.Organization
-	db.DB.Find(&orgs)
-
-	var transactions []gin.H
+	var dbTransactions []models.PaymentTransaction
 	
-	// Synthesize transactions from active organizations
-	for i, org := range orgs {
-		amount := 4999.0
-		plan := "Pro"
-		status := "SUCCESS"
-		if i % 3 == 0 { amount = 0.0; plan = "Free"; status = "COMPLETED" }
-		if i % 4 == 0 { amount = 14999.0; plan = "Enterprise"; status = "PENDING" }
+	// Fetch real transactions and preload both Org and User data for full auditing
+	if err := db.DB.Preload("Organization").Preload("User").Order("id desc").Find(&dbTransactions).Error; err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to fetch payment database", err.Error())
+		return
+	}
+
+	var response []gin.H
+	
+	for _, txn := range dbTransactions {
+		amount := float64(txn.AmountMinor) / 100.0
+		status := string(txn.Status)
+		if txn.Status == models.PaymentCaptured || txn.Status == models.PaymentVerified {
+			status = "SUCCESS"
+		} else if txn.Status == models.PaymentCreated {
+			status = "PENDING"
+		} else if txn.Status == models.PaymentFailed {
+			status = "FAILED"
+		}
+
+		// Determine if it's an Org Payment or a User Subscription
+		typeLabel := "User Subscription"
+		entityName := "Global Consumer"
+		plan := string(txn.User.SubscriptionTier)
 		
-		transactions = append(transactions, gin.H{
-			"id": "txn_live_" + org.CreatedAt.Format("060102") + string(rune(65+i)),
-			"organization_id": org.ID,
-			"organization_name": org.Name,
-			"amount": amount,
-			"currency": "INR",
-			"plan_tier": plan,
-			"status": status,
-			"timestamp": org.CreatedAt.Add(time.Hour * 24 * time.Duration(i)).Format(time.RFC3339),
-			"receipt_url": "https://dashboard.razorpay.com/receipt/xyz",
+		if txn.OrgID != 0 {
+			typeLabel = "Org Settlement"
+			if txn.Organization.Name != "" {
+				entityName = txn.Organization.Name
+			}
+			plan = "Enterprise" // Default for orgs in this context
+		} else if txn.User.Username != "" {
+			entityName = txn.User.Username
+		}
+
+		if plan == "" { plan = "basic" }
+
+		response = append(response, gin.H{
+			"id":                txn.ProviderPaymentID,
+			"organization_id":   txn.OrgID,
+			"organization_name": entityName,
+			"user_id":           txn.UserID,
+			"user_name":         txn.User.Username,
+			"amount":            amount,
+			"currency":          txn.Currency,
+			"plan_tier":         plan,
+			"type":              typeLabel,
+			"status":            status,
+			"timestamp":         txn.CreatedAt.Format(time.RFC3339),
+			"receipt_url":       "https://dashboard.razorpay.com/payments/" + txn.ProviderPaymentID,
 		})
 	}
 	
-	utils.RespondSuccess(c, http.StatusOK, "Payment vault accessed", transactions)
+	utils.RespondSuccess(c, http.StatusOK, "Payment vault accessed", response)
+}
+
+func (h *AdminHandler) GetUserPayments(c *gin.Context) {
+	var dbTransactions []models.PaymentTransaction
+	
+	// Specifically audit the personal/pro subscriptions of end-users
+	if err := db.DB.Preload("User").Where("org_id = 0 OR org_id IS NULL").Order("id desc").Find(&dbTransactions).Error; err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to fetch user payment records", err.Error())
+		return
+	}
+
+	var response []gin.H
+	for _, txn := range dbTransactions {
+		amount := float64(txn.AmountMinor) / 100.0
+		status := string(txn.Status)
+		if txn.Status == models.PaymentCaptured || txn.Status == models.PaymentVerified {
+			status = "SUCCESS"
+		} else if txn.Status == models.PaymentCreated {
+			status = "PENDING"
+		} else if txn.Status == models.PaymentFailed {
+			status = "FAILED"
+		}
+
+		userName := "Unknown User"
+		userEmail := "N/A"
+		plan := string(txn.User.SubscriptionTier)
+		if txn.User.Username != "" {
+			userName = txn.User.Username
+			userEmail = txn.User.Email
+		}
+		if plan == "" { plan = "basic" }
+
+		response = append(response, gin.H{
+			"id":                txn.ProviderPaymentID,
+			"user_id":           txn.UserID,
+			"user_name":         userName,
+			"user_email":        userEmail,
+			"amount":            amount,
+			"currency":          txn.Currency,
+			"plan_tier":         plan,
+			"status":            status,
+			"timestamp":         txn.CreatedAt.Format(time.RFC3339),
+			"receipt_url":       "https://dashboard.razorpay.com/payments/" + txn.ProviderPaymentID,
+		})
+	}
+	
+	utils.RespondSuccess(c, http.StatusOK, "User payment audit accessed", response)
 }
 
 func (h *AdminHandler) GetNotifications(c *gin.Context) {
@@ -273,9 +347,10 @@ func (h *AdminHandler) GetNotifications(c *gin.Context) {
 
 func (h *AdminHandler) SendBroadcast(c *gin.Context) {
 	var input struct {
-		Title   string `json:"title" binding:"required"`
-		Message string `json:"message" binding:"required"`
-		Level   string `json:"level" binding:"required"`
+		Title           string `json:"title" binding:"required"`
+		Message         string `json:"message" binding:"required"`
+		Level           string `json:"level" binding:"required"`
+		DurationMinutes int    `json:"duration_minutes"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -283,12 +358,19 @@ func (h *AdminHandler) SendBroadcast(c *gin.Context) {
 		return
 	}
 
+	var expiresAt *time.Time
+	if input.DurationMinutes > 0 {
+		t := time.Now().Add(time.Duration(input.DurationMinutes) * time.Minute)
+		expiresAt = &t
+	}
+
 	// Persist Announcement to DB for real-time history
 	announcement := models.Announcement{
-		Title:   input.Title,
-		Message: input.Message,
-		Level:   input.Level,
-		Actor:   "System Admin",
+		Title:     input.Title,
+		Message:   input.Message,
+		Level:     input.Level,
+		ExpiresAt: expiresAt,
+		Actor:     "System Admin",
 	}
 
 	if err := db.DB.Create(&announcement).Error; err != nil {
@@ -323,4 +405,79 @@ func (h *AdminHandler) GetTerminals(c *gin.Context) {
 	}
 	
 	utils.RespondSuccess(c, http.StatusOK, "Infrastructure telemetry accessed", terminals)
+}
+
+func (h *AdminHandler) GetLatestAnnouncement(c *gin.Context) {
+	var announcements []models.Announcement
+	// Use Find().Limit(1) instead of First() to avoid "record not found" log noise
+	if err := db.DB.Order("id desc").Limit(1).Find(&announcements).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"data": nil})
+		return
+	}
+
+	if len(announcements) == 0 {
+		c.JSON(http.StatusOK, gin.H{"data": nil})
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, "Latest protocol broadcast retrieved", announcements[0])
+}
+
+func (h *AdminHandler) GetAnnouncements(c *gin.Context) {
+	var announcements []models.Announcement
+	if err := db.DB.Order("id desc").Find(&announcements).Error; err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to fetch protocol ledger", err.Error())
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, "System ledger retrieved", announcements)
+}
+
+func (h *AdminHandler) UpdateAnnouncement(c *gin.Context) {
+	id := c.Param("id")
+	var input struct {
+		Title           string `json:"title"`
+		Message         string `json:"message"`
+		Level           string `json:"level"`
+		DurationMinutes int    `json:"duration_minutes"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid update data", err.Error())
+		return
+	}
+
+	var announcement models.Announcement
+	if err := db.DB.First(&announcement, id).Error; err != nil {
+		utils.RespondError(c, http.StatusNotFound, "Announcement not found", err.Error())
+		return
+	}
+
+	if input.Title != "" { announcement.Title = input.Title }
+	if input.Message != "" { announcement.Message = input.Message }
+	if input.Level != "" { announcement.Level = input.Level }
+
+	if input.DurationMinutes > 0 {
+		t := time.Now().Add(time.Duration(input.DurationMinutes) * time.Minute)
+		announcement.ExpiresAt = &t
+	} else if input.DurationMinutes == -1 {
+		// Signal to end immediately
+		t := time.Now().Add(-1 * time.Minute)
+		announcement.ExpiresAt = &t
+	}
+
+	if err := db.DB.Save(&announcement).Error; err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to update broadcast", err.Error())
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, "Broadcast protocol updated", announcement)
+}
+
+func (h *AdminHandler) DeleteAnnouncement(c *gin.Context) {
+	id := c.Param("id")
+	if err := db.DB.Delete(&models.Announcement{}, id).Error; err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to abort broadcast", err.Error())
+		return
+	}
+	utils.RespondSuccess(c, http.StatusOK, "Broadcast successfully aborted from all nodes", nil)
 }

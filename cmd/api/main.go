@@ -61,9 +61,10 @@ func main() {
 
 	authService := service.NewAuthService(userRepo)
 	orgService := service.NewOrganizationService(orgRepo)
-	queueService := service.NewQueueService(queueRepo, orgRepo, bus)
+	userSubService := service.NewUserSubscriptionService()
+	queueService := service.NewQueueService(queueRepo, orgRepo, userSubService, bus)
 	mapService := service.NewMapService(orgRepo)
-	apptService := service.NewAppointmentService(orgRepo, queueService, bus)
+	apptService := service.NewAppointmentService(orgRepo, queueService, userSubService, bus)
 	paymentService := service.NewPaymentService()
 	feedbackService := service.NewFeedbackService(feedbackRepo, queueRepo)
 
@@ -73,6 +74,7 @@ func main() {
 	mapHandler := handler.NewMapHandler(mapService)
 	apptHandler := handler.NewAppointmentHandler(apptService)
 	paymentHandler := handler.NewPaymentHandler(paymentService)
+	subHandler := handler.NewSubscriptionHandler(userSubService)
 	feedbackHandler := handler.NewFeedbackHandler(feedbackService)
 	uploadHandler := handler.NewUploadHandler()
 	adminHandler := handler.NewAdminHandler()
@@ -140,6 +142,7 @@ func main() {
 		v1.GET("/queue/:key/position/:token", queueHandler.GetPosition)
 		v1.GET("/search/nearby", mapHandler.SearchNearby)
 		v1.GET("/search/address", mapHandler.GetAddress)
+		v1.GET("/announcement/latest", adminHandler.GetLatestAnnouncement)
 		v1.POST("/upload", uploadHandler.Upload)
 		v1.POST("/payments/razorpay/webhook", paymentHandler.RazorpayWebhook)
 
@@ -157,13 +160,17 @@ func main() {
 			protected.POST("/appointments/book", apptHandler.Book)
 			protected.GET("/appointments", apptHandler.List)
 			protected.POST("/appointments/:id/checkin", apptHandler.CheckIn)
+			protected.POST("/appointments/:id/reschedule", apptHandler.Reschedule)
+			protected.POST("/appointments/:id/cancel", apptHandler.Cancel)
 			protected.POST("/payments/razorpay/order", paymentHandler.CreateRazorpayOrder)
 			protected.POST("/payments/razorpay/verify", paymentHandler.VerifyRazorpayPayment)
+			protected.POST("/user/upgrade", subHandler.UpgradeTier)
 			protected.POST("/feedback", feedbackHandler.Submit)
 
-			staff := protected.Group("/staff")
-			staff.Use(middleware.StaffMiddleware())
+			staff := v1.Group("/staff")
+			staff.Use(middleware.AuthMiddleware(), middleware.StaffMiddleware())
 			{
+				staff.GET("/appointments", apptHandler.ListForOrg)
 				staff.POST("/queue/:key/next", queueHandler.CallNext)
 				staff.POST("/queue/:key/complete", queueHandler.CompleteSession)
 				staff.POST("/queue/:key/hold", queueHandler.MarkHolding)
@@ -204,8 +211,12 @@ func main() {
 				admin.PUT("/verifications/:id/status", adminHandler.UpdateVerificationStatus)
 				admin.PUT("/system/config", adminHandler.UpdateSystemConfig)
 				admin.GET("/payments", adminHandler.GetPayments)
+				admin.GET("/payments/users", adminHandler.GetUserPayments)
 				admin.GET("/notifications", adminHandler.GetNotifications)
 				admin.POST("/broadcast", adminHandler.SendBroadcast)
+				admin.GET("/announcements", adminHandler.GetAnnouncements)
+				admin.PUT("/announcements/:id", adminHandler.UpdateAnnouncement)
+				admin.DELETE("/announcements/:id", adminHandler.DeleteAnnouncement)
 				admin.GET("/terminals", adminHandler.GetTerminals)
 			}
 		}

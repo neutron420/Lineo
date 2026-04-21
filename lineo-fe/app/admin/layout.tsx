@@ -92,7 +92,8 @@ export default function SystemAdminLayout({ children }: { children: React.ReactN
     { name: "Verifications", href: "/admin/verifications", icon: Building2 }, // Verify Orgs
     { name: "Global Network", href: "/admin/map", icon: MapIcon },
     { name: "All Users", href: "/admin/users", icon: Users },
-    { name: "Billing Vault", href: "/admin/payments", icon: CreditCard },
+    { name: "Org Settlements", href: "/admin/payments", icon: CreditCard },
+    { name: "User Payments", href: "/admin/payments/users", icon: Zap },
     { name: "Platform Analytics", href: "/admin/analytics", icon: BarChart3 },
     { name: "Infrastructure", href: "/admin/terminals", icon: Cpu },
     { name: "Announcements", href: "/admin/announcements", icon: Radio },

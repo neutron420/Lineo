@@ -105,8 +105,8 @@ interface Appointment {
 interface SocketQueueData {
   event?: { token_number: string; action?: string };
   state?: {
-    waiting_list: { token_number: string }[];
-    currently_serving: { token_number: string } | null;
+    waiting_list: { token_number: string; username: string; has_disability: boolean }[];
+    currently_serving: { token_number: string; username: string; has_disability: boolean } | null;
   };
 }
 
@@ -135,6 +135,15 @@ export default function UserDashboard() {
   const [isPriorityToggle, setIsPriorityToggle] = useState(false);
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState("");
+  
+  // Real-time Queue Matrix
+  const [isQueueMatrixModalOpen, setIsQueueMatrixModalOpen] = useState(false);
+  const [queueMatrix, setQueueMatrix] = useState<any>(null);
+  const [isMatrixLoading, setIsMatrixLoading] = useState(false);
+
+  // Completion Pulse States
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+  const [completedInfo, setCompletedInfo] = useState<{ queueKey: string; tokenNumber: string } | null>(null);
   
   // Modal Filtering Stats
   const [modalSearchQuery, setModalSearchQuery] = useState("");
@@ -187,6 +196,10 @@ export default function UserDashboard() {
              const newPos = data.state?.waiting_list?.findIndex((e) => e.token_number === activeToken.token_number);
              const isServing = data.state?.currently_serving?.token_number === activeToken.token_number;
              
+             if (data.state) {
+               setQueueMatrix(data.state);
+             }
+             
              if (data.event?.action) {
                const actionText = data.event!.action!.replace(/_/g, ' ');
                setActivities(prev => [{
@@ -207,9 +220,18 @@ export default function UserDashboard() {
              }
 
              if (data.event?.action === "ticket_completed") {
-                toast.success("Visit Completed", { description: "How was your experience?" });
-                setIsFeedbackModalOpen(true);
+                setCompletedInfo({ 
+                  queueKey: activeToken.queue_key, 
+                  tokenNumber: activeToken.token_number 
+                });
+                setShowSuccessScreen(true);
                 setActiveToken(null);
+                
+                // Cinematic delay before showing feedback modal
+                setTimeout(() => {
+                  setShowSuccessScreen(false);
+                  setIsFeedbackModalOpen(true);
+                }, 6000);
                 return;
              }
 
@@ -261,10 +283,14 @@ export default function UserDashboard() {
   // ─── Actions ────────────────────────────────────────
   const handleJoinQueue = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!joinQueueKey) return;
+
     if (isPriorityToggle) {
         toast.info("Priority Payment Active", { description: "Processing VIP Checkout via Razorpay..." });
     }
 
+    // Optimistic close and toast
+    setIsJoinModalOpen(false);
     const promise = api.post("/queue/join", {
       queue_key: joinQueueKey,
       user_lat: coords.lat,
@@ -273,15 +299,38 @@ export default function UserDashboard() {
     });
 
     toast.promise(promise, {
-      loading: 'Analyzing institution capacity...',
-      success: () => {
-        setIsJoinModalOpen(false);
+      loading: 'Securing your spot...',
+      success: (resp) => {
         setJoinQueueKey("");
-        fetchData();
-        return `Successfully joined ${joinQueueKey}!`;
+        setActiveToken(resp.data.data); // Optimistic update
+        setActivities(prev => [{
+          id: Math.random().toString(),
+          title: `Joined ${resp.data.data.queue_key}`,
+          subtitle: "Slot secured successfully",
+          iconType: "check",
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }, ...prev].slice(0, 5));
+        return `Successfully joined!`;
       },
-      error: 'Invalid queue key or unauthorized access.',
+      error: (err) => {
+        fetchData(true); // Re-sync on error
+        return err.response?.data?.message || 'Unable to join queue.';
+      },
     });
+  };
+
+  const fetchQueueMatrix = async () => {
+    if (!activeToken) return;
+    setIsMatrixLoading(true);
+    setIsQueueMatrixModalOpen(true);
+    try {
+      const resp = await api.get(`/queue/${activeToken.queue_key}/state`);
+      setQueueMatrix(resp.data.data);
+    } catch (err) {
+      toast.error("Security Link Failed", { description: "Could not fetch institutional queue matrix." });
+    } finally {
+      setIsMatrixLoading(false);
+    }
   };
 
   const handleCancelToken = async () => {
@@ -292,11 +341,21 @@ export default function UserDashboard() {
       action: {
         label: "Confirm",
         onClick: async () => {
+          const originalToken = activeToken;
+          setActiveToken(null); // Optimistic UI
+          
           try {
-            await api.post(`/queue/${activeToken.queue_key}/cancel/${activeToken.token_number}`);
+            await api.post(`/queue/${originalToken.queue_key}/cancel/${originalToken.token_number}`);
             toast.success("Spot Released", { description: "You are no longer in the queue." });
-            await fetchData();
+            setActivities(prev => [{
+              id: Math.random().toString(),
+              title: "Departed Queue",
+              subtitle: `Released spot #${originalToken.token_number}`,
+              iconType: "info",
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }, ...prev].slice(0, 5));
           } catch {
+            setActiveToken(originalToken); // Rollback
             toast.error("Process Failed", { description: "Could not cancel the token." });
           }
         }
@@ -341,7 +400,33 @@ export default function UserDashboard() {
           
           {/* ── Live Session Hub / Empty State ── */}
           <AnimatePresence mode="wait">
-            {activeToken ? (
+            {showSuccessScreen ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, y: 20 }}
+                key="success-screen"
+              >
+                 <div className="bg-white border-2 border-emerald-500/10 rounded-3xl p-12 relative overflow-hidden flex flex-col items-center text-center shadow-[0_32px_64px_-16px_rgba(16,185,129,0.1)]">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500" />
+                    <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-8 relative group">
+                       <CheckCircle2 className="w-12 h-12 text-emerald-600 relative z-10" />
+                       <motion.div 
+                         animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
+                         transition={{ duration: 2, repeat: Infinity }}
+                         className="absolute inset-0 bg-emerald-200 rounded-full"
+                       />
+                    </div>
+                    <h2 className="text-3xl font-black text-[#181c1e] mb-4" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Vector Synchronization Complete</h2>
+                    <p className="text-[#49607e] text-base max-w-md font-medium leading-relaxed mb-8">
+                       Your session at <span className="text-emerald-600 font-bold">{completedInfo?.queueKey}</span> with token <span className="text-[#181c1e] font-black">#{completedInfo?.tokenNumber}</span> has been successfully executed.
+                    </p>
+                    <div className="flex items-center gap-2 px-6 py-3 bg-emerald-50 text-emerald-700 rounded-2xl text-xs font-black uppercase tracking-widest border border-emerald-100">
+                       <Smile className="w-4 h-4" /> Thank you for choosing Lineo
+                    </div>
+                 </div>
+              </motion.div>
+            ) : activeToken ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -358,7 +443,16 @@ export default function UserDashboard() {
                       <h2 className="text-3xl font-extrabold text-[#181c1e] tracking-tight mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                         Live Session Hub
                       </h2>
-                      <p className="text-[#49607e] font-medium text-sm">Currently serving • {activeToken.queue_key}</p>
+                      <div className="flex items-center gap-3">
+                         <p className="text-[#49607e] font-medium text-sm">Unit: {activeToken.queue_key}</p>
+                         <div className="h-4 w-px bg-[#e5e8eb]" />
+                         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#493ee5]/5 rounded-lg border border-[#493ee5]/10">
+                            <Zap className="w-3 h-3 text-[#493ee5]" />
+                            <span className="text-[10px] font-black text-[#181c1e] uppercase tracking-wider">
+                               Serving: {queueMatrix?.currently_serving?.username || "Institutional Node Idle"}
+                            </span>
+                         </div>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 bg-[#e2dfff] text-[#181c1e] px-4 py-2 rounded-full text-sm font-bold shadow-neobrutal" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                       <span className="w-2 h-2 rounded-full bg-[#493ee5] animate-pulse" />
@@ -1059,10 +1153,23 @@ export default function UserDashboard() {
                  </div>
               </div>
               
-              <Button onClick={() => setIsTicketModalOpen(false)} className="kinetic-btn-primary w-full h-14 text-base font-black rounded-2xl shadow-xl active:scale-95 transition-all">Dismiss Pass</Button>
+              <div className="flex gap-2 pt-2">
+                  <Button onClick={fetchQueueMatrix} variant="outline" className="flex-1 h-14 font-black rounded-2xl border-[#e5e8eb] text-[#49607e] hover:bg-[#f1f4f7] transition-all">
+                    <Users className="w-4 h-4 mr-2" /> Live Queue
+                  </Button>
+                  <Button onClick={() => setIsTicketModalOpen(false)} className="kinetic-btn-primary flex-1 h-14 text-base font-black rounded-2xl shadow-xl active:scale-95 transition-all">Dismiss Pass</Button>
+               </div>
            </div>
         </DialogContent>
       </Dialog>
+
+      <QueueMatrixModal 
+        isOpen={isQueueMatrixModalOpen}
+        onOpenChange={setIsQueueMatrixModalOpen}
+        data={queueMatrix}
+        isLoading={isMatrixLoading}
+        activeToken={activeToken}
+      />
     </div>
   );
 }
@@ -1095,5 +1202,122 @@ function StatCard({ icon, label, value, unit }: { icon: React.ReactNode; label: 
         {unit && <span className="text-xl text-[#49607e] font-medium">{unit}</span>}
       </div>
     </div>
+  );
+}
+
+// ── Queue Matrix Modal ──
+function QueueMatrixModal({ isOpen, onOpenChange, data, isLoading, activeToken }: any) {
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[400px] p-0 overflow-hidden rounded-[32px] !border-0 !ring-0 !outline-none shadow-2xl bg-white">
+          <div className="p-6 bg-[#181c1e] text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#493ee5]/20 -mr-16 -mt-16 rounded-full blur-[60px]" />
+            <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-black tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Queue Matrix</h2>
+                  <div className="bg-white/10 px-3 py-1 rounded-full text-[8px] font-black tracking-widest text-[#493ee5] border border-white/5">REAL-TIME</div>
+                </div>
+                <div className="flex items-center gap-2 text-white/60 text-[10px] font-bold uppercase tracking-widest">
+                  <Activity className="w-3.5 h-3.5 text-[#493ee5]" />
+                  <span>Unit: {activeToken?.queue_key}</span>
+                </div>
+            </div>
+          </div>
+
+          <div className="p-6 bg-white min-h-[420px]">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center h-[300px] space-y-4">
+                  <Loader2 className="w-10 h-10 animate-spin text-[#493ee5]" />
+                  <p className="text-[10px] font-black text-[#49607e] uppercase tracking-widest">Scanning Nodes...</p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                  <div className="bg-[#f8fafc] p-5 rounded-[24px] border border-[#f1f4f7] relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-3 opacity-10">
+                       <Zap className="w-12 h-12" />
+                    </div>
+                    <p className="text-[10px] font-black text-[#49607e] uppercase tracking-widest mb-4">Currently Serving</p>
+                    {data?.currently_serving ? (
+                      <div className="flex items-center justify-between relative z-10">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-[#493ee5] rounded-2xl flex items-center justify-center text-white shadow-neobrutal transition-transform group-hover:scale-110">
+                                <Zap className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <p className="text-base font-black text-[#181c1e] tracking-tight">
+                                   {data.currently_serving.username?.split(' ')[0]} {data.currently_serving.username?.split(' ')[1] ? data.currently_serving.username?.split(' ')[1][0] + "." : ""}
+                                </p>
+                            </div>
+                          </div>
+                          {data.currently_serving.has_disability && (
+                            <div className="bg-emerald-500/10 p-3 rounded-xl text-emerald-500 animate-pulse border border-emerald-500/20 shadow-emerald-500/5">
+                              <HeartPulse className="w-5 h-5" />
+                            </div>
+                          )}
+                      </div>
+                    ) : (
+                      <p className="text-sm font-bold text-[#49607e]/50 italic py-2">Node currently idle</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 mb-1">
+                     <p className="text-[10px] font-black text-[#49607e] uppercase tracking-widest">Waiting List</p>
+                     <div className="h-px flex-1 bg-[#f1f4f7]" />
+                  </div>
+                  
+                  <ScrollArea className="h-[320px] -mr-4 pr-4">
+                    <div className="space-y-3 pb-4">
+                        {data?.waiting_list?.length > 0 ? (
+                           data.waiting_list.map((entry: any, i: number) => (
+                             <motion.div 
+                               initial={{ opacity: 0, y: 5 }}
+                               animate={{ opacity: 1, y: 0 }}
+                               key={entry.token_number} 
+                               className={cn(
+                                 "p-4 rounded-2xl flex items-center justify-between transition-all border",
+                                 entry.token_number === activeToken?.token_number 
+                                   ? "bg-[#493ee5]/5 border-[#493ee5]/20 ring-1 ring-[#493ee5] shadow-sm" 
+                                   : "bg-[#f1f4f7] border-transparent hover:bg-white hover:border-[#493ee5]/10 hover:shadow-sm"
+                               )}
+                             >
+                                <div className="flex items-center gap-4">
+                                   <div className={cn(
+                                     "w-10 h-10 rounded-xl flex items-center justify-center text-[12px] font-black shadow-sm transition-all",
+                                     entry.token_number === activeToken?.token_number ? "bg-[#493ee5] text-white scale-110" : "bg-white text-[#49607e]"
+                                   )}>
+                                      {i + 1}
+                                   </div>
+                                   <div>
+                                      <div className="flex items-center gap-2">
+                                          <span className="text-sm font-black text-[#181c1e] tracking-tight">{entry.username?.split(' ')[0]} {entry.username?.split(' ')[1] ? entry.username?.split(' ')[1][0] + "." : ""}</span>
+                                          {entry.token_number === activeToken?.token_number && (
+                                            <Badge className="bg-[#493ee5] text-[8px] h-4 px-1.5 font-black border-none shadow-sm">YOU</Badge>
+                                          )}
+                                      </div>
+                                   </div>
+                                </div>
+                                {entry.has_disability && (
+                                  <div className="flex flex-col items-end">
+                                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 shadow-sm animate-in fade-in zoom-in duration-500">
+                                        <HeartPulse className="w-3.5 h-3.5" />
+                                        <span className="text-[9px] font-black uppercase tracking-tighter">Care Required</span>
+                                      </div>
+                                  </div>
+                                )}
+                             </motion.div>
+                           ))
+                        ) : (
+                           <div className="text-center py-20 opacity-30">
+                              <Users className="w-12 h-12 mx-auto mb-3" />
+                              <p className="text-[11px] font-black uppercase tracking-widest">No Waiting Nodes</p>
+                           </div>
+                        )}
+                    </div>
+                  </ScrollArea>
+              </div>
+            )}
+          </div>
+      </DialogContent>
+    </Dialog>
   );
 }

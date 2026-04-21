@@ -32,10 +32,10 @@ export default function LandingPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Link href="/login" className="text-[14px] font-normal text-stripe-navy hover:text-stripe-purple transition-colors">
+            <Link href="/user/login" className="text-[14px] font-normal text-stripe-navy hover:text-stripe-purple transition-colors">
               Sign in
             </Link>
-            <Link href="/register" className="stripe-btn-primary px-4 py-1.5 text-sm">
+            <Link href="/user/register" className="stripe-btn-primary px-4 py-1.5 text-sm">
               Start now
             </Link>
           </div>
@@ -87,11 +87,11 @@ export default function LandingPage() {
               </div>
 
               <div className="flex items-center gap-4">
-                <Link href="/register" className="stripe-btn-primary group flex items-center gap-2 pr-4">
+                <Link href="/user/register" className="stripe-btn-primary group flex items-center gap-2 pr-4">
                   Start now <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
-                <Link href="/solutions" className="stripe-btn-ghost group flex items-center gap-2 pr-4 text-stripe-navy">
-                  Connect sales <ArrowRight className="w-4 h-4 text-stripe-slate group-hover:translate-x-0.5 transition-transform" />
+                <Link href="/org/register" className="stripe-btn-ghost group flex items-center gap-2 pr-4 text-stripe-navy">
+                  Institutional Portal <ArrowRight className="w-4 h-4 text-stripe-slate group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </div>
             </motion.div>
@@ -225,12 +225,12 @@ export default function LandingPage() {
               </ul>
             </div>
             <div>
-              <h4 className="text-[13px] font-medium uppercase tracking-wider text-stripe-navy mb-4">Company</h4>
+              <h4 className="text-[13px] font-medium uppercase tracking-wider text-stripe-navy mb-4">Portals</h4>
               <ul className="space-y-2 text-left">
-                <li><FooterLink href="#">About</FooterLink></li>
-                <li><FooterLink href="#">Customers</FooterLink></li>
-                <li><FooterLink href="#">Careers</FooterLink></li>
-                <li><FooterLink href="#">Contact</FooterLink></li>
+                <li><FooterLink href="/user/login">User Login</FooterLink></li>
+                <li><FooterLink href="/org/login">Organization Login</FooterLink></li>
+                <li><FooterLink href="/admin/login">System Admin</FooterLink></li>
+                <li><FooterLink href="/org/register">Register Org</FooterLink></li>
               </ul>
             </div>
             <div>

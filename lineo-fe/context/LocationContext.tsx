@@ -21,28 +21,22 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
 
   const reverseGeocode = useCallback(async (lat: number, lng: number) => {
     try {
-      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
-      if (!apiKey) {
-        console.warn("Satellite link offline: Missing API Key");
-        setAddress("Location Active");
-        return { neighborhood: "Main City", pin: "" };
-      }
-
-      const cleanKey = apiKey.replace('#', '');
-      const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${cleanKey}`);
+      // Use our backend proxy to avoid CORS issues and API key leakage
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'}/search/address?lat=${lat}&lng=${lng}`);
       
       if (!response.ok) throw new Error(`Protocol Error: ${response.status}`);
       
       const data = await response.json();
-      if (data.results && data.results.length > 0) {
-        const parts = data.results[0].address_components;
-        const neighborhood = parts.find((p: { types: string[] }) => p.types.includes("sublocality"))?.long_name || 
-                           parts.find((p: { types: string[] }) => p.types.includes("locality"))?.long_name || "Main City";
-        const pin = parts.find((p: { types: string[] }) => p.types.includes("postal_code"))?.long_name || "";
+      if (data.data?.address) {
+        const fullAddress = data.data.address;
+        // Simple heuristic to extract a neighborhood-like name from formatted address
+        const parts = fullAddress.split(',');
+        const neighborhood = parts.length > 1 ? parts[parts.length - 3] || parts[0] : parts[0];
+        const pin = fullAddress.match(/\b\d{6}\b/)?.[0] || ""; // Match Indian pincode format (6 digits)
         
-        setAddress(neighborhood);
+        setAddress(neighborhood.trim());
         setPincode(pin);
-        return { neighborhood, pin };
+        return { neighborhood: neighborhood.trim(), pin };
       }
     } catch (err) {
       console.error("Geocoding failed:", err instanceof Error ? err.message : "Network Interrupted");

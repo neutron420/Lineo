@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -77,16 +78,18 @@ func (s *queueService) CompleteTicket(queueKey string, orgID uint) error {
 type queueService struct {
 	repo    repository.QueueRepository
 	orgRepo repository.OrganizationRepository
+	subSvc  UserSubscriptionService
 	bus     events.Bus
 
 	limiters   sync.Map
 	limiterRPS rate.Limit
 }
 
-func NewQueueService(repo repository.QueueRepository, orgRepo repository.OrganizationRepository, bus events.Bus) QueueService {
+func NewQueueService(repo repository.QueueRepository, orgRepo repository.OrganizationRepository, subSvc UserSubscriptionService, bus events.Bus) QueueService {
 	return &queueService{
 		repo:       repo,
 		orgRepo:    orgRepo,
+		subSvc:     subSvc,
 		bus:        bus,
 		limiterRPS: 8,
 	}
@@ -109,7 +112,12 @@ func (s *queueService) Enqueue(userID uint, username string, req models.EnqueueR
 		slog.Error("STEP 1 FAIL: queue lookup failure", "key", req.QueueKey, "error", err)
 		return nil, fmt.Errorf("invalid unit key: %s. please verify the key in your dashboard", req.QueueKey)
 	}
-	slog.Info("STEP 1 OK: queue definition found", "id", queueDef.ID)
+
+	// CHECK USER SUBSCRIPTION LIMITS
+	if err := s.subSvc.CheckJoinLimit(userID); err != nil {
+		return nil, err
+	}
+	slog.Info("STEP 1 OK: queue definition found and subscription limit verified", "id", queueDef.ID)
 
 	if !s.limiterForOrg(queueDef.OrganizationID).Allow() {
 		return nil, errors.New("terminal access is currently congested. please try again in a moment")
@@ -180,7 +188,11 @@ func (s *queueService) Enqueue(userID uint, username string, req models.EnqueueR
 		return nil, errors.New("queue is full for this organization")
 	}
 
-	return s.processEnqueue(userID, username, "", false, req.Priority, req.QueueKey, queueDef.OrganizationID, req.UserLat, req.UserLon)
+	resp, err := s.processEnqueue(userID, username, "", false, req.Priority, req.QueueKey, queueDef.OrganizationID, req.UserLat, req.UserLon)
+	if err == nil {
+		go s.broadcastQueueUpdate(queueDef.OrganizationID, req.QueueKey)
+	}
+	return resp, err
 }
 
 func (s *queueService) EnqueueKiosk(req models.EnqueueKioskRequest) (*models.QueueResponse, error) {
@@ -205,7 +217,11 @@ func (s *queueService) EnqueueKiosk(req models.EnqueueKioskRequest) (*models.Que
 		return nil, errors.New("queue is currently paused")
 	}
 
-	return s.processEnqueue(0, req.Name, req.PhoneNumber, true, false, req.QueueKey, queueDef.OrganizationID, 0, 0)
+	resp, err := s.processEnqueue(0, req.Name, req.PhoneNumber, true, false, req.QueueKey, queueDef.OrganizationID, 0, 0)
+	if err == nil {
+		go s.broadcastQueueUpdate(queueDef.OrganizationID, req.QueueKey)
+	}
+	return resp, err
 }
 
 func (s *queueService) checkBusinessHours(org *models.Organization, cfg *models.OrganizationConfig) error {
@@ -228,6 +244,12 @@ func (s *queueService) checkBusinessHours(org *models.Organization, cfg *models.
 
 	now := time.Now()
 	currentTime := now.Format("15:04")
+	
+	// Bypass business hours check in development mode for easier testing
+	if os.Getenv("ENV") != "production" {
+		return nil
+	}
+
 	if currentTime < openTime || currentTime > closeTime {
 		return fmt.Errorf("business is currently closed. hours: %s - %s", openTime, closeTime)
 	}
@@ -238,21 +260,39 @@ func (s *queueService) processEnqueue(userID uint, username, phone string, isKio
 	token := s.generateToken()
 	now := time.Now()
 
+	var hasDisability bool
+	var disabilityType string
+	if userID > 0 {
+		var user models.User
+		if err := db.DB.First(&user, userID).Error; err == nil {
+			hasDisability = user.HasDisability
+			disabilityType = user.DisabilityType
+			if hasDisability {
+				priority = true // Force priority mode if user has disability
+			}
+			if user.Username != "" {
+				username = user.Username
+			}
+		}
+	}
+
 	score := float64(now.UnixNano())
 	if priority {
 		score = score - float64(24*time.Hour.Nanoseconds())
 	}
 
 	entry := &models.QueueEntry{
-		TokenNumber: token,
-		UserID:      userID,
-		Username:    username,
-		PhoneNumber: phone,
-		IsKiosk:     isKiosk,
-		Priority:    priority,
-		Status:      models.StatusWaiting,
-		JoinedAt:    now,
-		Score:       score,
+		TokenNumber:    token,
+		UserID:         userID,
+		Username:       username,
+		PhoneNumber:    phone,
+		IsKiosk:        isKiosk,
+		Priority:       priority,
+		HasDisability:  hasDisability,
+		DisabilityType: disabilityType,
+		Status:         models.StatusWaiting,
+		JoinedAt:       now,
+		Score:          score,
 	}
 
 	history := &models.QueueHistory{
@@ -283,6 +323,11 @@ func (s *queueService) processEnqueue(userID uint, username, phone string, isKio
 	}
 	slog.Info("enqueued in redis", "token", token)
 
+	// Increment user subscription usage if it's a registered user
+	if userID > 0 {
+		_ = s.subSvc.IncrementJoins(userID)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -305,6 +350,8 @@ func (s *queueService) processEnqueue(userID uint, username, phone string, isKio
 		JoinedAt:       now,
 	}, nil
 }
+
+
 
 func (s *queueService) CallNext(queueKey string, orgID uint, agentID uint) (*models.QueueEntry, error) {
 	if err := s.verifyOwnership(queueKey, orgID); err != nil {
@@ -360,6 +407,7 @@ func (s *queueService) CallNext(queueKey string, orgID uint, agentID uint) (*mod
 		"counter_number": agent.CounterNumber,
 	})
 
+	go s.broadcastQueueUpdate(orgID, queueKey)
 	return nextEntry, nil
 }
 
@@ -477,7 +525,11 @@ func (s *queueService) MarkHolding(queueKey string, orgID uint) error {
 	if err := s.repo.SetCurrentServing(queueKey, nil); err != nil {
 		return err
 	}
-	return s.repo.UpdateHistoryStatus(currentServing.TokenNumber, models.StatusHolding, &now)
+	err = s.repo.UpdateHistoryStatus(currentServing.TokenNumber, models.StatusHolding, &now)
+	if err == nil {
+		go s.broadcastQueueUpdate(orgID, queueKey)
+	}
+	return err
 }
 
 func (s *queueService) CallFromHolding(queueKey string, tokenNumber string, orgID uint) error {
@@ -492,7 +544,11 @@ func (s *queueService) PauseQueue(queueKey string, isPaused bool, orgID uint) er
 		return err
 	}
 
-	return s.orgRepo.UpdateQueueDefPause(queueKey, isPaused)
+	err := s.orgRepo.UpdateQueueDefPause(queueKey, isPaused)
+	if err == nil {
+		go s.broadcastQueueUpdate(orgID, queueKey)
+	}
+	return err
 }
 
 func (s *queueService) GetUserPosition(queueKey string, tokenNumber string) (*models.QueueResponse, error) {
@@ -636,6 +692,14 @@ func (s *queueService) verifyOwnership(queueKey string, orgID uint) error {
 		return errors.New("unauthorized queue access")
 	}
 	return nil
+}
+
+func (s *queueService) broadcastQueueUpdate(orgID uint, queueKey string) {
+	state, err := s.GetQueueState(queueKey)
+	if err != nil {
+		return
+	}
+	_ = s.repo.BroadcastUpdate(orgID, state)
 }
 
 func ParseRangeToHours(value string) int {

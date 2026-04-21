@@ -15,8 +15,10 @@ import {
   Loader2,
   Plus,
   Zap,
-  LayoutGrid
+  LayoutGrid,
+  HeartPulse
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
@@ -35,6 +37,7 @@ interface QueueEntry {
   priority: boolean;
   status: string;
   joined_at: string;
+  has_disability?: boolean;
 }
 
 interface QueueState {
@@ -61,6 +64,7 @@ export default function OrgDashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newQueueName, setNewQueueName] = useState("");
   const [newQueueKey, setNewQueueKey] = useState("");
+  const [appointments, setAppointments] = useState<any[]>([]);
   
   const { subscribe, unsubscribe } = useSocket();
   const router = useRouter();
@@ -109,6 +113,15 @@ export default function OrgDashboard() {
 
   useEffect(() => {
     fetchInitialData();
+    const fetchAppts = async () => {
+      try {
+        const resp = await api.get("/staff/appointments");
+        setAppointments(resp.data.data || []);
+      } catch (err) {
+        console.error("Failed to fetch appointments:", err);
+      }
+    };
+    fetchAppts();
   }, [fetchInitialData]);
 
   useEffect(() => {
@@ -354,10 +367,10 @@ export default function OrgDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column - Active Service */}
         <div className="lg:col-span-8 space-y-8">
-           <motion.div 
-             layout
-             className="bg-white border border-[#e5e8eb] rounded-[40px] p-12 relative overflow-hidden flex flex-col items-center justify-center min-h-[500px] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.03)]"
-           >
+            <motion.div 
+              layout
+              className="bg-white border border-[#e5e8eb] rounded-[40px] p-12 relative overflow-hidden flex flex-col items-center justify-center min-h-[500px] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.03)]"
+            >
               <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#493ee5] opacity-[0.02] rounded-full blur-[120px] pointer-events-none" />
               <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-emerald-500 opacity-[0.02] rounded-full blur-[100px] pointer-events-none" />
               
@@ -383,7 +396,7 @@ export default function OrgDashboard() {
                     <div className="flex items-center gap-8 mb-12">
                        <div className="flex items-center gap-3 text-[#49607e] font-bold text-lg bg-slate-50 px-5 py-2 rounded-2xl border border-slate-100">
                           <UserIcon className="w-5 h-5 text-[#493ee5]" />
-                          {queueState.currently_serving.username || "Guest Agent"}
+                          {queueState.currently_serving.username}
                        </div>
                        <div className="flex items-center gap-3 text-[#49607e] font-bold text-lg bg-slate-50 px-5 py-2 rounded-2xl border border-slate-100">
                           <Clock className="w-5 h-5 text-[#493ee5]" />
@@ -415,43 +428,21 @@ export default function OrgDashboard() {
                     animate={{ opacity: 1 }}
                     className="flex flex-col items-center text-center"
                   >
-                    <div className="w-32 h-32 bg-slate-50 rounded-[32px] flex items-center justify-center mb-8 border border-slate-100 shadow-inner group-hover:rotate-12 transition-transform duration-500">
+                    <div className="w-32 h-32 bg-slate-50 rounded-[32px] flex items-center justify-center mb-8 border border-slate-100 shadow-inner">
                        <Zap className="w-14 h-14 text-slate-300" />
                     </div>
-                    {org.queues?.length > 0 ? (
-                      <>
-                        <h3 className="text-3xl font-black text-slate-900 mb-4" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Terminal Idle</h3>
-                        <p className="text-slate-500 font-medium max-w-[320px] leading-relaxed mb-10">
-                          Secure line established. No operational vectors are currently assigned to this terminal. 
-                        </p>
-                        <button
-                          onClick={handleCallNext}
-                          disabled={isActionLoading || (queueState?.waiting_list?.length || 0) === 0}
-                          className="px-12 py-5 bg-[#493ee5] text-white rounded-[20px] font-black text-md shadow-2xl disabled:opacity-30 disabled:grayscale flex items-center gap-4 hover:translate-y-[-2px] active:translate-y-[0px] transition-all"
-                        >
-                          {isActionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Volume2 className="w-5 h-5" />}
-                          Acquire Next Datapoint
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <h3 className="text-3xl font-black text-slate-900 mb-4" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Zero Operational Units</h3>
-                        <p className="text-slate-500 font-medium max-w-[360px] leading-relaxed mb-10">
-                          The system is currently dormant. You must initialize your first operational unit to begin processing vectors.
-                        </p>
-                        <button
-                          onClick={() => setShowCreateModal(true)}
-                          className="px-12 py-5 bg-[#181c1e] text-white rounded-[20px] font-black text-md shadow-2xl flex items-center gap-4 hover:scale-105 transition-all"
-                        >
-                          <Plus className="w-6 h-6" />
-                          Launch Terminal Alpha
-                        </button>
-                      </>
-                    )}
+                    <h3 className="text-3xl font-black text-slate-100 mb-4">Terminal Idle</h3>
+                    <button
+                      onClick={handleCallNext}
+                      disabled={isActionLoading || (queueState?.waiting_list?.length || 0) === 0}
+                      className="px-12 py-5 bg-[#493ee5] text-white rounded-[20px] font-black text-md shadow-2xl disabled:opacity-30 flex items-center gap-4"
+                    >
+                      Acquire Next Datapoint
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
-           </motion.div>
+            </motion.div>
 
            {/* Metrics Grid */}
            <div className="grid grid-cols-2 gap-8">
@@ -482,67 +473,64 @@ export default function OrgDashboard() {
 
         {/* Right Column - Waiting List */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          <div className="bg-white border border-[#e5e8eb] rounded-[40px] p-10 flex flex-col h-full shadow-sm sticky top-28">
-            <div className="flex items-center justify-between mb-10">
-               <div>
-                  <h3 className="text-2xl font-black text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Protocol Pipeline</h3>
-                  <p className="text-xs text-[#493ee5] font-black mt-2 uppercase tracking-[0.2em]">Secure Data Stream</p>
-               </div>
-               <span className="bg-[#181c1e] text-white text-[11px] font-black px-4 py-2 rounded-full uppercase tracking-widest shadow-lg">
-                 {queueState?.waiting_list?.length || 0} Entities
-               </span>
-            </div>
+          <div className="bg-white border border-[#e5e8eb] rounded-[40px] p-8 flex flex-col shadow-sm">
+             <div className="flex items-center justify-between mb-6">
+                <div>
+                   <h3 className="text-xl font-black text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Protocol Pipeline</h3>
+                   <p className="text-[9px] text-[#493ee5] font-black mt-1 uppercase tracking-[0.2em]">Live Queue Stream</p>
+                </div>
+                <span className="bg-[#181c1e] text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
+                  {queueState?.waiting_list?.length || 0} Entities
+                </span>
+             </div>
 
-            <div className="space-y-4 overflow-y-auto custom-scrollbar flex-1 pr-2 max-h-[700px]">
-               <AnimatePresence initial={false}>
-                 {(queueState?.waiting_list && queueState.waiting_list.length > 0) ? (
-                   queueState.waiting_list.map((entry, i) => (
+             <div className="space-y-3 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
+                <AnimatePresence initial={false}>
+                  {queueState?.waiting_list?.map((entry, i) => (
                       <motion.div 
                         key={entry.token_number}
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.3 }}
-                        className={cn(
-                          "flex items-center justify-between p-6 rounded-[28px] border transition-all group relative overflow-hidden",
-                          entry.priority ? "bg-amber-50/40 border-amber-100" : "bg-[#f7fafd]/50 border-transparent hover:border-[#e5e8eb] hover:bg-white hover:shadow-xl"
-                        )}
+                        className="flex items-center justify-between p-4 rounded-2xl bg-[#f7fafd] border border-transparent hover:border-[#e5e8eb] hover:bg-white transition-all group"
                       >
-                         <div className="flex items-center gap-6">
-                            <div className={cn(
-                              "w-12 h-12 rounded-[18px] flex items-center justify-center text-[10px] font-black shadow-sm shrink-0 transition-all",
-                              entry.priority ? "bg-amber-500 text-white rotate-6" : "bg-white text-[#49607e] border border-slate-100 group-hover:bg-[#493ee5] group-hover:text-white group-hover:-rotate-6"
-                            )}>
-                              {entry.priority ? "PRIO" : `#${i + 1}`}
-                            </div>
+                         <div className="flex items-center gap-4">
+                            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-[10px] font-black shadow-sm">{i + 1}</div>
                             <div>
-                              <div className="flex items-center gap-3">
-                                <span className="font-black text-[#181c1e] text-xl tracking-tighter" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{entry.token_number}</span>
-                                {entry.is_kiosk && <span className="px-2 py-0.5 bg-slate-900 text-white text-[8px] font-black rounded uppercase tracking-tighter">Kiosk</span>}
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-[#49607e] font-bold mt-1.5 uppercase tracking-wide opacity-70">
-                                <UserIcon className="w-3 h-3" /> {entry.username}
-                              </div>
+                               <p className="font-black text-[#181c1e] text-sm">{entry.token_number}</p>
+                               <p className="text-[10px] text-[#49607e] font-bold">{entry.username}</p>
                             </div>
                          </div>
-                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100 transform z-10">
-                            <button 
-                              onClick={() => handleNoShow(entry.token_number)}
-                              className="p-4 bg-white border border-red-100 rounded-2xl hover:bg-red-600 hover:text-white text-red-600 transition-all shadow-lg active:scale-90"
-                            >
-                               <X className="w-5 h-5 font-bold" />
-                            </button>
-                         </div>
+                         {entry.has_disability && <HeartPulse className="w-4 h-4 text-emerald-500 animate-pulse" />}
                       </motion.div>
-                   ))
-                 ) : (
-                   <div className="flex flex-col items-center justify-center py-32 opacity-20">
-                      <Hash className="w-16 h-16 mb-6" />
-                      <p className="font-black text-xs uppercase tracking-[0.3em]">No Active Datasets</p>
-                   </div>
-                 )}
-               </AnimatePresence>
-            </div>
+                  ))}
+                </AnimatePresence>
+             </div>
+          </div>
+
+          <div className="bg-white border border-[#e5e8eb] rounded-[40px] p-8 flex flex-col shadow-sm">
+             <div className="flex items-center justify-between mb-6">
+                <div>
+                   <h3 className="text-xl font-black text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Engagement Schedule</h3>
+                   <p className="text-[9px] text-[#493ee5] font-black mt-1 uppercase tracking-[0.2em]">Strategic Bookings</p>
+                </div>
+                <span className="bg-[#493ee5] text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
+                  {appointments.length} Slots
+                </span>
+             </div>
+
+             <div className="space-y-3 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
+                {appointments.length > 0 ? appointments.map((appt) => (
+                  <div key={appt.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-[#493ee5]/10 hover:bg-white transition-all">
+                      <div className="flex items-center justify-between mb-2">
+                         <span className="text-[8px] font-black text-[#493ee5] uppercase">{appt.start_time}</span>
+                         <Badge className="h-4 text-[7px] font-black px-1 uppercase bg-white border-slate-100">{appt.status}</Badge>
+                      </div>
+                      <p className="text-xs font-black text-[#181c1e]">{appt.username}</p>
+                  </div>
+                )) : (
+                  <p className="text-[10px] text-slate-300 font-bold text-center py-10 italic">No scheduled engagements.</p>
+                )}
+             </div>
           </div>
         </div>
       </div>

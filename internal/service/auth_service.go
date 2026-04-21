@@ -79,6 +79,10 @@ func (s *authService) RegisterUser(req models.RegisterRequest) (*models.User, er
 		Role:           userRole,
 		OrganizationID: req.OrganizationID,
 		PhoneNumber:    req.PhoneNumber,
+		DOB:            req.DOB,
+		Gender:         req.Gender,
+		HasDisability:  req.HasDisability,
+		DisabilityType: req.DisabilityType,
 	}
 
 	err = s.userRepo.CreateUser(user)
@@ -197,6 +201,10 @@ func (s *authService) AddStaff(adminOrgID uint, req models.RegisterRequest) (*mo
 		Role:           models.RoleStaff,
 		OrganizationID: &adminOrgID,
 		PhoneNumber:    req.PhoneNumber,
+		DOB:            req.DOB,
+		Gender:         req.Gender,
+		HasDisability:  req.HasDisability,
+		DisabilityType: req.DisabilityType,
 		CounterNumber:  req.CounterNumber,
 	}
 

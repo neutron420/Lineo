@@ -47,7 +47,8 @@ export default function AppointmentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ queue_key: "", time: "" });
+  const [formData, setFormData] = useState({ queue_key: "", time: "", urgency: "routine" });
+  const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
   const [modalSearchQuery, setModalSearchQuery] = useState("");
   const [modalCategory, setModalCategory] = useState("all");
 
@@ -59,7 +60,8 @@ export default function AppointmentsPage() {
     setIsLoading(true);
     try {
       const resp = await api.get("/appointments");
-      setAppointments(resp.data.data || []);
+      const activeAppts = (resp.data.data || []).filter((a: Appointment) => a.status.toLowerCase() !== 'cancelled');
+      setAppointments(activeAppts);
     } catch (err) {
       console.error("Failed to fetch appointments", err);
     } finally {
@@ -81,31 +83,104 @@ export default function AppointmentsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.queue_key) {
-      toast.error("Please select a partner institution before scheduling.");
-      return;
-    }
     setIsSubmitting(true);
     
     const dateObj = new Date(formData.time);
     const formattedDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')} ${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
 
+    // Optimistic Logic
+    const tempId = Math.random().toString();
+    const optimisticAppt: Appointment = {
+      id: selectedAppt?.id || tempId,
+      start_time: formattedDate,
+      status: "Confirmed",
+      token_number: selectedAppt?.token_number || "...",
+      queue_key: formData.queue_key
+    };
+
+    if (selectedAppt) {
+      setAppointments(prev => prev.map(a => a.id === selectedAppt.id ? optimisticAppt : a));
+    } else {
+      setAppointments(prev => [optimisticAppt, ...prev]);
+    }
+
+    setIsModalOpen(false);
+
     try {
-      await api.post("/appointments/book", {
-        queue_key: formData.queue_key,
-        start_time: formattedDate,
-        user_lat: coords.lat,
-        user_lon: coords.lng
-      });
-      setIsModalOpen(false);
-      setFormData({ queue_key: "", time: "" });
-      await fetchAppointments();
-      toast.success("Appointment scheduled successfully!");
+      if (selectedAppt) {
+        await api.post(`/appointments/${selectedAppt.id}/reschedule`, {
+          start_time: formattedDate
+        });
+        toast.success("Schedule Updated", { description: "Time vector synchronized." });
+      } else {
+        const resp = await api.post("/appointments/book", {
+          queue_key: formData.queue_key,
+          start_time: formattedDate,
+          urgency: formData.urgency,
+          user_lat: coords.lat,
+          user_lon: coords.lng
+        });
+        // Replace optimistic with real data to get real Token number
+        setAppointments(prev => prev.map(a => a.id === tempId ? resp.data.data : a));
+        toast.success("Spot Reserved", { description: "Your token is ready." });
+      }
+      setSelectedAppt(null);
+      setFormData({ queue_key: "", time: "", urgency: "routine" });
     } catch {
-      toast.error("Booking failed. Please check the queue code and time slot.");
+      toast.error("Process Failed", { description: "Unable to secure slot. Please try another time." });
+      fetchAppointments(); // Rollback
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCheckIn = async (id: string) => {
+    // Optimistic UI
+    setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: "Checked-in" } : a));
+    
+    try {
+      await api.post(`/appointments/${id}/checkin`);
+      toast.success("Check-in Pulse Successful", { description: "You are now live in the queue!" });
+    } catch (err: any) {
+      toast.error("Check-in Blocked", { description: err.response?.data?.message || "Are you near the location?" });
+      fetchAppointments(); // Rollback
+    }
+  };
+
+  const handleCancel = async (id: string) => {
+    toast("Protocol Termination", {
+      description: "Release this appointment vector?",
+      action: {
+        label: "Terminate",
+        onClick: async () => {
+          const original = appointments.find(a => a.id === id);
+          setAppointments(prev => prev.filter(a => a.id !== id));
+          
+          try {
+            await api.post(`/appointments/${id}/cancel`);
+            toast.success("Schedule Purged", { description: "Appointment cancelled." });
+          } catch (err) {
+            if (original) setAppointments(prev => [original, ...prev]); // Rollback
+            toast.error("Failure", { description: "Could not cancel appointment." });
+          }
+        }
+      }
+    });
+  };
+
+  const openScheduleModal = (appt?: Appointment) => {
+    if (appt) {
+      setSelectedAppt(appt);
+      setFormData({ 
+        queue_key: appt.queue_key, 
+        time: appt.start_time.replace(" ", "T").substring(0, 16),
+        urgency: "routine"
+      });
+    } else {
+      setSelectedAppt(null);
+      setFormData({ queue_key: "", time: "", urgency: "routine" });
+    }
+    setIsModalOpen(true);
   };
 
   return (
@@ -116,7 +191,7 @@ export default function AppointmentsPage() {
           <h1 className="text-3xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>My Appointments</h1>
           <p className="text-[#49607e] text-sm font-medium mt-1">Manage your upcoming sessions and commute alerts.</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} className="kinetic-btn-primary h-11 px-6 gap-2 text-sm">
+        <Button onClick={() => openScheduleModal()} className="kinetic-btn-primary h-11 px-6 gap-2 text-sm">
           <Plus className="w-4 h-4" /> Schedule New
         </Button>
       </div>
@@ -153,6 +228,23 @@ export default function AppointmentsPage() {
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-3">
                        <StatusBadge status={appt.status} />
+                       
+                       {/* Intensity Labels */}
+                       {i === 0 ? (
+                         <span className="px-2.5 py-0.5 bg-rose-50 text-rose-600 text-[9px] font-black uppercase tracking-widest rounded-md border border-rose-100 flex items-center gap-1.5 shadow-sm">
+                            <span className="w-1 h-1 bg-rose-500 rounded-full animate-ping" />
+                            Urgent
+                         </span>
+                       ) : i === 1 ? (
+                         <span className="px-2.5 py-0.5 bg-[#493ee5]/5 text-[#493ee5] text-[9px] font-black uppercase tracking-widest rounded-md border border-[#493ee5]/10 flex items-center gap-1.5">
+                            Routine
+                         </span>
+                       ) : (
+                         <span className="px-2.5 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black uppercase tracking-widest rounded-md border border-amber-100 flex items-center gap-1.5">
+                            Follow-up
+                         </span>
+                       )}
+
                        <div className="h-4 w-px bg-slate-100" />
                        <span className="text-[#49607e] text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Vector ID: {appt.token_number}</span>
                     </div>
@@ -164,11 +256,28 @@ export default function AppointmentsPage() {
                   </div>
 
                   <div className="flex items-center gap-3 z-10">
-                     <button className="px-6 py-3 bg-white border border-[#e5e8eb] rounded-2xl text-xs font-black text-[#181c1e] hover:bg-[#493ee5] hover:text-white hover:border-[#493ee5] transition-all shadow-sm active:scale-95" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                     {appt.status.toLowerCase() === "scheduled" && (
+                       <button 
+                        onClick={() => handleCheckIn(appt.id)}
+                        className="px-6 py-3 bg-[#493ee5] text-white rounded-2xl text-xs font-black hover:bg-[#3428c5] transition-all shadow-md active:scale-95" 
+                        style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+                       >
+                         Check-in
+                       </button>
+                     )}
+                     <button 
+                      onClick={() => openScheduleModal(appt)}
+                      className="px-6 py-3 bg-white border border-[#e5e8eb] rounded-2xl text-xs font-black text-[#181c1e] hover:bg-slate-50 transition-all shadow-sm active:scale-95" 
+                      style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+                     >
                        Reschedule
                      </button>
-                     <button className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 border border-transparent hover:border-[#e5e8eb] hover:bg-white transition-all group/btn">
-                       <MoreVertical className="w-5 h-5 text-[#49607e] group-hover/btn:text-[#493ee5]" />
+                     <button 
+                        onClick={() => handleCancel(appt.id)}
+                        className="w-12 h-12 flex items-center justify-center rounded-2xl bg-rose-50 border border-transparent hover:border-rose-200 hover:bg-rose-100 transition-all group/btn"
+                        title="Cancel Appointment"
+                      >
+                       <X className="w-5 h-5 text-rose-500" />
                      </button>
                   </div>
                 </motion.div>
@@ -185,7 +294,7 @@ export default function AppointmentsPage() {
                  <h3 className="text-3xl font-black text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Calendar Inertia</h3>
                  <p className="text-[#49607e] max-w-[340px] mx-auto text-sm font-medium leading-relaxed">Your professional schedule is currently static. Initialize a bridge to your favorite institutions.</p>
                </div>
-               <Button onClick={() => setIsModalOpen(true)} className="kinetic-btn-primary h-14 px-12 text-md shadow-2xl relative">
+               <Button onClick={() => openScheduleModal()} className="kinetic-btn-primary h-14 px-12 text-md shadow-2xl relative">
                  Schedule First Vector
                </Button>
             </div>
@@ -262,107 +371,136 @@ export default function AppointmentsPage() {
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4 backdrop-blur-xl border border-white/20">
               <Calendar className="w-6 h-6" />
             </div>
-            <DialogTitle className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Schedule New</DialogTitle>
-            <DialogDescription className="text-white/70 text-sm mt-1">Plan your next visit with precision.</DialogDescription>
+            <DialogTitle className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+              {selectedAppt ? "Reschedule Appointment" : "Schedule New"}
+            </DialogTitle>
+            <DialogDescription className="text-white/70 text-sm mt-1">
+              {selectedAppt ? `Current Institution: ${selectedAppt.queue_key}` : "Plan your next visit with precision."}
+            </DialogDescription>
           </div>
 
           <div className="p-6 space-y-5 bg-white">
-            <div>
-              <Label className="text-xs font-bold text-[#49607e] uppercase tracking-[0.15em] mb-3 block" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Select Institution</Label>
-              
-              {/* Modal Search/Filter */}
-              <div className="space-y-4 mb-5">
-                <div className="relative group">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#49607e] group-focus-within:text-[#493ee5] transition-colors" />
-                  <input
-                    type="text"
-                    placeholder="Search partner institutions..."
-                    className="w-full pl-11 pr-4 py-3 bg-[#f1f4f7] rounded-xl outline-none transition-all text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#493ee5]/10"
-                    onChange={(e) => setModalSearchQuery(e.target.value)}
-                    value={modalSearchQuery}
-                  />
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                  {['all', 'hospital', 'bank'].map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setModalCategory(cat)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
-                        modalCategory === cat 
-                          ? "bg-[#493ee5] text-white shadow-neobrutal" 
-                          : "bg-[#f1f4f7] text-[#49607e] hover:text-[#493ee5] hover:bg-[#493ee5]/5"
-                      )}
-                      style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {!selectedAppt && (
+                <div>
+                  <Label className="text-xs font-bold text-[#49607e] uppercase tracking-[0.15em] mb-3 block" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Select Institution</Label>
+                  
+                  {/* Modal Search/Filter */}
+                  <div className="space-y-4 mb-5">
+                    <div className="relative group">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#49607e] group-focus-within:text-[#493ee5] transition-colors" />
+                      <input
+                        type="text"
+                        placeholder="Search partner institutions..."
+                        className="w-full pl-11 pr-4 py-3 bg-[#f1f4f7] rounded-xl outline-none transition-all text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#493ee5]/10"
+                        onChange={(e) => setModalSearchQuery(e.target.value)}
+                        value={modalSearchQuery}
+                      />
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                      {['all', 'hospital', 'bank'].map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setModalCategory(cat)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+                            modalCategory === cat 
+                              ? "bg-[#493ee5] text-white shadow-neobrutal" 
+                              : "bg-[#f1f4f7] text-[#49607e] hover:text-[#493ee5] hover:bg-[#493ee5]/5"
+                          )}
+                          style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <ScrollArea className="h-[200px] pr-2 -mr-1">
-                <div className="space-y-2.5">
-                  <AnimatePresence mode="popLayout">
-                    {nearbyOrgs.filter(org => {
-                      const matchesSearch = org.name.toLowerCase().includes(modalSearchQuery.toLowerCase());
-                      const matchesCat = modalCategory === 'all' || org.name.toLowerCase().includes(modalCategory === 'hospital' ? 'hospital' : modalCategory === 'bank' ? 'bank' : '');
-                      return matchesSearch && matchesCat;
-                    }).length > 0 ? (
-                      nearbyOrgs
-                        .filter(org => {
+                  <ScrollArea className="h-[200px] pr-2 -mr-1">
+                    <div className="space-y-2.5">
+                      <AnimatePresence mode="popLayout">
+                        {nearbyOrgs.filter(org => {
                           const matchesSearch = org.name.toLowerCase().includes(modalSearchQuery.toLowerCase());
                           const matchesCat = modalCategory === 'all' || org.name.toLowerCase().includes(modalCategory === 'hospital' ? 'hospital' : modalCategory === 'bank' ? 'bank' : '');
                           return matchesSearch && matchesCat;
-                        })
-                        .map((org, i) => (
-                          <motion.div
-                            key={org.key || i}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: i * 0.05 }}
-                          >
-                            <div
-                              onClick={() => { if (org.key) setFormData({...formData, queue_key: org.key}); }}
-                              className={cn(
-                                "p-4 rounded-xl transition-all flex items-center justify-between border border-transparent",
-                                formData.queue_key === org.key && org.key
-                                  ? "bg-[#493ee5]/5 ring-2 ring-[#493ee5]" 
-                                  : org.key 
-                                    ? "bg-[#f1f4f7] hover:bg-white hover:shadow-ambient cursor-pointer"
-                                    : "opacity-60 saturate-50 cursor-not-allowed bg-[#f1f4f7] border border-[#e5e8eb]"
-                              )}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className={cn(
-                                  "w-10 h-10 rounded-lg flex items-center justify-center transition-colors",
-                                  org.key ? (formData.queue_key === org.key ? "bg-[#493ee5] text-white" : "bg-white text-[#493ee5] shadow-sm") : "bg-[#ebeef1] text-[#49607e]"
-                                )}>
-                                  {org.name.toLowerCase().includes("hospital") ? <HeartPulse className="w-5 h-5" /> : <Landmark className="w-5 h-5" />}
+                        }).length > 0 ? (
+                          nearbyOrgs
+                            .filter(org => {
+                              const matchesSearch = org.name.toLowerCase().includes(modalSearchQuery.toLowerCase());
+                              const matchesCat = modalCategory === 'all' || org.name.toLowerCase().includes(modalCategory === 'hospital' ? 'hospital' : modalCategory === 'bank' ? 'bank' : '');
+                              return matchesSearch && matchesCat;
+                            })
+                            .map((org, i) => (
+                              <motion.div
+                                key={org.key || i}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.05 }}
+                              >
+                                <div
+                                  onClick={() => { if (org.key) setFormData({...formData, queue_key: org.key}); }}
+                                  className={cn(
+                                    "p-4 rounded-xl transition-all flex items-center justify-between border border-transparent",
+                                    formData.queue_key === org.key && org.key
+                                      ? "bg-[#493ee5]/5 ring-2 ring-[#493ee5]" 
+                                      : org.key 
+                                        ? "bg-[#f1f4f7] hover:bg-white hover:shadow-ambient cursor-pointer"
+                                        : "opacity-60 saturate-50 cursor-not-allowed bg-[#f1f4f7] border border-[#e5e8eb]"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={cn(
+                                      "w-10 h-10 rounded-lg flex items-center justify-center transition-colors",
+                                      org.key ? (formData.queue_key === org.key ? "bg-[#493ee5] text-white" : "bg-white text-[#493ee5] shadow-sm") : "bg-[#ebeef1] text-[#49607e]"
+                                    )}>
+                                      {org.name.toLowerCase().includes("hospital") ? <HeartPulse className="w-5 h-5" /> : <Landmark className="w-5 h-5" />}
+                                    </div>
+                                    <div>
+                                      <h4 className="font-bold text-[#181c1e] text-sm" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{org.name}</h4>
+                                      <p className="text-[10px] text-[#49607e] font-medium">
+                                        {org.key 
+                                          ? (org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Partner Active')
+                                          : 'Not Partnered'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {formData.queue_key === org.key && org.key && <CheckCircle2 className="w-4 h-4 text-[#493ee5]" />}
                                 </div>
-                                <div>
-                                  <h4 className="font-bold text-[#181c1e] text-sm" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{org.name}</h4>
-                                  <p className="text-[10px] text-[#49607e] font-medium">
-                                    {org.key 
-                                      ? (org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Partner Active')
-                                      : 'Not Partnered'}
-                                  </p>
-                                </div>
-                              </div>
-                              {formData.queue_key === org.key && org.key && <CheckCircle2 className="w-4 h-4 text-[#493ee5]" />}
-                            </div>
-                          </motion.div>
-                        ))
-                    ) : (
-                      <div className="py-8 text-center text-[#49607e] text-xs font-bold animate-pulse">Scanning Institutions...</div>
-                    )}
-                  </AnimatePresence>
+                              </motion.div>
+                            ))
+                        ) : (
+                          <div className="py-8 text-center text-[#49607e] text-xs font-bold animate-pulse">Scanning Institutions...</div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </ScrollArea>
                 </div>
-              </ScrollArea>
-            </div>
+              )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <Label className="text-xs font-bold text-[#49607e] uppercase tracking-[0.15em] mb-2 block" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Priority Level</Label>
+                <div className="grid grid-cols-3 gap-2">
+                   {['urgent', 'routine', 'follow-up'].map((level) => (
+                     <button
+                       key={level}
+                       type="button"
+                       onClick={() => setFormData({...formData, urgency: level})}
+                       className={cn(
+                         "py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                         formData.urgency === level 
+                            ? (level === 'urgent' ? "bg-rose-50 border-rose-200 text-rose-600 shadow-sm" : 
+                               level === 'routine' ? "bg-[#493ee5]/5 border-[#493ee5]/20 text-[#493ee5] shadow-sm" : 
+                               "bg-amber-50 border-amber-200 text-amber-600 shadow-sm")
+                            : "bg-[#f1f4f7] border-transparent text-[#49607e] hover:bg-white hover:border-[#e5e8eb]"
+                       )}
+                     >
+                       {level}
+                     </button>
+                   ))}
+                </div>
+              </div>
+
               <div>
                 <Label className="text-xs font-bold text-[#49607e] uppercase tracking-[0.15em] mb-2 block" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Time & Date</Label>
                 <div className="relative">
@@ -378,7 +516,14 @@ export default function AppointmentsPage() {
               </div>
 
               <Button type="submit" disabled={isSubmitting} className="kinetic-btn-primary w-full h-12 text-sm gap-2">
-                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" /> Confirm Schedule</>}
+                {isSubmitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    {selectedAppt ? <Calendar className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    {selectedAppt ? "Update Schedule" : "Confirm Schedule"}
+                  </>
+                )}
               </Button>
             </form>
           </div>

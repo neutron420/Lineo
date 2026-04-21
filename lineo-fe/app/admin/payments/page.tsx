@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Search, CreditCard, ExternalLink, ShieldCheck, Download, Banknote, Building2 } from "lucide-react";
+import { Search, CreditCard, ExternalLink, ShieldCheck, Download, Banknote, Building2, Filter } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -29,6 +29,7 @@ export default function BillingVaultPage() {
   const [transactions, setTransactions] = useState<PaymentTxn[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [activeTxn, setActiveTxn] = useState<PaymentTxn | null>(null);
 
   const fetchTransactions = async () => {
@@ -48,28 +49,45 @@ export default function BillingVaultPage() {
     fetchTransactions();
   }, []);
 
-  const filteredTxns = (transactions || []).filter(t => 
-    t.organization_name.toLowerCase().includes(search.toLowerCase()) || 
-    t.id.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredTxns = (transactions || []).filter(t => {
+    const matchesSearch = t.organization_name.toLowerCase().includes(search.toLowerCase()) || 
+                          t.id.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = filterStatus === "all" || t.status.toLowerCase() === filterStatus.toLowerCase();
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-6 w-full">
       <Toaster position="top-right" expand={true} richColors />
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e5e8eb] pb-6 mb-6">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-[#e5e8eb] pb-6 mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Billing & Vault Settings</h1>
-          <p className="text-sm text-[#49607e] font-medium mt-1">Audit organizational subscription payments and Razorpay logs.</p>
+          <h1 className="text-2xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Organization Settlements</h1>
+          <p className="text-sm text-[#49607e] font-medium mt-1">Audit institutional subscription volume and Razorpay logs.</p>
         </div>
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#49607e]" />
-          <input
-            type="text"
-            placeholder="Search Txn ID or Org name..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#e5e8eb] rounded-xl text-sm font-medium focus:outline-none focus:border-[#493ee5] focus:ring-1 focus:ring-[#493ee5] transition-all"
-          />
+        <div className="flex flex-col sm:flex-row gap-3 w-full xl:max-w-2xl">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#49607e]" />
+            <input
+              type="text"
+              placeholder="Search Org name or Txn ID..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#e5e8eb] rounded-xl text-sm font-medium focus:outline-none focus:border-[#493ee5] focus:ring-1 focus:ring-[#493ee5] transition-all"
+            />
+          </div>
+          <div className="relative sm:w-48">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#49607e]" />
+            <select
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#e5e8eb] rounded-xl text-sm font-medium appearance-none focus:outline-none focus:border-[#493ee5] transition-all cursor-pointer"
+            >
+              <option value="all">All Status</option>
+              <option value="success">Success</option>
+              <option value="pending">Pending</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
         </div>
       </div>
 

@@ -15,6 +15,9 @@ type AppointmentService interface {
 	Book(userID uint, req models.BookAppointmentRequest) (*models.Appointment, error)
 	CheckIn(appointmentID uint, userID uint) (*models.QueueResponse, error)
 	GetMyAppointments(userID uint) ([]models.Appointment, error)
+	Reschedule(appointmentID uint, userID uint, newTime string) (*models.Appointment, error)
+	Cancel(appointmentID uint, userID uint) error
+	GetOrgAppointments(orgID uint) ([]models.Appointment, error)
 	CommuteWorker()
 	QueueCommuteChecks(ctx context.Context) error
 }
@@ -22,13 +25,15 @@ type AppointmentService interface {
 type appointmentService struct {
 	orgRepo  repository.OrganizationRepository
 	queueSvc QueueService
+	subSvc   UserSubscriptionService
 	bus      events.Bus
 }
 
-func NewAppointmentService(orgRepo repository.OrganizationRepository, queueSvc QueueService, bus events.Bus) AppointmentService {
+func NewAppointmentService(orgRepo repository.OrganizationRepository, queueSvc QueueService, subSvc UserSubscriptionService, bus events.Bus) AppointmentService {
 	return &appointmentService{
 		orgRepo:  orgRepo,
 		queueSvc: queueSvc,
+		subSvc:   subSvc,
 		bus:      bus,
 	}
 }
@@ -37,6 +42,11 @@ func (s *appointmentService) Book(userID uint, req models.BookAppointmentRequest
 	queueDef, err := s.orgRepo.GetQueueDefByKey(req.QueueKey)
 	if err != nil {
 		return nil, errors.New("queue not found")
+	}
+
+	// Check subscription limit
+	if err := s.subSvc.CheckApptLimit(userID); err != nil {
+		return nil, err
 	}
 
 	startTime, err := time.Parse("2006-01-02 15:04", req.StartTime)
@@ -57,6 +67,9 @@ func (s *appointmentService) Book(userID uint, req models.BookAppointmentRequest
 	if err := db.DB.Create(appt).Error; err != nil {
 		return nil, err
 	}
+
+	// Increment usage
+	_ = s.subSvc.IncrementAppts(userID)
 
 	if s.bus != nil {
 		_ = s.bus.PublishCommuteTrigger(context.Background(), events.CommuteTriggerJob{
@@ -86,9 +99,14 @@ func (s *appointmentService) CheckIn(appointmentID uint, userID uint) (*models.Q
 		return nil, errors.New("appointment already processed or cancelled")
 	}
 
-	resp, err := s.queueSvc.Enqueue(appt.UserID, "patient", models.EnqueueRequest{
+	var user models.User
+	if err := db.DB.First(&user, appt.UserID).Error; err != nil {
+		return nil, errors.New("failed to verify user profile")
+	}
+
+	resp, err := s.queueSvc.Enqueue(appt.UserID, user.Username, models.EnqueueRequest{
 		QueueKey: appt.QueueKey,
-		Priority: true,
+		Priority: user.HasDisability, // Dynamically prioritize based on disability disclosure
 		UserLat:  appt.UserLat,
 		UserLon:  appt.UserLon,
 	})
@@ -106,6 +124,61 @@ func (s *appointmentService) GetMyAppointments(userID uint) ([]models.Appointmen
 	var appts []models.Appointment
 	err := db.DB.Where("user_id = ?", userID).Find(&appts).Error
 	return appts, err
+}
+
+func (s *appointmentService) GetOrgAppointments(orgID uint) ([]models.Appointment, error) {
+	var appts []models.Appointment
+	// Preload User to get the user names for the org dashboard
+	err := db.DB.Preload("User").Where("organization_id = ?", orgID).Order("start_time asc").Find(&appts).Error
+	return appts, err
+}
+
+func (s *appointmentService) Reschedule(appointmentID uint, userID uint, newTime string) (*models.Appointment, error) {
+	var appt models.Appointment
+	if err := db.DB.Where("id = ? AND user_id = ?", appointmentID, userID).First(&appt).Error; err != nil {
+		return nil, errors.New("appointment not found")
+	}
+
+	startTime, err := time.Parse("2006-01-02 15:04", newTime)
+	if err != nil {
+		return nil, errors.New("invalid date format")
+	}
+
+	appt.StartTime = startTime
+	appt.Status = models.ApptScheduled // Reset status if it was something else
+	appt.CommuteNotified = false      // Reset commute notification
+
+	if err := db.DB.Save(&appt).Error; err != nil {
+		return nil, err
+	}
+
+	// Re-trigger commute check if needed
+	if s.bus != nil {
+		_ = s.bus.PublishCommuteTrigger(context.Background(), events.CommuteTriggerJob{
+			AppointmentID:    appt.ID,
+			UserID:           appt.UserID,
+			OrgID:            appt.OrganizationID,
+			QueueKey:         appt.QueueKey,
+			AppointmentTime:  appt.StartTime,
+			UserLat:          appt.UserLat,
+			UserLng:          appt.UserLon,
+			PhoneNumber:      appt.PhoneNumber,
+			ThresholdMinutes: 10,
+			RequestedAt:      time.Now().UTC(),
+		})
+	}
+
+	return &appt, nil
+}
+
+func (s *appointmentService) Cancel(appointmentID uint, userID uint) error {
+	var appt models.Appointment
+	if err := db.DB.Where("id = ? AND user_id = ?", appointmentID, userID).First(&appt).Error; err != nil {
+		return errors.New("appointment not found")
+	}
+
+	appt.Status = models.ApptCancelled
+	return db.DB.Save(&appt).Error
 }
 
 // Deprecated legacy entrypoint kept for interface compatibility.

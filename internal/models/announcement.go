@@ -11,6 +11,7 @@ type Announcement struct {
 	Message   string         `gorm:"type:text;not null" json:"message"`
 	Level     string         `gorm:"type:varchar(20);default:'INFO'" json:"level"`
 	Actor     string         `gorm:"type:varchar(100)" json:"actor"`
+	ExpiresAt *time.Time     `json:"expires_at"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`

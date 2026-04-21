@@ -107,6 +107,22 @@ func InitDB() {
 	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS subscription_tier integer DEFAULT 0").Error
 	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS max_queues integer DEFAULT 2").Error
 	_ = DB.Exec("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS daily_ticket_limit integer DEFAULT 50").Error
+	
+	// USER SUBSCRIPTION SCHEMA
+	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_tier text DEFAULT 'basic'").Error
+	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_joins integer DEFAULT 0").Error
+	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_appts integer DEFAULT 0").Error
+	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_action_date timestamp with time zone").Error
+	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_exp timestamp with time zone").Error
+	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS razorpay_id text").Error
+	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number text").Error
+	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS dob text").Error
+	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender text").Error
+	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS has_disability boolean DEFAULT false").Error
+	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS disability_type text").Error
+
+	// ANNOUNCEMENT TIMER SCHEMA
+	_ = DB.Exec("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS expires_at timestamp with time zone").Error
 
 	slog.Info("database connection established and migrated")
 

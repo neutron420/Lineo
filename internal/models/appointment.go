@@ -27,6 +27,7 @@ type Appointment struct {
 	CommuteNotified bool             `gorm:"default:false" json:"commute_notified"` 
 	UserLat        float64           `json:"user_lat"`
 	UserLon        float64           `json:"user_lon"`
+	User           User              `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	CreatedAt      time.Time         `json:"created_at"`
 	UpdatedAt      time.Time         `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt    `gorm:"index" json:"-"`

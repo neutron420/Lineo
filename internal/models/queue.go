@@ -80,15 +80,17 @@ type QueueState struct {
 
 // Redis tracking
 type QueueEntry struct {
-	TokenNumber string      `json:"token_number"`
-	UserID      uint        `json:"user_id"`
-	Username    string      `json:"username"`
-	PhoneNumber string      `json:"phone_number"` // For pulling into SMS
-	IsKiosk     bool        `json:"is_kiosk"`
-	Priority    bool        `json:"priority"`
-	Status      QueueStatus `json:"status"`
-	Score       float64     `json:"score"`
-	JoinedAt    time.Time   `json:"joined_at"`
+	TokenNumber    string      `json:"token_number"`
+	UserID         uint        `json:"user_id"`
+	Username       string      `json:"username"`
+	PhoneNumber    string      `json:"phone_number"` // For pulling into SMS
+	IsKiosk        bool        `json:"is_kiosk"`
+	Priority       bool        `json:"priority"`
+	HasDisability  bool        `json:"has_disability"`
+	DisabilityType string      `json:"disability_type"`
+	Status         QueueStatus `json:"status"`
+	Score          float64     `json:"score"`
+	JoinedAt       time.Time   `json:"joined_at"`
 }
 
 type AnalyticsResponse struct {

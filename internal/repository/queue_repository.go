@@ -39,6 +39,7 @@ type QueueRepository interface {
 	GetUserHistory(userID uint) ([]models.QueueHistory, error)
 	GetHistoryByToken(tokenNumber string) (*models.QueueHistory, error)
 	ReorderToken(queueKey, tokenNumber string, score float64) error
+	BroadcastUpdate(orgID uint, data interface{}) error
 }
 
 type queueRepository struct {
@@ -345,4 +346,13 @@ func (r *queueRepository) ReorderToken(queueKey, tokenNumber string, score float
 		Score:  score,
 		Member: tokenNumber,
 	}).Err()
+}
+
+func (r *queueRepository) BroadcastUpdate(orgID uint, data interface{}) error {
+	payload, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	channel := fmt.Sprintf("org:%d:queue", orgID)
+	return r.redis.Publish(r.ctx, channel, payload).Err()
 }
