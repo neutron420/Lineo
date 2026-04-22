@@ -47,8 +47,10 @@ type User struct {
 	RazorpayID       string           `json:"-"`
 
 	// Forgot Password logic
-	ResetToken    string     `json:"-"`
-	ResetTokenExp *time.Time `json:"-"`
+	ResetToken     string     `json:"-"`
+	ResetTokenExp  *time.Time `json:"-"`
+	OTPAttempts    int        `gorm:"default:0" json:"-"`
+	LockoutUntil   *time.Time `json:"-"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
@@ -62,11 +64,13 @@ type LoginRequest struct {
 }
 
 type ForgotPasswordRequest struct {
-	Email string `json:"email" binding:"required,email"`
+	Email  string `json:"email" binding:"required,email"`
+	Method string `json:"method"` // "email" or "sms"
 }
 
 type ResetPasswordRequest struct {
-	Token       string `json:"token" binding:"required"`
+	Email       string `json:"email" binding:"required,email"`
+	OTP         string `json:"otp" binding:"required"`
 	NewPassword string `json:"new_password" binding:"required,min=6"`
 }
 

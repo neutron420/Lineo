@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -25,8 +26,16 @@ func SendSMS(to string, message string) {
 
 	apiURL := "https://api.twilio.com/2010-04-01/Accounts/" + accountSid + "/Messages.json"
 
+	// Ensure E.164 format (defaulting to +91 for 10-digit numbers)
+	cleanTo := strings.ReplaceAll(to, " ", "")
+	if len(cleanTo) == 10 && !strings.HasPrefix(cleanTo, "+") {
+		cleanTo = "+91" + cleanTo
+	} else if !strings.HasPrefix(cleanTo, "+") {
+		cleanTo = "+" + cleanTo
+	}
+
 	data := url.Values{}
-	data.Set("To", to)
+	data.Set("To", cleanTo)
 	data.Set("From", fromNumber)
 	data.Set("Body", message)
 
@@ -43,14 +52,17 @@ func SendSMS(to string, message string) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Error("failed to send twilio sms", "error", err, "to", to)
+		slog.Error("failed to send twilio sms", "error", err, "to", cleanTo)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		slog.Info("twilio sms sent", "to", to)
+		slog.Info("twilio sms sent", "to", cleanTo)
 	} else {
-		slog.Warn("twilio sms failed", "status_code", resp.StatusCode, "to", to)
+		// Read body to see exact error from Twilio
+		var twilioErr map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&twilioErr)
+		slog.Warn("twilio sms failed", "status_code", resp.StatusCode, "to", cleanTo, "error", twilioErr["message"])
 	}
 }

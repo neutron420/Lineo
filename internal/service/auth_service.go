@@ -2,7 +2,6 @@ package service
 
 import (
 	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,8 +23,8 @@ import (
 type AuthService interface {
 	RegisterUser(req models.RegisterRequest) (*models.User, error)
 	LoginUser(req models.LoginRequest) (string, *models.User, error)
-	ForgotPassword(email string) error
-	ResetPassword(token, newPass string) error
+	ForgotPassword(email string, method string) error
+	ResetPassword(email, otp, newPass string) error
 	VerifyTurnstile(token string) bool
 	AddStaff(adminOrgID uint, req models.RegisterRequest) (*models.User, error)
 	RegisterOrganization(req models.OrgRegistrationRequest) (*models.User, error)
@@ -126,35 +125,97 @@ func (s *authService) LoginUser(req models.LoginRequest) (string, *models.User, 
 	return token, user, nil
 }
 
-func (s *authService) ForgotPassword(email string) error {
+func (s *authService) ForgotPassword(email string, method string) error {
 	user, err := s.userRepo.GetUserByEmail(email)
-	if err != nil || user == nil { return errors.New("user not found") }
+	if err != nil || user == nil {
+		return errors.New("user not found")
+	}
 
-	bytes := make([]byte, 16)
-	rand.Read(bytes)
-	resetToken := hex.EncodeToString(bytes)
+	if user.Role != models.RoleUser {
+		return errors.New("password reset is only available for standard users")
+	}
 
-	exp := time.Now().Add(1 * time.Hour)
-	user.ResetToken = resetToken
+	// Generate 6-digit OTP
+	otp := ""
+	for i := 0; i < 6; i++ {
+		b := make([]byte, 1)
+		rand.Read(b)
+		otp += fmt.Sprintf("%d", b[0]%10)
+	}
+
+	exp := time.Now().Add(45 * time.Second)
+	user.ResetToken = otp
 	user.ResetTokenExp = &exp
+	user.OTPAttempts = 0 // Reset attempts on new OTP request
+	user.LockoutUntil = nil
 
-	db.DB.Save(user)
-	slog.Info("password reset token generated", "email", email)
+	if err := db.DB.Save(user).Error; err != nil {
+		return err
+	}
+
+	// Deliver OTP based on method
+	if method == "sms" {
+		if user.PhoneNumber == "" {
+			return errors.New("no phone number associated with this account")
+		}
+		go utils.SendSMS(user.PhoneNumber, fmt.Sprintf("Your Lineo verification code is: %s. Valid for 45 seconds.", otp))
+	} else {
+		// Default to email
+		go func() {
+			err := utils.SendOTPEmail(email, otp)
+			if err != nil {
+				slog.Error("failed to send otp email", "error", err, "email", email)
+			}
+		}()
+	}
+
+	slog.Info("OTP generated and delivery initiated", "email", email, "method", method)
 	return nil
 }
 
-func (s *authService) ResetPassword(token, newPass string) error {
-	var user models.User
-	if err := db.DB.Where("reset_token = ? AND reset_token_exp > ?", token, time.Now()).First(&user).Error; err != nil {
-		return errors.New("invalid or expired token")
+func (s *authService) ResetPassword(email, otp, newPass string) error {
+	user, err := s.userRepo.GetUserByEmail(email)
+	if err != nil || user == nil {
+		return errors.New("user not found")
 	}
 
+	// 1. Check Lockout
+	if user.LockoutUntil != nil && user.LockoutUntil.After(time.Now()) {
+		diff := time.Until(*user.LockoutUntil)
+		return fmt.Errorf("account locked. please try again in %v", diff.Round(time.Second))
+	}
+
+	// 2. Check Expiry
+	if user.ResetTokenExp == nil || user.ResetTokenExp.Before(time.Now()) {
+		return errors.New("OTP expired. please request a new one")
+	}
+
+	// 3. Verify OTP
+	if user.ResetToken != otp {
+		user.OTPAttempts++
+		if user.OTPAttempts >= 3 {
+			lockout := time.Now().Add(15 * time.Minute)
+			user.LockoutUntil = &lockout
+			db.DB.Save(user)
+			return errors.New("too many failed attempts. account locked for 15 minutes")
+		}
+		db.DB.Save(user)
+		return fmt.Errorf("invalid OTP. %d attempts remaining", 3-user.OTPAttempts)
+	}
+
+	// 4. Success
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
 	user.Password = string(hashed)
 	user.ResetToken = ""
 	user.ResetTokenExp = nil
-	
-	db.DB.Save(&user)
+	user.OTPAttempts = 0
+	user.LockoutUntil = nil
+
+	if err := db.DB.Save(user).Error; err != nil {
+		return err
+	}
+
+	slog.Info("password reset successful", "email", email)
 	return nil
 }
 

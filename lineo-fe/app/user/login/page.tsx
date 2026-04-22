@@ -3,7 +3,7 @@
 import React, { Suspense, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2, Mail, Lock, ShieldCheck, AlertCircle, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, Lock, ShieldCheck, AlertCircle, User as UserIcon, Eye, EyeOff } from "lucide-react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import api from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -24,6 +24,7 @@ function UserLoginContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -77,14 +78,11 @@ function UserLoginContent() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="stripe-card w-full max-w-[420px] p-10 bg-white"
+        className="w-full max-w-[400px] p-8 bg-white rounded-xl border border-slate-200 shadow-sm"
       >
-        <div className="mb-10">
-          <div className="w-12 h-12 bg-stripe-purple/10 rounded-xl flex items-center justify-center mb-6">
-            <UserIcon className="w-6 h-6 text-stripe-purple" />
-          </div>
-          <h1 className="text-[26px] tracking-stripe-tight mb-2 text-stripe-navy font-semibold">User Login</h1>
-          <p className="text-[15px] text-stripe-slate">Sign in to your personal dashboard.</p>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900 mb-1">Login to your account</h1>
+          <p className="text-sm text-slate-500">Enter your email below to login to your account</p>
         </div>
 
         {error && (
@@ -94,7 +92,7 @@ function UserLoginContent() {
         )}
 
         {isRegistered && !error && (
-          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 text-emerald-600 text-sm rounded-xl flex items-start gap-3">
+          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 text-emerald-600 text-sm rounded-lg flex items-start gap-3">
              <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
              <div>
                 <p className="font-bold">Success</p>
@@ -105,15 +103,13 @@ function UserLoginContent() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-stripe-label flex items-center gap-2">
-              <Mail className="w-3.5 h-3.5" /> Email
-            </label>
+            <label className="text-sm font-medium text-slate-700">Email</label>
             <input
               type="email"
-              placeholder="you@email.com"
-              className="stripe-input"
+              placeholder="m@example.com"
+              className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -122,21 +118,30 @@ function UserLoginContent() {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-stripe-label flex items-center gap-2">
-                <Lock className="w-3.5 h-3.5" /> Password
-              </label>
+              <label className="text-sm font-medium text-slate-700">Password</label>
+              <Link href="/forgot-password"  className="text-sm font-medium text-slate-900 hover:underline">
+                Forgot your password?
+              </Link>
             </div>
-            <input
-              type="password"
-              placeholder="••••••••"
-              className="stripe-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all pr-10"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
-          <div className="py-2">
+          <div className="py-2 flex justify-center">
             <Turnstile
               siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
               onSuccess={(token) => setCaptchaToken(token)}
@@ -146,17 +151,24 @@ function UserLoginContent() {
           <button
             type="submit"
             disabled={isLoading}
-            className="stripe-btn-primary w-full flex items-center justify-center gap-2 py-3"
+            className="w-full h-10 bg-slate-950 text-white font-medium rounded-md hover:bg-slate-900 transition-colors flex items-center justify-center gap-2"
           >
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign In"}
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Login"}
+          </button>
+
+          <button
+            type="button"
+            className="w-full h-10 bg-white text-slate-950 border border-slate-200 font-medium rounded-md hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+          >
+            Login with Google
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-stripe-border text-center">
-          <p className="text-sm text-stripe-slate">
-            New here?{" "}
-            <Link href="/user/register" className="text-stripe-purple font-medium hover:underline">
-              Create an account
+        <div className="mt-6 text-center">
+          <p className="text-sm text-slate-500">
+            Don&apos;t have an account?{" "}
+            <Link href="/user/register" className="text-slate-900 font-medium hover:underline">
+              Sign up
             </Link>
           </p>
         </div>

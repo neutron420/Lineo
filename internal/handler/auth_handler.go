@@ -59,13 +59,17 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 		return
 	}
 
-	err := h.authService.ForgotPassword(req.Email)
+	err := h.authService.ForgotPassword(req.Email, req.Method)
 	if err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Reset failed", err.Error())
 		return
 	}
 
-	utils.RespondSuccess(c, http.StatusOK, "Reset email sent successfully", nil)
+	msg := "Reset email sent successfully"
+	if req.Method == "sms" {
+		msg = "Reset OTP sent via SMS successfully"
+	}
+	utils.RespondSuccess(c, http.StatusOK, msg, nil)
 }
 
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
@@ -75,7 +79,7 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	err := h.authService.ResetPassword(req.Token, req.NewPassword)
+	err := h.authService.ResetPassword(req.Email, req.OTP, req.NewPassword)
 	if err != nil {
 		utils.RespondError(c, http.StatusUnauthorized, "Password reset failed", err.Error())
 		return

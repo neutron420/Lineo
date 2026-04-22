@@ -120,6 +120,8 @@ func InitDB() {
 	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender text").Error
 	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS has_disability boolean DEFAULT false").Error
 	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS disability_type text").Error
+	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_attempts integer DEFAULT 0").Error
+	_ = DB.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS lockout_until timestamp with time zone").Error
 
 	// ANNOUNCEMENT TIMER SCHEMA
 	_ = DB.Exec("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS expires_at timestamp with time zone").Error

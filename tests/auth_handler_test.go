@@ -17,8 +17,8 @@ import (
 type MockAuthService struct {
 	RegisterUserFunc         func(req models.RegisterRequest) (*models.User, error)
 	LoginUserFunc            func(req models.LoginRequest) (string, *models.User, error)
-	ForgotPasswordFunc       func(email string) error
-	ResetPasswordFunc        func(token, newPass string) error
+	ForgotPasswordFunc       func(email string, method string) error
+	ResetPasswordFunc        func(email, otp, newPass string) error
 	VerifyTurnstileFunc      func(token string) bool
 	AddStaffFunc             func(adminOrgID uint, req models.RegisterRequest) (*models.User, error)
 	RegisterOrganizationFunc func(req models.OrgRegistrationRequest) (*models.User, error)
@@ -30,11 +30,11 @@ func (m *MockAuthService) RegisterUser(req models.RegisterRequest) (*models.User
 func (m *MockAuthService) LoginUser(req models.LoginRequest) (string, *models.User, error) {
 	return m.LoginUserFunc(req)
 }
-func (m *MockAuthService) ForgotPassword(email string) error {
-	return m.ForgotPasswordFunc(email)
+func (m *MockAuthService) ForgotPassword(email string, method string) error {
+	return m.ForgotPasswordFunc(email, method)
 }
-func (m *MockAuthService) ResetPassword(token, newPass string) error {
-	return m.ResetPasswordFunc(token, newPass)
+func (m *MockAuthService) ResetPassword(email, otp, newPass string) error {
+	return m.ResetPasswordFunc(email, otp, newPass)
 }
 func (m *MockAuthService) VerifyTurnstile(token string) bool {
 	return m.VerifyTurnstileFunc(token)

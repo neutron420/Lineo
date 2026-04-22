@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2, User, Mail, Lock, Phone, Calendar } from "lucide-react";
+import { ArrowLeft, Loader2, User, Mail, Lock, Phone, Calendar, Eye, EyeOff } from "lucide-react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
@@ -20,6 +20,7 @@ export default function UserRegisterPage() {
   const [hasDisability, setHasDisability] = useState(false);
   const [disabilityType, setDisabilityType] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -67,11 +68,11 @@ export default function UserRegisterPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="stripe-card w-full max-w-[500px] p-10 bg-white"
+        className="w-full max-w-[500px] p-8 bg-white rounded-xl border border-slate-200 shadow-sm"
       >
-        <div className="mb-10 text-center">
-          <h1 className="text-[26px] tracking-stripe-tight mb-2 text-stripe-navy font-semibold">Join Lineo</h1>
-          <p className="text-[15px] text-stripe-slate">Create your personal account to join queues.</p>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900 mb-1">Create an account</h1>
+          <p className="text-sm text-slate-500">Enter your details below to create your account</p>
         </div>
 
         {error && (
@@ -80,16 +81,14 @@ export default function UserRegisterPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
              <div className="space-y-2">
-               <label className="text-sm font-medium text-stripe-label flex items-center gap-2">
-                 <User className="w-3.5 h-3.5" /> Full Name
-               </label>
+               <label className="text-sm font-medium text-slate-700">Full Name</label>
                <input 
                  type="text" 
                  placeholder="John Doe" 
-                 className="stripe-input" 
+                 className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all"
                  value={username}
                  onChange={(e) => setUsername(e.target.value)}
                  required 
@@ -97,13 +96,11 @@ export default function UserRegisterPage() {
              </div>
 
              <div className="space-y-2">
-               <label className="text-sm font-medium text-stripe-label flex items-center gap-2">
-                 <Mail className="w-3.5 h-3.5" /> Email
-               </label>
+               <label className="text-sm font-medium text-slate-700">Email</label>
                <input 
                  type="email" 
-                 placeholder="john@example.com" 
-                 className="stripe-input" 
+                 placeholder="m@example.com" 
+                 className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all"
                  value={email}
                  onChange={(e) => setEmail(e.target.value)}
                  required 
@@ -111,15 +108,13 @@ export default function UserRegisterPage() {
              </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
              <div className="space-y-2">
-               <label className="text-sm font-medium text-stripe-label flex items-center gap-2">
-                 <Phone className="w-3.5 h-3.5" /> Phone Number
-               </label>
+               <label className="text-sm font-medium text-slate-700">Phone Number</label>
                <input 
                  type="tel" 
                  placeholder="+91 98765 43210" 
-                 className="stripe-input" 
+                 className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all"
                  value={phone}
                  onChange={(e) => setPhone(e.target.value)}
                  required 
@@ -127,12 +122,10 @@ export default function UserRegisterPage() {
              </div>
 
              <div className="space-y-2">
-               <label className="text-sm font-medium text-stripe-label flex items-center gap-2">
-                 <Calendar className="w-3.5 h-3.5" /> Date of Birth
-               </label>
+               <label className="text-sm font-medium text-slate-700">Date of Birth</label>
                <input 
                  type="date" 
-                 className="stripe-input" 
+                 className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all"
                  value={dob}
                  onChange={(e) => setDob(e.target.value)}
                  required 
@@ -140,40 +133,49 @@ export default function UserRegisterPage() {
              </div>
           </div>
 
-          <div className="space-y-2">
-             <label className="text-sm font-medium text-stripe-label">Identity Vector (Gender)</label>
-             <select 
-               className="stripe-input appearance-none bg-white"
-               value={gender}
-               onChange={(e) => setGender(e.target.value)}
-               required
-             >
-                <option value="">Select Gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="non-binary">Non-binary</option>
-                <option value="prefer-not-to-say">Prefer not to say</option>
-             </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-stripe-label flex items-center gap-2">
-              <Lock className="w-3.5 h-3.5" /> Password
-            </label>
-            <input 
-              type="password" 
-              placeholder="••••••••" 
-              className="stripe-input" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required 
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+               <label className="text-sm font-medium text-slate-700">Gender</label>
+               <select 
+                 className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all appearance-none"
+                 value={gender}
+                 onChange={(e) => setGender(e.target.value)}
+                 required
+               >
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="non-binary">Non-binary</option>
+                  <option value="prefer-not-to-say">Prefer not to say</option>
+               </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Password</label>
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  placeholder="••••••••" 
+                  className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all pr-10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-4 pt-2 border-t border-stripe-border mt-4">
-             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+          <div className="space-y-4 pt-2 border-t border-slate-100 mt-4">
+             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
                 <div className="space-y-0.5">
-                   <p className="text-sm font-bold text-stripe-navy">Accessibility Support</p>
-                   <p className="text-[11px] text-stripe-slate">Do you have any physical disability?</p>
+                   <p className="text-sm font-bold text-slate-900">Accessibility Support</p>
+                   <p className="text-[11px] text-slate-500">Do you have any physical disability?</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                    <input 
@@ -182,7 +184,7 @@ export default function UserRegisterPage() {
                      checked={hasDisability}
                      onChange={(e) => setHasDisability(e.target.checked)}
                    />
-                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-stripe-purple"></div>
+                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-950"></div>
                 </label>
              </div>
 
@@ -191,11 +193,11 @@ export default function UserRegisterPage() {
                animate={{ height: hasDisability ? 'auto' : 0, opacity: hasDisability ? 1 : 0 }}
                className="overflow-hidden space-y-2"
              >
-                <label className="text-sm font-medium text-stripe-label flex items-center gap-2">
+                <label className="text-sm font-medium text-slate-700">
                    Specific care requirement?
                 </label>
                 <select 
-                  className="stripe-input appearance-none bg-white font-medium"
+                  className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all appearance-none"
                   value={disabilityType}
                   onChange={(e) => setDisabilityType(e.target.value)}
                 >
@@ -209,7 +211,7 @@ export default function UserRegisterPage() {
              </motion.div>
           </div>
 
-          <div className="py-2">
+          <div className="py-2 flex justify-center">
             <Turnstile
               siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
               onSuccess={(token) => setCaptchaToken(token)}
@@ -219,16 +221,16 @@ export default function UserRegisterPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="stripe-btn-primary w-full flex items-center justify-center gap-2 py-3"
+            className="w-full h-10 bg-slate-950 text-white font-medium rounded-md hover:bg-slate-900 transition-colors flex items-center justify-center gap-2"
           >
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign Up"}
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create account"}
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-stripe-border text-center">
-          <p className="text-sm text-stripe-slate">
+        <div className="mt-6 text-center">
+          <p className="text-sm text-slate-500">
             Already have an account?{" "}
-            <Link href="/user/login" className="text-stripe-purple font-medium hover:underline">
+            <Link href="/user/login" className="text-slate-900 font-medium hover:underline">
               Sign in
             </Link>
           </p>
