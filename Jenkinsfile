@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_USER = 'your-dockerhub-username'
+        DOCKER_HUB_USER = 'riteshsingh193'
         BACKEND_IMAGE = "lineo-api"
         FRONTEND_IMAGE = "lineo-fe"
         REGISTRY = "docker.io/${DOCKER_HUB_USER}"
