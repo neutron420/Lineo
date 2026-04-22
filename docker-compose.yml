@@ -38,6 +38,17 @@ services:
     networks:
       - queueless_net
 
+  frontend:
+    build: ./lineo-fe
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    depends_on:
+      - api
+    networks:
+      - queueless_net
+
 volumes:
   redis_data:
 
