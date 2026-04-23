@@ -124,11 +124,11 @@ function CheckoutContent() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12">
         {/* Left Column: Form & Payment Methods (7 Cols) */}
         <div className="lg:col-span-8 space-y-10">
            <div className="space-y-4">
-             <h1 className="text-4xl font-black text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Payment.</h1>
+             <h1 className="text-2xl md:text-4xl font-black text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Payment.</h1>
              <p className="text-[#49607e] font-medium leading-relaxed">
                Select your preferred method and verify details.
              </p>
@@ -222,7 +222,7 @@ function CheckoutContent() {
 
         {/* Right Column: Order Summary (4 Cols) */}
         <div className="lg:col-span-4 space-y-6">
-           <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+           <div className="bg-white p-5 md:p-8 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
               <div className="space-y-6">
                  <div className="flex justify-between items-center bg-[#f8fafc] p-4 rounded-xl border border-slate-100">
                     <div className="flex items-center gap-3">
@@ -285,7 +285,7 @@ function PaymentCard({ name, expiry, icon, onClick, selected }: { name: string, 
     <div 
       onClick={onClick}
       className={cn(
-        "p-6 bg-white border rounded-xl transition-all cursor-pointer flex items-start justify-between relative group",
+        "p-4 md:p-6 bg-white border rounded-xl transition-all cursor-pointer flex items-start justify-between relative group",
         selected ? "border-slate-300 shadow-sm ring-1 ring-slate-100" : "border-slate-200 hover:border-slate-300"
       )}
     >

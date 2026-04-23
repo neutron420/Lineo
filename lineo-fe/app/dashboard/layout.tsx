@@ -14,6 +14,7 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
   HistoryIcon,
   LayoutDashboard,
   LifeBuoy,
@@ -81,10 +82,14 @@ function GlobalHeader() {
   );
 
   return (
-    <header className="h-20 bg-white/80 backdrop-blur-xl sticky top-0 z-30 flex items-center justify-between px-8 ghost-border border-t-0 border-x-0">
-      <div className="flex items-center flex-1 max-w-2xl gap-6">
+    <header className="h-16 md:h-20 bg-white/80 backdrop-blur-xl sticky top-0 z-30 flex items-center justify-between px-4 md:px-8 ghost-border border-t-0 border-x-0">
+      <div className="flex items-center flex-1 max-w-2xl gap-4 md:gap-6">
+        {/* Logo on mobile only */}
+        <div className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center shadow-neobrutal shrink-0" style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)' }}>
+          <span className="text-white font-extrabold text-sm" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>L</span>
+        </div>
         {/* Search Bar */}
-        <div className="relative flex-1 group">
+        <div className="relative flex-1 group hidden sm:block">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#49607e] group-focus-within:text-[#493ee5] transition-colors" />
           <input
             type="text"
@@ -93,10 +98,10 @@ function GlobalHeader() {
           />
         </div>
         
-        {/* Location Badge */}
+        {/* Location Badge - compact on mobile */}
         <div 
           onClick={refreshLocation}
-          className="flex items-center gap-2.5 px-4 py-2.5 bg-[#493ee5]/5 rounded-xl cursor-pointer hover:bg-[#493ee5]/10 transition-all group shrink-0"
+          className="hidden sm:flex items-center gap-2.5 px-4 py-2.5 bg-[#493ee5]/5 rounded-xl cursor-pointer hover:bg-[#493ee5]/10 transition-all group shrink-0"
         >
            <div className="relative">
               <MapIcon className="w-4 h-4 text-[#493ee5]" />
@@ -109,12 +114,20 @@ function GlobalHeader() {
         </div>
       </div>
 
-      <div className="flex items-center gap-5">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 md:gap-5">
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* Mobile search button */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="p-2.5 bg-[#f1f4f7] text-[#49607e] rounded-xl hover:bg-[#493ee5]/5 hover:text-[#493ee5] transition-all group"
+            className="sm:hidden p-2.5 bg-[#f1f4f7] text-[#49607e] rounded-xl hover:bg-[#493ee5]/5 hover:text-[#493ee5] transition-all"
+          >
+            <Search className="w-4 h-4" />
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="hidden sm:flex p-2.5 bg-[#f1f4f7] text-[#49607e] rounded-xl hover:bg-[#493ee5]/5 hover:text-[#493ee5] transition-all group"
           >
             <Share2 className="w-4 h-4" />
           </motion.button>
@@ -123,34 +136,8 @@ function GlobalHeader() {
           
           <NotificationCenter />
         </div>
-        <div className="h-6 w-px bg-[#e5e8eb]" />
-        
-        {/* Logout Button */}
-        <motion.button
-          onClick={handleLogout}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all text-xs font-bold border border-red-100/50"
-          style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Sign Out</span>
-        </motion.button>
-
-        <div className="flex items-center gap-4">
-          <div className="text-right hidden xl:block">
-            <p className="text-sm font-bold text-[#181c1e] leading-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{user?.username || "Authenticated User"}</p>
-            <p className="text-[10px] text-[#493ee5] uppercase tracking-[0.12em] font-extrabold mt-0.5" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Verified Account</p>
-          </div>
-          <motion.div 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="w-11 h-11 rounded-xl flex items-center justify-center text-white cursor-pointer shadow-neobrutal"
-            style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)' }}
-          >
-            <User className="w-5 h-5" />
-          </motion.div>
-        </div>
+        {/* Profile Dropdown */}
+        <ProfileDropdown user={user} onLogout={handleLogout} />
       </div>
     </header>
   );
@@ -278,6 +265,138 @@ function LiveQueuePopover() {
                     <span className="text-[10px] font-bold text-[#49607e] uppercase tracking-tight">Wait: {activeToken.estimated_wait_mins}m</span>
                  </div>
                  <Link href="/dashboard" onClick={() => setIsOpen(false)} className="text-[10px] font-black text-[#493ee5] uppercase hover:underline">Full Dashboard</Link>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────
+// Profile Dropdown Component  
+// ─────────────────────────────────────────────────────
+function ProfileDropdown({ user, onLogout }: { user: UserData | null, onLogout: () => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const tierLimits: Record<string, { joins: number, appts: number, label: string }> = {
+    basic: { joins: 3, appts: 2, label: "Basic" },
+    starter: { joins: 3, appts: 2, label: "Basic" },
+    plus: { joins: 15, appts: 10, label: "Plus" },
+    unlimited: { joins: 999, appts: 999, label: "Unlimited" },
+  };
+  
+  const tier = tierLimits[user?.subscription_tier || "basic"] || tierLimits.basic;
+  const usedJoins = user?.daily_joins || 0;
+  const usedAppts = user?.daily_appts || 0;
+  const joinsPercent = tier.joins === 999 ? 5 : Math.min((usedJoins / tier.joins) * 100, 100);
+  const apptsPercent = tier.appts === 999 ? 5 : Math.min((usedAppts / tier.appts) * 100, 100);
+
+  return (
+    <div className="relative">
+      <motion.button
+        onClick={() => setIsOpen(!isOpen)}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        className={cn(
+          "w-9 h-9 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-white cursor-pointer transition-shadow",
+          isOpen ? "shadow-lg ring-2 ring-[#493ee5]/30" : "shadow-neobrutal"
+        )}
+        style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)' }}
+      >
+        <User className="w-4 h-4 md:w-5 md:h-5" />
+      </motion.button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.96 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="absolute right-0 mt-2.5 w-[280px] md:w-[300px] bg-white rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.12)] border border-[#e5e8eb]/80 z-50 overflow-hidden"
+            >
+              {/* ── Profile Header ── */}
+              <div className="p-4 border-b border-[#e5e8eb]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-extrabold shrink-0" style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)', fontFamily: 'var(--font-manrope), sans-serif' }}>
+                    {user?.username?.charAt(0).toUpperCase() || "U"}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-[13px] text-[#181c1e] truncate" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{user?.username || "User"}</p>
+                    <p className="text-[11px] text-[#49607e] truncate">{user?.email || "user@lineo.ai"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Subscription & Limits ── */}
+              <div className="p-3.5 bg-[#f8fafc] border-b border-[#e5e8eb]">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-extrabold text-[#49607e] uppercase tracking-[0.12em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Plan & Limits</span>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#493ee5]/10 text-[#493ee5] border border-[#493ee5]/10" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{tier.label}</span>
+                </div>
+                
+                {/* Quota Bars */}
+                <div className="space-y-2.5">
+                  <div>
+                    <div className="flex justify-between text-[10px] font-semibold text-[#49607e] mb-1">
+                      <span>Joins</span>
+                      <span className={cn("font-bold", joinsPercent >= 100 ? "text-amber-600" : "text-[#181c1e]")}>{usedJoins}/{tier.joins === 999 ? "∞" : tier.joins}</span>
+                    </div>
+                    <div className="w-full bg-[#e5e8eb] rounded-full h-1.5 overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${joinsPercent}%` }}
+                        transition={{ duration: 0.6, ease: "easeOut" }}
+                        className={cn("h-full rounded-full", joinsPercent >= 100 ? "bg-amber-500" : "bg-[#493ee5]")} 
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[10px] font-semibold text-[#49607e] mb-1">
+                      <span>Appointments</span>
+                      <span className={cn("font-bold", apptsPercent >= 100 ? "text-amber-600" : "text-[#181c1e]")}>{usedAppts}/{tier.appts === 999 ? "∞" : tier.appts}</span>
+                    </div>
+                    <div className="w-full bg-[#e5e8eb] rounded-full h-1.5 overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${apptsPercent}%` }}
+                        transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
+                        className={cn("h-full rounded-full", apptsPercent >= 100 ? "bg-amber-500" : "bg-[#635bff]")} 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Link 
+                  href="/dashboard/settings/billing"
+                  onClick={() => setIsOpen(false)}
+                  className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 bg-[#493ee5] text-white rounded-lg text-[11px] font-bold hover:bg-[#3d33c4] transition-all"
+                  style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+                >
+                  <Zap className="w-3 h-3" />
+                  {tier.label === "Unlimited" ? "Manage Subscription" : "Upgrade Plan"}
+                </Link>
+              </div>
+
+              {/* ── Menu Items ── */}
+              <div className="p-1.5">
+                <Link href="/dashboard/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-[#f1f4f7] transition-colors text-[13px] font-medium text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                  <Settings className="w-4 h-4 text-[#49607e]" /> Settings
+                </Link>
+                <Link href="/dashboard/analytics" onClick={() => setIsOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-[#f1f4f7] transition-colors text-[13px] font-medium text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                  <BarChart3 className="w-4 h-4 text-[#49607e]" /> Analytics
+                </Link>
+                <Link href="/dashboard/settings/billing" onClick={() => setIsOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-[#f1f4f7] transition-colors text-[13px] font-medium text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                  <CreditCard className="w-4 h-4 text-[#49607e]" /> Billing
+                </Link>
+                <div className="h-px bg-[#e5e8eb] mx-2 my-1" />
+                <button onClick={() => { setIsOpen(false); onLogout(); }} className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors text-[13px] font-medium text-red-500 w-full text-left" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                  <LogOut className="w-4 h-4" /> Sign Out
+                </button>
               </div>
             </motion.div>
           </>
@@ -483,12 +602,69 @@ export default function DashboardLayout({
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             <GlobalHeader />
 
-            <main className="flex-1 p-6 lg:p-10 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 overflow-y-auto">
+            <main className="flex-1 p-4 md:p-6 lg:p-10 pb-24 md:pb-6 lg:pb-10 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 overflow-y-auto">
               {children}
             </main>
           </div>
+
+          {/* ━━━ Mobile Bottom Tab Bar ━━━ */}
+          <MobileTabBar pathname={pathname} />
         </div>
       </SocketProvider>
     </LocationProvider>
+  );
+}
+
+// ─────────────────────────────────────────────────────
+// Mobile Bottom Tab Bar Component
+// ─────────────────────────────────────────────────────
+function MobileTabBar({ pathname }: { pathname: string }) {
+  const tabs = [
+    { name: "Home", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Discover", href: "/dashboard/discovery", icon: MapIcon },
+    { name: "Bookings", href: "/dashboard/appointments", icon: Calendar },
+    { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+    { name: "History", href: "/dashboard/history", icon: HistoryIcon },
+  ];
+
+  return (
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-[#e5e8eb] safe-area-bottom">
+      <div className="flex items-center justify-around h-16 px-2">
+        {tabs.map((tab) => {
+          const isActive = pathname === tab.href || (tab.href !== "/dashboard" && pathname.startsWith(tab.href));
+          const Icon = tab.icon;
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 flex-1 py-1 rounded-xl transition-all relative",
+                isActive 
+                  ? "text-[#493ee5]" 
+                  : "text-[#49607e]/60 active:text-[#493ee5]"
+              )}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="tab-indicator"
+                  className="absolute -top-px left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-[#493ee5]"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
+              <Icon className={cn(
+                "w-5 h-5 transition-transform",
+                isActive && "scale-110"
+              )} />
+              <span className={cn(
+                "text-[9px] font-bold tracking-wide",
+                isActive ? "font-extrabold" : "font-medium"
+              )} style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                {tab.name}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }

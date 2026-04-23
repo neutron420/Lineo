@@ -122,8 +122,8 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-stripe-border/10 flex flex-col items-center justify-center p-6 selection:bg-stripe-purple/20 selection:text-stripe-purple">
-      <Link href="/login" className="mb-10 text-stripe-slate hover:text-stripe-navy transition-colors flex items-center gap-2 group">
+    <div className="min-h-screen bg-stripe-border/10 flex flex-col items-center justify-center p-4 md:p-6 selection:bg-stripe-purple/20 selection:text-stripe-purple">
+      <Link href="/login" className="mb-8 md:mb-10 text-stripe-slate hover:text-stripe-navy transition-colors flex items-center gap-2 group text-sm font-medium">
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Login
       </Link>
 
@@ -131,13 +131,13 @@ export default function ForgotPasswordPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-[440px] p-8 bg-white rounded-xl border border-slate-200 shadow-sm"
+        className="stripe-card w-full max-w-[440px] p-6 md:p-8 bg-white"
       >
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">
+          <h1 className="text-[26px] tracking-stripe-tight mb-2 text-stripe-navy font-semibold">
             {step === "email" ? "Forgot Password" : step === "method-select" ? "Verify Identity" : step === "otp" ? "Verify OTP" : "New Password"}
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-[15px] text-stripe-slate">
             {step === "email" 
               ? "Enter your email to receive a secure verification code." 
               : step === "method-select"
@@ -179,11 +179,11 @@ export default function ForgotPasswordPage() {
               className="space-y-6"
             >
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Registered Email</label>
+                <label className="text-sm font-medium text-stripe-label">Registered Email</label>
                 <input
                   type="email"
                   placeholder="m@example.com"
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all"
+                  className="stripe-input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -192,7 +192,7 @@ export default function ForgotPasswordPage() {
 
               <button
                 type="submit"
-                className="w-full h-10 bg-slate-950 text-white font-medium rounded-md hover:bg-slate-900 transition-colors flex items-center justify-center gap-2"
+                className="stripe-btn-primary w-full py-3 flex items-center justify-center gap-2"
               >
                 Continue
               </button>
@@ -210,28 +210,28 @@ export default function ForgotPasswordPage() {
               <button
                 onClick={() => handleSendOTP(undefined, "email")}
                 disabled={isLoading}
-                className="w-full p-4 border border-slate-200 rounded-xl hover:border-slate-950 hover:bg-slate-50 transition-all text-left flex items-center gap-4 group"
+                className="w-full p-4 border border-stripe-border rounded-stripe hover:border-stripe-purple hover:bg-stripe-purple/5 transition-all text-left flex items-center gap-4 group"
               >
-                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white transition-colors">
+                <div className="w-10 h-10 rounded-full bg-stripe-border/30 flex items-center justify-center group-hover:bg-stripe-purple group-hover:text-white transition-colors text-stripe-purple">
                   <Mail className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900">Email Verification</p>
-                  <p className="text-xs text-slate-500">Send code to {email}</p>
+                  <p className="font-bold text-stripe-navy">Email Verification</p>
+                  <p className="text-xs text-stripe-slate">Send code to {email}</p>
                 </div>
               </button>
 
               <button
                 onClick={() => handleSendOTP(undefined, "sms")}
                 disabled={isLoading}
-                className="w-full p-4 border border-slate-200 rounded-xl hover:border-slate-950 hover:bg-slate-50 transition-all text-left flex items-center gap-4 group"
+                className="w-full p-4 border border-stripe-border rounded-stripe hover:border-stripe-purple hover:bg-stripe-purple/5 transition-all text-left flex items-center gap-4 group"
               >
-                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white transition-colors">
+                <div className="w-10 h-10 rounded-full bg-stripe-border/30 flex items-center justify-center group-hover:bg-stripe-purple group-hover:text-white transition-colors text-stripe-purple">
                   <Smartphone className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900">SMS Verification</p>
-                  <p className="text-xs text-slate-500">Send code to your phone number</p>
+                  <p className="font-bold text-stripe-navy">SMS Verification</p>
+                  <p className="text-xs text-stripe-slate">Send code to your phone number</p>
                 </div>
               </button>
 
@@ -255,16 +255,16 @@ export default function ForgotPasswordPage() {
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-slate-700">6-Digit Code</label>
+                  <label className="text-sm font-medium text-stripe-label">6-Digit Code</label>
                   {timeLeft > 0 ? (
-                    <span className="text-[12px] font-medium text-slate-900 flex items-center gap-1">
+                    <span className="text-[12px] font-medium text-stripe-navy flex items-center gap-1">
                       <Timer className="w-3 h-3" /> Resend in {timeLeft}s
                     </span>
                   ) : (
                     <button 
                       type="button" 
                       onClick={() => handleSendOTP()}
-                      className="text-[12px] font-medium text-slate-900 hover:underline"
+                      className="text-[12px] font-medium text-stripe-purple hover:underline"
                     >
                       Resend Code
                     </button>
@@ -278,7 +278,7 @@ export default function ForgotPasswordPage() {
                        maxLength={1}
                        autoComplete="one-time-code"
                        disabled={isValidating}
-                       className="w-full h-12 bg-white border border-slate-200 rounded-md text-center text-lg font-bold focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all disabled:opacity-50"
+                       className="stripe-input !h-12 !p-0 text-center text-lg font-bold disabled:opacity-50"
                        value={otp[i] || ""}
                        onChange={(e) => {
                          const val = e.target.value.replace(/\D/g, "");
@@ -302,7 +302,7 @@ export default function ForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={isValidating}
-                className="w-full h-10 bg-slate-950 text-white font-medium rounded-md hover:bg-slate-900 transition-colors flex items-center justify-center gap-2"
+                className="stripe-btn-primary w-full py-3 flex items-center justify-center gap-2"
               >
                 {isValidating ? (
                   <>
@@ -333,12 +333,12 @@ export default function ForgotPasswordPage() {
               className="space-y-6"
             >
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">New Password</label>
+                <label className="text-sm font-medium text-stripe-label">New Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
-                    className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all pr-10"
+                    className="stripe-input pr-10"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
@@ -346,7 +346,7 @@ export default function ForgotPasswordPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stripe-slate hover:text-stripe-navy transition-colors"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -354,12 +354,12 @@ export default function ForgotPasswordPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Confirm Password</label>
+                <label className="text-sm font-medium text-stripe-label">Confirm Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
-                    className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all pr-10"
+                    className="stripe-input"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
@@ -370,7 +370,7 @@ export default function ForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-10 bg-slate-950 text-white font-medium rounded-md hover:bg-slate-900 transition-colors flex items-center justify-center gap-2"
+                className="stripe-btn-primary w-full py-3 flex items-center justify-center gap-2"
               >
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Update Password"}
               </button>

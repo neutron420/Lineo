@@ -40,7 +40,7 @@ interface Organization {
 
 export default function DiscoveryPage() {
   const router = useRouter();
-  const { coords } = useLocation();
+  const { coords, refreshLocation, isLoading: locationLoading } = useLocation();
   const [activeCategory, setActiveCategory] = useState('all');
   const [nearbyOrgs, setNearbyOrgs] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -121,69 +121,75 @@ export default function DiscoveryPage() {
     org.address?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+
   return (
-    <div className="flex h-[calc(100vh-96px)] overflow-hidden rounded-2xl">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-96px)] overflow-hidden rounded-2xl">
       {/* Sidebar Discovery List */}
-      <div className="w-[420px] flex-shrink-0 bg-white flex flex-col z-20 ghost-border rounded-l-2xl">
-        <div className="p-6 space-y-6 border-b border-[#e5e8eb]">
+      <div className="w-full md:w-[420px] flex-shrink-0 bg-white flex flex-col z-20 ghost-border rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none max-h-[55vh] md:max-h-none">
+        <div className="p-2 md:p-6 space-y-1.5 md:space-y-6 border-b border-[#e5e8eb]">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Discover</h1>
+            <h1 className="text-lg md:text-xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Discover</h1>
             <div className="flex items-center gap-2">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="p-2 bg-[#f1f4f7] text-[#49607e] rounded-lg hover:bg-[#493ee5]/5 hover:text-[#493ee5] transition-all"
+                className="p-1.5 md:p-2 bg-[#f1f4f7] text-[#49607e] rounded-lg hover:bg-[#493ee5]/5 hover:text-[#493ee5] transition-all"
               >
                 <Share2 className="w-3.5 h-3.5" />
               </motion.button>
-              <span className="bg-[#493ee5]/10 text-[#493ee5] px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+              <span className="bg-[#493ee5]/10 text-[#493ee5] px-2 py-0.5 md:px-2.5 md:py-1 rounded-full text-[9px] font-bold uppercase tracking-widest" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                 Live
               </span>
             </div>
           </div>
 
-          {/* View Switcher Tabs */}
-          <div className="flex p-1 bg-[#f1f4f7] rounded-xl">
-             <button className="flex-1 py-2 px-3 bg-white text-[#493ee5] shadow-sm rounded-lg text-xs font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
-               Nearby
-             </button>
-             <button className="flex-1 py-2 px-3 text-[#49607e] hover:text-[#181c1e] text-xs font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
-               History
-             </button>
-          </div>
-
+          {/* Search Bar */}
           <div className="relative group">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#49607e] group-focus-within:text-[#493ee5] transition-colors" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-[#49607e] group-focus-within:text-[#493ee5] transition-colors" />
             <input
               type="text"
               placeholder="Search institutions..."
-              className="w-full pl-10 pr-4 py-2.5 bg-[#f1f4f7] border border-transparent focus:bg-white focus:border-[#493ee5]/15 focus:ring-4 focus:ring-[#493ee5]/5 rounded-xl outline-none transition-all text-sm font-medium placeholder:text-[#49607e]/50"
+              className="w-full pl-9 md:pl-10 pr-4 py-2 md:py-2.5 bg-[#f1f4f7] border border-transparent focus:bg-white focus:border-[#493ee5]/15 focus:ring-4 focus:ring-[#493ee5]/5 rounded-xl outline-none transition-all text-xs md:text-sm font-medium placeholder:text-[#49607e]/50"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <div className="flex gap-2 items-center overflow-x-auto pb-1 scrollbar-none">
+          {/* Combined Tabs + Category Filter Row */}
+          <div className="flex items-center gap-1.5 md:gap-2 overflow-x-auto pb-0.5 no-scrollbar">
+            {/* View Switcher */}
+            <div className="flex p-0.5 bg-[#f1f4f7] rounded-lg shrink-0">
+               <button className="py-1 px-2.5 md:py-1.5 md:px-3 bg-white text-[#493ee5] shadow-sm rounded-md text-[10px] md:text-[11px] font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                 Nearby
+               </button>
+               <button className="py-1 px-2.5 md:py-1.5 md:px-3 text-[#49607e] hover:text-[#181c1e] text-[10px] md:text-[11px] font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                 History
+               </button>
+            </div>
+
+            <div className="w-px h-4 bg-[#e5e8eb] shrink-0" />
+
+            {/* Category Filters */}
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
                 className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap border",
+                  "flex items-center gap-1 px-2.5 py-1 md:px-3 md:py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold transition-all whitespace-nowrap border shrink-0",
                   activeCategory === cat.id 
                     ? 'bg-white border-[#e5e8eb] text-[#493ee5] shadow-[0_2px_8px_rgba(0,0,0,0.04)]' 
                     : 'bg-transparent border-transparent text-[#49607e] hover:text-[#181c1e]'
                 )}
                 style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
               >
-                {activeCategory === cat.id && <span className="w-1.5 h-1.5 rounded-full bg-[#493ee5]" />}
+                {activeCategory === cat.id && <span className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-[#493ee5]" />}
                 {cat.name}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+        <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-2">
           {isLoading ? (
             Array(5).fill(0).map((_, i) => (
               <div key={i} className="h-24 bg-[#f1f4f7] rounded-xl animate-pulse" />
@@ -238,7 +244,7 @@ export default function DiscoveryPage() {
       </div>
 
       {/* Main Map View */}
-      <div className="flex-1 relative bg-[#e5e8eb] rounded-r-2xl overflow-hidden">
+      <div className="flex-1 relative bg-[#e5e8eb] rounded-b-2xl md:rounded-r-2xl md:rounded-bl-none overflow-hidden min-h-[250px]">
         <iframe
           width="100%"
           height="100%"
@@ -252,15 +258,47 @@ export default function DiscoveryPage() {
           }
         />
 
-        {/* Map Controls */}
-        <div className="absolute top-6 right-6 space-y-2">
-           <button className="w-10 h-10 bg-white rounded-xl shadow-ambient flex items-center justify-center text-[#181c1e] hover:text-[#493ee5] transition-all ghost-border">
-              <Navigation className="w-4 h-4" />
-           </button>
+        {/* Map Controls — Desktop */}
+        <div className="absolute top-4 md:top-6 right-4 md:right-6 space-y-2">
+           <motion.button 
+             whileTap={{ scale: 0.9 }}
+             onClick={async () => {
+               await refreshLocation();
+               setSelectedInstitution(null);
+             }}
+             className={cn(
+               "w-10 h-10 bg-white rounded-xl shadow-ambient flex items-center justify-center transition-all ghost-border",
+               locationLoading ? "text-[#493ee5] animate-pulse" : "text-[#181c1e] hover:text-[#493ee5]"
+             )}
+           >
+             {locationLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
+           </motion.button>
            <button className="w-10 h-10 bg-white rounded-xl shadow-ambient flex items-center justify-center text-[#181c1e] hover:text-[#493ee5] transition-all ghost-border">
               <Filter className="w-4 h-4" />
            </button>
         </div>
+
+        {/* Floating "My Location" — Mobile Only */}
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.1 }}
+          onClick={async () => {
+            await refreshLocation();
+            setSelectedInstitution(null);
+          }}
+          className={cn(
+            "md:hidden absolute bottom-6 right-6 z-30 flex items-center justify-center w-12 h-12 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border transition-all",
+            locationLoading 
+              ? "bg-[#493ee5] text-white border-[#493ee5] animate-pulse" 
+              : "bg-white text-[#493ee5] border-[#e5e8eb] active:bg-[#493ee5] active:text-white"
+          )}
+        >
+          {locationLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Navigation className="w-5 h-5 fill-current" />
+          )}
+        </motion.button>
 
         {/* Selected Institution Overlay */}
         <AnimatePresence>
@@ -271,8 +309,8 @@ export default function DiscoveryPage() {
               exit={{ opacity: 0, y: 80 }}
               className="absolute bottom-6 left-6 right-6 flex justify-center"
             >
-              <div className="glass-panel p-6 rounded-2xl shadow-ambient max-w-xl w-full flex items-center justify-between gap-6">
-                 <div className="flex-1 space-y-3">
+              <div className="glass-panel p-4 md:p-6 rounded-2xl shadow-ambient max-w-xl w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 md:gap-6">
+                 <div className="flex-1 space-y-2 md:space-y-3">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[#493ee5]/10 text-[#493ee5] rounded-full text-[10px] font-bold uppercase tracking-widest" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                        Highly Rated
                     </span>
@@ -292,7 +330,7 @@ export default function DiscoveryPage() {
                     </div>
                  </div>
                  
-                 <div className="flex flex-col gap-2 min-w-[150px]">
+                 <div className="flex flex-row sm:flex-col gap-2 w-full sm:w-auto sm:min-w-[150px]">
                     {selectedInstitution.key && (
                       <Button onClick={() => handleJoinQueue(selectedInstitution.key!)} className="kinetic-btn-primary h-11 text-sm gap-2">
                          <Zap className="w-4 h-4" /> Secure Spot

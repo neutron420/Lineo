@@ -309,7 +309,7 @@ export default function OrgDashboard() {
                </span>
                <span className="text-[#49607e] text-xs font-bold uppercase tracking-widest opacity-60">{org.name}</span>
             </div>
-            <h1 className="text-5xl font-black text-[#181c1e] tracking-tight mb-4" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+            <h1 className="text-3xl md:text-5xl font-black text-[#181c1e] tracking-tight mb-4" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
               Operations Feed
             </h1>
             <div className="flex items-center gap-4">
@@ -321,7 +321,7 @@ export default function OrgDashboard() {
                         setActiveQueue(e.target.value);
                         fetchQueueState(e.target.value);
                     }}
-                    className="bg-white border border-[#e5e8eb] text-sm font-bold text-[#181c1e] pl-9 pr-10 py-3 rounded-2xl outline-none focus:ring-4 focus:ring-[#493ee5]/5 transition-all cursor-pointer shadow-sm hover:border-[#493ee5]/30 appearance-none min-w-[240px]"
+                    className="bg-white border border-[#e5e8eb] text-sm font-bold text-[#181c1e] pl-9 pr-10 py-3 rounded-2xl outline-none focus:ring-4 focus:ring-[#493ee5]/5 transition-all cursor-pointer shadow-sm hover:border-[#493ee5]/30 appearance-none w-full sm:min-w-[240px]"
                   >
                     {org?.queues?.map(q => (
                       <option key={q.queue_key} value={q.queue_key}>{q.name}</option>
@@ -336,32 +336,32 @@ export default function OrgDashboard() {
             </div>
          </motion.div>
 
-         <motion.div 
-           initial={{ opacity: 0, x: 20 }}
-           animate={{ opacity: 1, x: 0 }}
-           className="flex items-center gap-3"
-         >
-            <button 
-              onClick={() => setShowCreateModal(true)}
-              className="px-6 py-4 bg-white text-[#493ee5] border border-[#493ee5]/10 rounded-[20px] font-black text-sm hover:bg-[#493ee5]/5 transition-all shadow-sm flex items-center gap-3 group"
-            >
-              <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-              Launch New Unit
-            </button>
-            <button 
-              onClick={togglePause}
-              disabled={isActionLoading || !activeQueue}
-              className={cn(
-                "px-6 py-4 rounded-[20px] font-black flex items-center gap-3 text-sm transition-all border shadow-sm disabled:opacity-30 disabled:grayscale",
-                queueState?.is_paused 
-                  ? "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100" 
-                  : "bg-[#181c1e] text-white border-transparent hover:opacity-90"
-              )}
-            >
-              {queueState?.is_paused ? <Play className="w-4 h-4 fill-current" /> : <Pause className="w-4 h-4 fill-current" />}
-              {queueState?.is_paused ? "Resume Operations" : "Suspend Unit"}
-            </button>
-         </motion.div>
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
+          >
+             <button 
+               onClick={() => setShowCreateModal(true)}
+               className="px-6 py-4 bg-white text-[#493ee5] border border-[#493ee5]/10 rounded-[20px] font-black text-sm hover:bg-[#493ee5]/5 transition-all shadow-sm flex items-center justify-center gap-3 group"
+             >
+               <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+               Launch Unit
+             </button>
+             <button 
+               onClick={togglePause}
+               disabled={isActionLoading || !activeQueue}
+               className={cn(
+                 "px-6 py-4 rounded-[20px] font-black flex items-center justify-center gap-3 text-sm transition-all border shadow-sm disabled:opacity-30 disabled:grayscale",
+                 queueState?.is_paused 
+                   ? "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100" 
+                   : "bg-[#181c1e] text-white border-transparent hover:opacity-90"
+               )}
+             >
+               {queueState?.is_paused ? <Play className="w-4 h-4 fill-current" /> : <Pause className="w-4 h-4 fill-current" />}
+               {queueState?.is_paused ? "Resume" : "Suspend"}
+             </button>
+          </motion.div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -369,7 +369,7 @@ export default function OrgDashboard() {
         <div className="lg:col-span-8 space-y-8">
             <motion.div 
               layout
-              className="bg-white border border-[#e5e8eb] rounded-[40px] p-12 relative overflow-hidden flex flex-col items-center justify-center min-h-[500px] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.03)]"
+              className="bg-white border border-[#e5e8eb] rounded-[32px] md:rounded-[40px] p-6 md:p-12 relative overflow-hidden flex flex-col items-center justify-center min-h-[400px] md:min-h-[500px] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.03)]"
             >
               <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#493ee5] opacity-[0.02] rounded-full blur-[120px] pointer-events-none" />
               <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-emerald-500 opacity-[0.02] rounded-full blur-[100px] pointer-events-none" />
@@ -389,16 +389,16 @@ export default function OrgDashboard() {
                        </span>
                     </div>
 
-                    <div className="text-[160px] font-black text-[#181c1e] tracking-tighter leading-none mb-6 select-none" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                    <div className="text-[80px] sm:text-[120px] md:text-[160px] font-black text-[#181c1e] tracking-tighter leading-none mb-6 select-none" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                       {queueState.currently_serving.token_number}
                     </div>
 
-                    <div className="flex items-center gap-8 mb-12">
-                       <div className="flex items-center gap-3 text-[#49607e] font-bold text-lg bg-slate-50 px-5 py-2 rounded-2xl border border-slate-100">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 md:gap-8 mb-10 md:mb-12">
+                       <div className="flex items-center gap-3 text-[#49607e] font-bold text-base md:text-lg bg-slate-50 px-5 py-2 rounded-2xl border border-slate-100">
                           <UserIcon className="w-5 h-5 text-[#493ee5]" />
                           {queueState.currently_serving.username}
                        </div>
-                       <div className="flex items-center gap-3 text-[#49607e] font-bold text-lg bg-slate-50 px-5 py-2 rounded-2xl border border-slate-100">
+                       <div className="flex items-center gap-3 text-[#49607e] font-bold text-base md:text-lg bg-slate-50 px-5 py-2 rounded-2xl border border-slate-100">
                           <Clock className="w-5 h-5 text-[#493ee5]" />
                           T+{Math.floor((Date.now() - new Date(queueState.currently_serving.joined_at).getTime()) / 60000)}m
                        </div>
@@ -445,26 +445,26 @@ export default function OrgDashboard() {
             </motion.div>
 
            {/* Metrics Grid */}
-           <div className="grid grid-cols-2 gap-8">
-              <div className="bg-white border border-[#e5e8eb] rounded-[32px] p-10 hover:shadow-2xl transition-all duration-500 group cursor-default">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+              <div className="bg-white border border-[#e5e8eb] rounded-[32px] p-6 md:p-10 hover:shadow-2xl transition-all duration-500 group cursor-default">
                  <div className="flex items-center justify-between mb-6">
                     <div className="p-4 bg-[#493ee5]/5 rounded-2xl text-[#493ee5] group-hover:bg-[#493ee5] group-hover:text-white transition-all duration-500"><Users className="w-8 h-8" /></div>
                     <ArrowRight className="w-6 h-6 text-slate-200 group-hover:text-[#493ee5] transition-colors translate-x-0 group-hover:translate-x-2 transition-transform" />
                  </div>
                  <div className="text-sm font-black uppercase tracking-[0.2em] text-[#49607e] mb-2">Primary Buffer</div>
-                 <div className="text-6xl font-black text-[#181c1e] tracking-tighter" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                 <div className="text-5xl md:text-6xl font-black text-[#181c1e] tracking-tighter" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                    {queueState?.waiting_list?.length || 0}
                  </div>
                  <p className="text-sm text-[#49607e] font-bold mt-4 opacity-60 uppercase tracking-widest">Entities in Pipeline</p>
               </div>
-              <div className="bg-white border border-[#e5e8eb] rounded-[32px] p-10 hover:shadow-2xl transition-all duration-500 group cursor-default">
+              <div className="bg-white border border-[#e5e8eb] rounded-[32px] p-6 md:p-10 hover:shadow-2xl transition-all duration-500 group cursor-default">
                  <div className="flex items-center justify-between mb-6">
                     <div className="p-4 bg-amber-50 rounded-2xl text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-all duration-500"><Zap className="w-8 h-8" /></div>
                     <ArrowRight className="w-6 h-6 text-slate-200 group-hover:text-amber-500 transition-colors translate-x-0 group-hover:translate-x-2 transition-transform" />
                  </div>
                  <div className="text-sm font-black uppercase tracking-[0.2em] text-[#49607e] mb-2">Total Latency</div>
-                 <div className="text-6xl font-black text-[#181c1e] tracking-tighter" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
-                   {queueState?.est_service_time || 0}<span className="text-2xl ml-2 font-black text-slate-300">MS</span>
+                 <div className="text-5xl md:text-6xl font-black text-[#181c1e] tracking-tighter" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                   {queueState?.est_service_time || 0}<span className="text-xl md:text-2xl ml-2 font-black text-slate-300">MS</span>
                  </div>
                  <p className="text-sm text-[#49607e] font-bold mt-4 opacity-60 uppercase tracking-widest">Sync Interval</p>
               </div>

@@ -80,6 +80,32 @@
     0% { top: 0; }
     100% { top: 100%; }
   }
+
+  /* === Safe Area (iPhone notch / home bar) === */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* === Hide Scrollbar Utility === */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* === Custom Thin Scrollbar === */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(73, 62, 229, 0.15);
+    border-radius: 4px;
+  }
 }
 
 @layer components {
@@ -119,5 +145,45 @@
   .stat-card:hover {
     box-shadow: 0 20px 40px rgba(24, 28, 30, 0.06);
     transform: translateY(-2px);
+  }
+
+  /* === Stripe Design System === */
+  .stripe-card {
+    background: #ffffff;
+    border: 1px solid #e5edf5;
+    border-radius: 4px;
+    box-shadow: rgba(50, 50, 93, 0.25) 0px 30px 45px -30px, rgba(0, 0, 0, 0.1) 0px 18px 36px -18px;
+    transition: all 0.3s ease;
+  }
+
+  .stripe-input {
+    width: 100%;
+    height: 40px;
+    padding: 8px 12px;
+    background: #ffffff;
+    border: 1px solid #e5edf5;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #061b31;
+    transition: all 0.2s ease;
+    @apply focus:outline-none focus:border-stripe-purple focus:ring-4 focus:ring-stripe-purple/5;
+  }
+
+  .stripe-btn-primary {
+    @apply bg-stripe-purple text-white px-4 py-2 rounded-stripe font-medium transition-all duration-200;
+  }
+  .stripe-btn-primary:hover {
+    @apply bg-stripe-purpleHover -translate-y-0.5;
+    box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+  }
+  .stripe-btn-primary:active {
+    @apply translate-y-0.5;
+  }
+
+  .stripe-btn-ghost {
+    @apply bg-transparent text-stripe-purple px-4 py-2 rounded-stripe font-medium border border-stripe-purple/20 transition-all duration-200;
+  }
+  .stripe-btn-ghost:hover {
+    @apply bg-stripe-purple/5 border-stripe-purple/30;
   }
 }

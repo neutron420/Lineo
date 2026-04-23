@@ -110,11 +110,12 @@ interface SocketQueueData {
   };
 }
 
+
 // ─────────────────────────────────────────────────────
 // Main Dashboard Component
 // ─────────────────────────────────────────────────────
 export default function UserDashboard() {
-  const { coords, address: locationName } = useLocation();
+  const { coords, address: locationName, refreshLocation, isLoading: locationLoading } = useLocation();
   const { isConnected, subscribe, unsubscribe } = useSocket();
   const [activeToken, setActiveToken] = useState<TokenData | null>(null);
   const [nearbyOrgs, setNearbyOrgs] = useState<Organization[]>([]);
@@ -386,6 +387,7 @@ export default function UserDashboard() {
     );
   }
 
+
   // ─────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────
@@ -407,7 +409,7 @@ export default function UserDashboard() {
                 exit={{ opacity: 0, y: 20 }}
                 key="success-screen"
               >
-                 <div className="bg-white border-2 border-emerald-500/10 rounded-3xl p-12 relative overflow-hidden flex flex-col items-center text-center shadow-[0_32px_64px_-16px_rgba(16,185,129,0.1)]">
+                 <div className="bg-white border-2 border-emerald-500/10 rounded-3xl p-8 md:p-12 relative overflow-hidden flex flex-col items-center text-center shadow-[0_32px_64px_-16px_rgba(16,185,129,0.1)]">
                     <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500" />
                     <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-8 relative group">
                        <CheckCircle2 className="w-12 h-12 text-emerald-600 relative z-10" />
@@ -417,8 +419,8 @@ export default function UserDashboard() {
                          className="absolute inset-0 bg-emerald-200 rounded-full"
                        />
                     </div>
-                    <h2 className="text-3xl font-black text-[#181c1e] mb-4" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Vector Synchronization Complete</h2>
-                    <p className="text-[#49607e] text-base max-w-md font-medium leading-relaxed mb-8">
+                    <h2 className="text-2xl md:text-3xl font-black text-[#181c1e] mb-4" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Vector Synchronization Complete</h2>
+                    <p className="text-[#49607e] text-sm md:text-base max-w-md font-medium leading-relaxed mb-8 px-4">
                        Your session at <span className="text-emerald-600 font-bold">{completedInfo?.queueKey}</span> with token <span className="text-[#181c1e] font-black">#{completedInfo?.tokenNumber}</span> has been successfully executed.
                     </p>
                     <div className="flex items-center gap-2 px-6 py-3 bg-emerald-50 text-emerald-700 rounded-2xl text-xs font-black uppercase tracking-widest border border-emerald-100">
@@ -433,28 +435,28 @@ export default function UserDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 key="active-token"
               >
-                <div className="glass-panel rounded-3xl p-8 relative overflow-hidden">
+                <div className="glass-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
                   {/* Decorative glow */}
-                  <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#493ee5]/10 rounded-full blur-3xl" />
+                  <div className="absolute -top-24 -right-24 w-48 md:w-64 h-48 md:h-64 bg-[#493ee5]/10 rounded-full blur-3xl" />
                   
                   {/* Header */}
-                  <div className="flex justify-between items-start mb-10 relative z-10">
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-8 md:mb-10 relative z-10">
                     <div>
-                      <h2 className="text-3xl font-extrabold text-[#181c1e] tracking-tight mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                      <h2 className="text-2xl md:text-3xl font-extrabold text-[#181c1e] tracking-tight mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                         Live Session Hub
                       </h2>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-2 md:gap-3">
                          <p className="text-[#49607e] font-medium text-sm">Unit: {activeToken.queue_key}</p>
-                         <div className="h-4 w-px bg-[#e5e8eb]" />
+                         <div className="h-4 w-px bg-[#e5e8eb] hidden sm:block" />
                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#493ee5]/5 rounded-lg border border-[#493ee5]/10">
                             <Zap className="w-3 h-3 text-[#493ee5]" />
-                            <span className="text-[10px] font-black text-[#181c1e] uppercase tracking-wider">
-                               Serving: {queueMatrix?.currently_serving?.username || "Institutional Node Idle"}
+                            <span className="text-[9px] md:text-[10px] font-black text-[#181c1e] uppercase tracking-wider">
+                               Serving: {queueMatrix?.currently_serving?.username || "Idle"}
                             </span>
                          </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 bg-[#e2dfff] text-[#181c1e] px-4 py-2 rounded-full text-sm font-bold shadow-neobrutal" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                    <div className="flex items-center gap-2 bg-[#e2dfff] text-[#181c1e] px-4 py-2 rounded-full text-sm font-bold shadow-neobrutal shrink-0" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                       <span className="w-2 h-2 rounded-full bg-[#493ee5] animate-pulse" />
                       Active
                     </div>
@@ -467,7 +469,7 @@ export default function UserDashboard() {
                       <span className="text-[#49607e] font-semibold text-xs mb-3 uppercase tracking-[0.2em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                         Now Serving
                       </span>
-                      <div className="text-7xl font-black text-[#493ee5] tracking-tighter leading-none" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                      <div className="text-6xl md:text-7xl font-black text-[#493ee5] tracking-tighter leading-none" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                         {activeToken.token_number}
                       </div>
                       <p className="text-[#49607e] text-sm mt-4 font-medium">
@@ -521,14 +523,14 @@ export default function UserDashboard() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex items-center gap-4 mt-8 relative z-10">
-                    <Button onClick={() => setIsTicketModalOpen(true)} className="kinetic-btn-primary flex-1 h-14 text-base gap-3">
-                      <QrCode className="w-5 h-5" /> View Digital Pass
+                  <div className="flex flex-col sm:flex-row items-center gap-4 mt-8 relative z-10">
+                    <Button onClick={() => setIsTicketModalOpen(true)} className="kinetic-btn-primary w-full sm:flex-1 h-14 text-base gap-3">
+                      <QrCode className="w-5 h-5" /> Digital Pass
                     </Button>
                     <Button 
                       variant="ghost" 
                       onClick={handleCancelToken} 
-                      className="h-14 px-6 rounded-2xl font-semibold text-[#49607e] bg-[#f1f4f7] hover:bg-red-50 hover:text-red-600 transition-all"
+                      className="w-full sm:w-auto h-14 px-6 rounded-2xl font-semibold text-[#49607e] bg-[#f1f4f7] hover:bg-red-50 hover:text-red-600 transition-all"
                       style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
                     >
                       Cancel Spot
@@ -542,33 +544,44 @@ export default function UserDashboard() {
                 animate={{ opacity: 1, scale: 1 }}
                 key="no-token"
               >
-                <div className="glass-panel rounded-3xl p-8 relative overflow-hidden">
-                  <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#493ee5]/10 rounded-full blur-3xl" />
+                <div className="glass-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
+                  <div className="absolute -top-24 -right-24 w-48 md:w-64 h-48 md:h-64 bg-[#493ee5]/10 rounded-full blur-3xl" />
                   
-                  <div className="flex justify-between items-start mb-10 relative z-10">
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-8 md:mb-10 relative z-10">
                     <div>
-                      <h2 className="text-3xl font-extrabold text-[#181c1e] tracking-tight mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                      <h2 className="text-2xl md:text-3xl font-extrabold text-[#181c1e] tracking-tight mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                         Live Session Hub
                       </h2>
                       <p className="text-[#49607e] font-medium text-sm">No active session — join a queue to get started</p>
                     </div>
-                    <div className="flex items-center gap-2 bg-[#f1f4f7] text-[#49607e] px-4 py-2 rounded-full text-sm font-bold" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                    <div className="flex items-center gap-2 bg-[#f1f4f7] text-[#49607e] px-4 py-2 rounded-full text-sm font-bold shrink-0" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
                       <span className="w-2 h-2 rounded-full bg-[#49607e]/40" />
                       Idle
                     </div>
                   </div>
 
-                  <div className="relative z-10 flex flex-col items-center justify-center py-8 space-y-6">
-                    <div className="w-20 h-20 bg-[#f1f4f7] rounded-2xl flex items-center justify-center shadow-inner">
+                  <div className="relative z-10 flex flex-col items-center justify-center py-4 md:py-8 space-y-4 md:space-y-6">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-[#f1f4f7] rounded-2xl flex items-center justify-center shadow-inner">
                       <MapPulseIcon />
                     </div>
-                    <div className="text-center space-y-2">
-                      <h3 className="text-xl font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Queue discovery pulse</h3>
-                      <p className="text-[#49607e] text-sm max-w-sm mx-auto">Join active queues for healthcare, finance, or retail instantly from nearby institutions.</p>
+                    <div className="text-center space-y-1.5 md:space-y-2">
+                      <h3 className="text-lg md:text-xl font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Queue discovery pulse</h3>
+                      <p className="text-[#49607e] text-xs md:text-sm max-w-sm mx-auto px-4">Join active queues for healthcare, finance, or retail instantly from nearby institutions.</p>
                     </div>
-                    <Button onClick={() => setIsJoinModalOpen(true)} className="kinetic-btn-primary h-12 px-8 text-sm gap-2">
-                      <Search className="w-4 h-4" /> Search Live Queues
-                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto px-4">
+                      <Button onClick={() => setIsJoinModalOpen(true)} className="kinetic-btn-primary h-11 md:h-12 px-8 text-sm gap-2 w-full sm:w-auto">
+                        <Search className="w-4 h-4" /> Search Live Queues
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => refreshLocation()} 
+                        disabled={locationLoading}
+                        className="h-11 md:h-12 px-6 rounded-xl border-[#e5e8eb] text-[#49607e] hover:text-[#493ee5] gap-2 w-full sm:w-auto bg-white/50 backdrop-blur-sm"
+                      >
+                        {locationLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
+                        <span className="text-sm font-bold">Refresh GPS</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -576,10 +589,10 @@ export default function UserDashboard() {
           </AnimatePresence>
 
           {/* ── Stat Metric Cards ── */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-3 gap-4 md:gap-6">
             <StatCard 
               icon={<Clock className="w-[18px] h-[18px]" />}
-              label="Avg Wait Time"
+              label="Avg Wait"
               value={activeToken ? `${activeToken.estimated_wait_mins}` : "14"}
               unit="m"
             />
@@ -590,30 +603,31 @@ export default function UserDashboard() {
             />
             <StatCard 
               icon={<CheckCircle2 className="w-[18px] h-[18px]" />}
-              label="Served Today"
+              label="Served"
               value="128"
             />
           </div>
 
-          {/* ── Nearby / History Tabs ── */}
           <Tabs defaultValue="nearby" className="w-full">
-            {/* Tab Header Bar — always on top */}
-            <div className="bg-white rounded-2xl p-4 ghost-border mb-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <h3 className="text-lg font-bold text-[#181c1e] hidden sm:block" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Discover</h3>
-                  <TabsList className="bg-[#f1f4f7] p-1 rounded-xl h-11">
-                    <TabsTrigger value="nearby" className="rounded-lg px-6 h-9 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#493ee5] text-sm font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Nearby</TabsTrigger>
-                    <TabsTrigger value="history" className="rounded-lg px-6 h-9 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#493ee5] text-sm font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>History</TabsTrigger>
-                  </TabsList>
-                </div>
+            {/* Tab Header Bar — Unified Single Row */}
+            <div className="bg-white rounded-2xl p-2.5 md:p-4 ghost-border mb-4 md:mb-6">
+              <div className="flex items-center gap-2.5 md:gap-3 overflow-x-auto no-scrollbar">
+                <h3 className="text-sm md:text-lg font-bold text-[#181c1e] shrink-0" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Discover</h3>
                 
-                <div className="flex items-center bg-[#f1f4f7] rounded-xl px-1.5 py-1 gap-1">
+                {/* Unified pill bar: Nearby/History + All/Hospital/Bank */}
+                <div className="flex items-center bg-[#f1f4f7] rounded-xl p-0.5 gap-0.5 shrink-0">
+                  <TabsList className="bg-transparent p-0 h-auto gap-0.5 shrink-0">
+                    <TabsTrigger value="nearby" className="rounded-lg px-3 md:px-4 h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#493ee5] text-[11px] md:text-xs font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Nearby</TabsTrigger>
+                    <TabsTrigger value="history" className="rounded-lg px-3 md:px-4 h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#493ee5] text-[11px] md:text-xs font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>History</TabsTrigger>
+                  </TabsList>
+                  
+                  <div className="w-px h-4 bg-[#dde0e4] shrink-0 mx-0.5" />
+
                   {['all', 'hospital', 'bank'].map((cat) => (
                     <button 
                       key={cat}
                       className={cn(
-                        "rounded-lg h-8 px-4 text-xs font-bold capitalize transition-all",
+                        "rounded-lg h-8 px-3 text-[11px] md:text-xs font-bold capitalize transition-all shrink-0",
                         activeCategory === cat 
                           ? "bg-white text-[#493ee5] shadow-sm" 
                           : "text-[#49607e] hover:text-[#181c1e]"
@@ -1181,25 +1195,26 @@ export default function UserDashboard() {
 function MapPulseIcon() {
   return (
     <div className="relative">
-      <MapIcon className="w-10 h-10 text-[#493ee5] opacity-30" />
+      <MapIcon className="w-8 h-8 md:w-10 md:h-10 text-[#493ee5] relative z-10" />
       <motion.div 
-        animate={{ scale: [1, 1.4, 1], opacity: [0.4, 0, 0.4] }}
+        animate={{ scale: [1, 1.8, 1], opacity: [0.3, 0, 0.3] }}
         transition={{ duration: 2, repeat: Infinity }}
-        className="absolute inset-0 bg-[#493ee5]/15 rounded-full blur-xl"
+        className="absolute inset-0 bg-[#493ee5]/30 rounded-full"
       />
     </div>
   );
 }
 
-function StatCard({ icon, label, value, unit }: { icon: React.ReactNode; label: string; value: string; unit?: string }) {
+function StatCard({ icon, label, value, unit }: { icon: React.ReactNode, label: string, value: string, unit?: string }) {
   return (
-    <div className="stat-card">
-      <span className="text-[#49607e] font-medium text-sm mb-4 flex items-center gap-2">
-        {icon} {label}
-      </span>
-      <div className="text-4xl font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+    <div className="bg-white rounded-2xl p-3.5 md:p-5 ghost-border shadow-sm">
+      <div className="flex items-center gap-2 text-[#49607e] text-[10px] md:text-xs font-bold uppercase tracking-wider mb-2">
+        <div className="text-[#493ee5] opacity-80">{icon}</div>
+        {label}
+      </div>
+      <div className="text-xl md:text-2xl font-black text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
         {value}
-        {unit && <span className="text-xl text-[#49607e] font-medium">{unit}</span>}
+        {unit && <span className="text-xs md:text-sm text-[#49607e] font-bold ml-0.5">{unit}</span>}
       </div>
     </div>
   );

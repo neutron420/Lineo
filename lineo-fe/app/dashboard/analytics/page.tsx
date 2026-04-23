@@ -120,7 +120,7 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Analytics</h1>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Analytics</h1>
           <p className="text-[#49607e] text-sm font-medium mt-1">Insights into your queue usage patterns and time savings.</p>
         </div>
         <div className="flex items-center bg-[#f1f4f7] rounded-xl px-1.5 py-1 gap-1">
@@ -182,7 +182,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Weekly Activity Chart */}
-        <div className="lg:col-span-7 bg-white rounded-2xl p-6 ghost-border">
+        <div className="lg:col-span-7 bg-white rounded-2xl p-4 md:p-6 ghost-border">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-base font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Weekly Activity</h3>
@@ -227,7 +227,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Status Breakdown */}
-        <div className="lg:col-span-5 bg-white rounded-2xl p-6 ghost-border">
+        <div className="lg:col-span-5 bg-white rounded-2xl p-4 md:p-6 ghost-border">
           <h3 className="text-base font-extrabold text-[#181c1e] mb-6" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Visit Outcomes</h3>
           
           <div className="space-y-5">
@@ -284,7 +284,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Monthly Trend */}
-        <div className="lg:col-span-7 bg-white rounded-2xl p-6 ghost-border">
+        <div className="lg:col-span-7 bg-white rounded-2xl p-4 md:p-6 ghost-border">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-base font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Monthly Trend</h3>
             <span className="text-xs text-[#49607e] font-medium">Last 6 months</span>
@@ -312,7 +312,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Top Institutions */}
-        <div className="lg:col-span-5 bg-white rounded-2xl p-6 ghost-border">
+        <div className="lg:col-span-5 bg-white rounded-2xl p-4 md:p-6 ghost-border">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-base font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Top Institutions</h3>
             <Award className="w-4 h-4 text-[#493ee5]" />
@@ -353,29 +353,29 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Performance Summary */}
-      <div className="rounded-2xl p-6 bg-white ghost-border relative overflow-hidden group hover:shadow-ambient transition-shadow duration-300">
+      <div className="rounded-2xl p-4 md:p-6 bg-white ghost-border relative overflow-hidden group hover:shadow-ambient transition-shadow duration-300">
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-          <div className="absolute -top-24 -left-24 w-64 h-64 bg-[#493ee5]/5 rounded-full blur-3xl group-hover:bg-[#493ee5]/10 transition-colors duration-700" />
-          <div className="absolute bottom-0 right-0 w-48 h-48 bg-[#493ee5]/5 rounded-full blur-3xl" />
+          <div className="absolute -top-24 -left-24 w-48 md:w-64 h-48 md:h-64 bg-[#493ee5]/5 rounded-full blur-3xl group-hover:bg-[#493ee5]/10 transition-colors duration-700" />
+          <div className="absolute bottom-0 right-0 w-32 md:w-48 h-32 md:h-48 bg-[#493ee5]/5 rounded-full blur-3xl" />
         </div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <h3 className="text-xl font-extrabold tracking-tight text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Performance Summary</h3>
+            <h3 className="text-lg md:text-xl font-extrabold tracking-tight text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Performance Summary</h3>
             <p className="text-[#49607e] text-sm max-w-md font-medium">
               You&apos;re in the <span className="text-[#493ee5] font-extrabold bg-[#493ee5]/10 px-1.5 py-0.5 rounded-md">top 1%</span> of Lineo users. You&apos;ve saved an estimated <span className="text-[#181c1e] font-extrabold">{timeSavedHours} hours</span> by using digital queues this month.
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-center px-6 py-3 bg-[#f1f4f7] rounded-xl border border-[#e5e8eb]">
-              <p className="text-2xl font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{totalVisits}</p>
+          <div className="flex items-center gap-3 md:gap-4 overflow-x-auto no-scrollbar">
+            <div className="text-center px-4 md:px-6 py-3 bg-[#f1f4f7] rounded-xl border border-[#e5e8eb] shrink-0">
+              <p className="text-xl md:text-2xl font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{totalVisits}</p>
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#49607e]">Visits</p>
             </div>
-            <div className="text-center px-6 py-3 bg-[#f1f4f7] rounded-xl border border-[#e5e8eb]">
-              <p className="text-2xl font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{successRate}%</p>
+            <div className="text-center px-4 md:px-6 py-3 bg-[#f1f4f7] rounded-xl border border-[#e5e8eb] shrink-0">
+              <p className="text-xl md:text-2xl font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{successRate}%</p>
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#49607e]">Success</p>
             </div>
-            <div className="text-center px-6 py-3 bg-[#493ee5] text-white rounded-xl shadow-neobrutal">
-              <p className="text-2xl font-extrabold" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{timeSavedHours}h</p>
+            <div className="text-center px-4 md:px-6 py-3 bg-[#493ee5] text-white rounded-xl shadow-neobrutal shrink-0">
+              <p className="text-xl md:text-2xl font-extrabold" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{timeSavedHours}h</p>
               <p className="text-[10px] font-bold uppercase tracking-widest text-white/80">Saved</p>
             </div>
           </div>
@@ -407,15 +407,15 @@ function MetricCard({ label, value, change, trend, icon, color }: {
       <div className="flex items-center justify-between mb-3">
         <div className={cn("p-2 rounded-lg", c.iconBg, c.text)}>{icon}</div>
         <div className={cn(
-          "flex items-center gap-0.5 text-[11px] font-bold px-2 py-0.5 rounded-md",
+          "flex items-center gap-0.5 text-[10px] md:text-[11px] font-bold px-1.5 md:px-2 py-0.5 rounded-md",
           trend === 'up' ? 'text-green-600 bg-green-50' : 'text-red-500 bg-red-50'
         )}>
           {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
           {change}
         </div>
       </div>
-      <p className="text-[11px] font-extrabold text-[#49607e] uppercase tracking-[0.15em] mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{label}</p>
-      <p className="text-3xl font-extrabold text-[#181c1e] tracking-tighter" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{value}</p>
+      <p className="text-[10px] md:text-[11px] font-extrabold text-[#49607e] uppercase tracking-[0.15em] mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{label}</p>
+      <p className="text-2xl md:text-3xl font-extrabold text-[#181c1e] tracking-tighter" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{value}</p>
     </motion.div>
   );
 }

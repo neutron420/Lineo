@@ -70,8 +70,8 @@ function OrgLoginContent() {
   };
 
   return (
-    <div className="min-h-screen bg-stripe-border/10 flex flex-col items-center justify-center p-6 selection:bg-stripe-purple/20 selection:text-stripe-purple">
-      <Link href="/" className="mb-10 text-stripe-slate hover:text-stripe-navy transition-colors flex items-center gap-2 group">
+    <div className="min-h-screen bg-stripe-border/10 flex flex-col items-center justify-center p-4 md:p-6 selection:bg-stripe-purple/20 selection:text-stripe-purple">
+      <Link href="/" className="mb-8 md:mb-10 text-stripe-slate hover:text-stripe-navy transition-colors flex items-center gap-2 group text-sm font-medium">
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Lineo
       </Link>
 
@@ -79,24 +79,24 @@ function OrgLoginContent() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="stripe-card w-full max-w-[420px] p-10 bg-white"
+        className="stripe-card w-full max-w-[420px] p-6 md:p-10 bg-white"
       >
         <div className="mb-10">
-          <div className="w-12 h-12 bg-[#493ee5]/10 rounded-xl flex items-center justify-center mb-6">
-            <Building2 className="w-6 h-6 text-[#493ee5]" />
+          <div className="w-12 h-12 bg-stripe-purple/10 rounded-stripe flex items-center justify-center mb-6">
+            <Building2 className="w-6 h-6 text-stripe-purple" />
           </div>
-          <h1 className="text-[26px] tracking-stripe-tight mb-2 text-stripe-navy font-semibold">Org Terminal</h1>
-          <p className="text-[15px] text-stripe-slate">Sign in to manage your institution&apos;s queues.</p>
+          <h1 className="text-[26px] tracking-stripe-tight mb-2 text-stripe-navy font-semibold">Institution Portal</h1>
+          <p className="text-[15px] text-stripe-slate">Sign in to manage your organization&apos;s queues</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg flex items-center gap-2">
+          <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-stripe flex items-center gap-2">
             <AlertCircle className="w-4 h-4" /> {error}
           </div>
         )}
 
         {(isPending || isRegistered) && !error && (
-          <div className="mb-6 p-4 bg-[#493ee5]/5 border border-[#493ee5]/10 text-[#493ee5] text-sm rounded-xl flex items-start gap-3">
+          <div className="mb-6 p-4 bg-stripe-purple/5 border border-stripe-purple/10 text-stripe-purple text-sm rounded-stripe flex items-start gap-3">
              <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
              <div>
                 <p className="font-bold">{isPending ? "Verification Pending" : "Registration Success"}</p>
@@ -112,7 +112,7 @@ function OrgLoginContent() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
             <label className="text-sm font-medium text-stripe-label flex items-center gap-2">
-              <Mail className="w-3.5 h-3.5" /> Work Email
+              <Mail className="w-3.5 h-3.5" /> Work email
             </label>
             <input
               type="email"
@@ -127,7 +127,7 @@ function OrgLoginContent() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-stripe-label flex items-center gap-2">
-                <Lock className="w-3.5 h-3.5" /> Secret Key
+                <Lock className="w-3.5 h-3.5" /> Secret key
               </label>
             </div>
             <input
@@ -151,7 +151,6 @@ function OrgLoginContent() {
             type="submit"
             disabled={isLoading}
             className="stripe-btn-primary w-full flex items-center justify-center gap-2 py-3"
-            style={{ backgroundColor: '#493ee5' }}
           >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Access Dashboard"}
           </button>
@@ -160,8 +159,8 @@ function OrgLoginContent() {
         <div className="mt-8 pt-6 border-t border-stripe-border text-center">
           <p className="text-sm text-stripe-slate">
             New organization?{" "}
-            <Link href="/org/register" className="text-[#493ee5] font-medium hover:underline">
-              Register Institution
+            <Link href="/org/register" className="text-stripe-purple font-medium hover:underline">
+              Register institution
             </Link>
           </p>
         </div>

@@ -48,8 +48,8 @@ export default function SystemAdminRegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-stripe-border/10 flex flex-col items-center justify-center p-6 selection:bg-stripe-purple/20 selection:text-stripe-purple">
-      <Link href="/admin/login" className="mb-10 text-stripe-slate hover:text-stripe-navy transition-colors flex items-center gap-2 group text-sm font-medium">
+    <div className="min-h-screen bg-stripe-border/10 flex flex-col items-center justify-center p-4 md:p-6 selection:bg-stripe-purple/20 selection:text-stripe-purple">
+      <Link href="/admin/login" className="mb-8 md:mb-10 text-stripe-slate hover:text-stripe-navy transition-colors flex items-center gap-2 group text-sm font-medium">
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Login
       </Link>
 
@@ -57,7 +57,7 @@ export default function SystemAdminRegisterPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="stripe-card w-full max-w-[500px] p-10 bg-white"
+        className="stripe-card w-full max-w-[500px] p-6 md:p-10 bg-white"
       >
         <div className="mb-10 text-center">
           <div className="w-12 h-12 bg-stripe-purple/10 rounded-xl flex items-center justify-center mx-auto mb-6 border border-stripe-purple/20 shadow-sm">
@@ -68,7 +68,7 @@ export default function SystemAdminRegisterPage() {
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg">
+          <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-stripe">
             {error}
           </div>
         )}

@@ -18,9 +18,9 @@ export default function LandingPage() {
       <LocationRequestModal />
       {/* 🏛️ Sticky Navigation */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-md border-b border-stripe-border/50 transition-all">
-        <nav className="max-w-[1080px] mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="text-xl font-medium tracking-tight text-stripe-navy lowercase hover:opacity-80 transition-opacity">
+        <nav className="max-w-[1080px] mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-4 md:gap-8">
+            <Link href="/" className="text-lg md:text-xl font-medium tracking-tight text-stripe-navy lowercase hover:opacity-80 transition-opacity">
               <span className="text-stripe-purple">lineo</span>.ai
             </Link>
             
@@ -31,11 +31,11 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <Link href="/user/login" className="text-[14px] font-normal text-stripe-navy hover:text-stripe-purple transition-colors">
+          <div className="flex items-center gap-3 md:gap-4">
+            <Link href="/user/login" className="text-[13px] md:text-[14px] font-normal text-stripe-navy hover:text-stripe-purple transition-colors">
               Sign in
             </Link>
-            <Link href="/user/register" className="stripe-btn-primary px-4 py-1.5 text-sm">
+            <Link href="/user/register" className="stripe-btn-primary px-3 md:px-4 py-1.5 text-xs md:text-sm">
               Start now
             </Link>
           </div>
@@ -64,33 +64,33 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
             >
-              <h1 className="text-[56px] leading-[1.03] tracking-stripe-hero text-stripe-navy mb-8 font-medium">
+              <h1 className="text-4xl md:text-[56px] leading-[1.1] md:leading-[1.03] tracking-stripe-hero text-stripe-navy mb-6 md:mb-8 font-medium">
                 In-person waiting, reimagined.
               </h1>
-              <p className="text-[18px] text-stripe-slate leading-relaxed mb-10 max-w-[440px]">
+              <p className="text-base md:text-[18px] text-stripe-slate leading-relaxed mb-8 md:mb-10 max-w-[440px]">
                 The world&apos;s most advanced queue management system for hospitals, banks, and retailers. Scale your operations, eliminate wait times, and delight your customers.
               </p>
 
               {/* 🔍 Global Discovery Search */}
               <div className="relative mb-8 max-w-[500px] group">
-                <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-                  <SearchIcon className="w-5 h-5 text-stripe-slate group-focus-within:text-stripe-purple transition-colors" />
+                <div className="absolute inset-y-0 left-4 md:left-5 flex items-center pointer-events-none">
+                  <SearchIcon className="w-4 h-4 md:w-5 md:h-5 text-stripe-slate group-focus-within:text-stripe-purple transition-colors" />
                 </div>
                 <input 
                   type="text"
-                  placeholder="Search for hospitals, banks, or services..."
-                  className="w-full pl-14 pr-32 py-5 bg-stripe-border/10 border border-stripe-border rounded-stripe outline-none focus:bg-white focus:border-stripe-purple focus:ring-4 focus:ring-stripe-purple/5 transition-all font-medium text-stripe-navy shadow-sm"
+                  placeholder="Search services..."
+                  className="w-full pl-10 md:pl-14 pr-24 md:pr-32 py-4 md:py-5 bg-stripe-border/10 border border-stripe-border rounded-stripe outline-none focus:bg-white focus:border-stripe-purple focus:ring-4 focus:ring-stripe-purple/5 transition-all text-sm md:text-base font-medium text-stripe-navy shadow-sm"
                 />
-                <button className="absolute right-2 top-2 bottom-2 px-6 bg-stripe-navy text-white rounded-[10px] text-xs font-medium hover:bg-black transition-all">
+                <button className="absolute right-1.5 md:right-2 top-1.5 md:top-2 bottom-1.5 md:bottom-2 px-4 md:px-6 bg-stripe-navy text-white rounded-[6px] md:rounded-[10px] text-[10px] md:text-xs font-medium hover:bg-black transition-all">
                   Search
                 </button>
               </div>
 
-              <div className="flex items-center gap-4">
-                <Link href="/user/register" className="stripe-btn-primary group flex items-center gap-2 pr-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4">
+                <Link href="/user/register" className="stripe-btn-primary group flex items-center justify-center gap-2 px-6 py-3">
                   Start now <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
-                <Link href="/org/register" className="stripe-btn-ghost group flex items-center gap-2 pr-4 text-stripe-navy">
+                <Link href="/org/register" className="stripe-btn-ghost group flex items-center justify-center gap-2 px-6 py-3 text-stripe-navy">
                   Institutional Portal <ArrowRight className="w-4 h-4 text-stripe-slate group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </div>

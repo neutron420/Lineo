@@ -109,10 +109,10 @@ export default function BillingPage() {
           >
             <Sparkles className="w-3 h-3" /> Membership Ecosystem
           </motion.div>
-          <h1 className="text-4xl font-black text-[#181c1e] tracking-tight sm:text-7xl" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
             Elevate your <span className="text-[#493ee5]">Access.</span>
           </h1>
-          <p className="text-[#49607e] text-xl font-medium leading-relaxed max-w-xl">
+          <p className="text-[#49607e] text-base md:text-xl font-medium leading-relaxed max-w-xl">
             Choose the plan that matches your daily movement. Instant activation upon checkout.
           </p>
         </div>
@@ -164,7 +164,7 @@ export default function BillingPage() {
 
 function MetricBox({ icon, title, desc }: { icon: React.ReactNode; title: string, desc: string }) {
   return (
-    <div className="p-6 bg-white rounded-2xl border border-[#e5e8eb] hover:shadow-sm transition-all space-y-3">
+    <div className="p-4 md:p-6 bg-white rounded-2xl border border-[#e5e8eb] hover:shadow-sm transition-all space-y-3">
        <div className="w-10 h-10 bg-[#f1f4f7] rounded-xl flex items-center justify-center text-[#493ee5]">
           {icon}
        </div>

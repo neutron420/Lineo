@@ -273,19 +273,19 @@ function OrgRegisterContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7fafd] flex flex-col items-center justify-center p-8 selection:bg-[#493ee5]/10 selection:text-[#493ee5]">
+    <div className="min-h-screen bg-stripe-border/10 flex flex-col items-center justify-center p-4 md:p-8 selection:bg-stripe-purple/20 selection:text-stripe-purple">
       <Toaster position="top-right" richColors />
       <div className="w-full max-w-[850px]">
-        <Link href="/org/login" className="mb-8 text-[#49607e] hover:text-[#181c1e] transition-colors flex items-center gap-2 group font-bold text-sm">
+        <Link href="/org/login" className="mb-6 md:mb-8 text-stripe-slate hover:text-stripe-navy transition-colors flex items-center gap-2 group font-medium text-sm">
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Login
         </Link>
 
         {/* Progress Stepper */}
-        <div className="bg-white rounded-3xl p-6 mb-8 border border-[#e5e8eb] shadow-sm">
+        <div className="bg-white rounded-stripe p-6 mb-8 border border-stripe-border shadow-sm">
           <div className="flex justify-between relative">
-            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-[#f1f4f7] -translate-y-1/2" />
+            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-stripe-border -translate-y-1/2" />
             <motion.div 
-              className="absolute top-1/2 left-0 h-0.5 bg-[#493ee5] -translate-y-1/2" 
+              className="absolute top-1/2 left-0 h-0.5 bg-stripe-purple -translate-y-1/2" 
               initial={{ width: "0%" }}
               animate={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
             />
@@ -294,14 +294,14 @@ function OrgRegisterContent() {
               return (
                 <div key={step.id} className="relative z-10 flex flex-col items-center">
                   <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 border-2",
-                    currentStep >= step.id ? "bg-[#493ee5] border-[#493ee5] text-white shadow-lg" : "bg-white border-[#e5e8eb] text-[#49607e]"
+                    "w-10 h-10 rounded-stripe flex items-center justify-center transition-all duration-300 border-2",
+                    currentStep >= step.id ? "bg-stripe-purple border-stripe-purple text-white shadow-md" : "bg-white border-stripe-border text-stripe-slate"
                   )}>
                     {currentStep > step.id ? <Check className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
                   </div>
                   <span className={cn(
-                    "text-[10px] uppercase tracking-widest font-black mt-2",
-                    currentStep >= step.id ? "text-[#493ee5]" : "text-[#49607e]/40"
+                    "text-[9px] md:text-[10px] uppercase tracking-widest font-bold mt-2 hidden sm:block",
+                    currentStep >= step.id ? "text-stripe-purple" : "text-stripe-slate/40"
                   )}>
                     {step.name}
                   </span>
@@ -312,7 +312,7 @@ function OrgRegisterContent() {
         </div>
 
         {/* Form Container */}
-        <div className="bg-white rounded-[32px] p-10 border border-[#e5e8eb] shadow-xl min-h-[500px] flex flex-col">
+        <div className="stripe-card p-6 md:p-10 min-h-[500px] flex flex-col">
           <AnimatePresence mode="wait">
             {currentStep === 1 && (
               <motion.div 
@@ -322,41 +322,41 @@ function OrgRegisterContent() {
                 exit={{ opacity: 0, scale: 0.98 }}
                 className="space-y-10 flex-1 py-4"
               >
-                <div className="flex items-start justify-between">
-                   <div>
-                      <h2 className="text-3xl font-black text-[#181c1e] tracking-tight">Institutional Target</h2>
-                      <p className="text-[#49607e] text-lg font-medium mt-1">Acquire physical coordinates for your organization.</p>
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl md:text-[26px] tracking-stripe-tight mb-2 text-stripe-navy font-semibold">Institutional Discovery</h2>
+                      <p className="text-sm md:text-[15px] text-stripe-slate">Establish the physical boundaries for your organization.</p>
                    </div>
                    <button 
                      type="button"
                      onClick={handleAutoFetchLocation}
-                     className="w-14 h-14 bg-[#493ee5] text-white rounded-2xl shadow-2xl hover:rotate-12 transition-all flex items-center justify-center group"
+                     className="w-10 h-10 md:w-12 md:h-12 bg-stripe-purple text-white rounded-stripe shadow-md hover:-translate-y-0.5 transition-all flex items-center justify-center group shrink-0"
                    >
-                     <Globe className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                     <Globe className="w-5 h-5 group-hover:scale-110 transition-transform" />
                    </button>
                 </div>
 
                 <div className="space-y-8">
                    {/* Search Bar */}
-                   <div className="relative group">
-                      <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
-                         <Search className="w-5 h-5 text-[#49607e] group-focus-within:text-[#493ee5] transition-colors" />
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
+                         <Search className="w-4 h-4 text-stripe-slate group-focus-within:text-stripe-purple transition-colors" />
                       </div>
                       <input 
                         type="text"
-                        placeholder="Search for your institution by name (e.g. City Apollo Hospital)"
+                        placeholder="Search institution..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleOrgSearch()}
-                        className="w-full pl-16 pr-24 py-6 bg-[#f7fafd] border border-[#e5e8eb] rounded-[24px] outline-none focus:bg-white focus:border-[#493ee5] focus:ring-8 focus:ring-[#493ee5]/5 transition-all font-bold text-[#181c1e] text-lg shadow-sm"
+                        className="stripe-input pl-10 md:pl-12 pr-24 md:pr-24 !h-12 md:!h-14 font-medium text-sm md:!text-base"
                       />
                       <button 
                         type="button"
                         onClick={handleOrgSearch}
                         disabled={isSearching}
-                        className="absolute right-3 top-3 bottom-3 px-6 bg-[#181c1e] text-white rounded-[18px] text-xs font-black uppercase tracking-widest hover:bg-[#493ee5] transition-all flex items-center justify-center min-w-[100px]"
+                        className="absolute right-1.5 md:right-2 top-1.5 md:top-2 bottom-1.5 md:bottom-2 px-3 md:px-5 bg-stripe-navy text-white rounded-[4px] text-[10px] md:text-xs font-bold uppercase tracking-wider hover:bg-black transition-all flex items-center justify-center min-w-[70px] md:min-w-[90px]"
                       >
-                         {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : "Analyze"}
+                         {isSearching ? <Loader2 className="w-3 h-3 animate-spin" /> : "Discover"}
                       </button>
                    </div>
 
@@ -387,10 +387,10 @@ function OrgRegisterContent() {
                          />
                       </div>
 
-                      <div className="space-y-6">
-                         <div className="bg-white rounded-[32px] p-2 border border-[#e5e8eb] shadow-2xl h-full flex flex-col relative overflow-hidden group">
+                       <div className="space-y-6">
+                         <div className="bg-white rounded-stripe p-1.5 border border-stripe-border shadow-md h-full flex flex-col relative overflow-hidden group">
                             {isLoaded ? (
-                              <div className="w-full h-[300px] rounded-[28px] overflow-hidden relative">
+                              <div className="w-full h-[300px] rounded-stripe overflow-hidden relative">
                                 <GoogleMap
                                   mapContainerStyle={{ width: '100%', height: '100%' }}
                                   center={{ lat: formData.lat || 30.9010, lng: formData.lng || 75.8573 }}
@@ -405,8 +405,8 @@ function OrgRegisterContent() {
                                 </GoogleMap>
                               </div>
                             ) : (
-                              <div className="w-full h-[300px] bg-slate-50 animate-pulse rounded-[28px] flex items-center justify-center">
-                                <Loader2 className="w-8 h-8 text-[#493ee5] animate-spin" />
+                              <div className="w-full h-[300px] bg-slate-50 animate-pulse rounded-stripe flex items-center justify-center">
+                                <Loader2 className="w-8 h-8 text-stripe-purple animate-spin" />
                               </div>
                             )}
                          </div>
@@ -424,9 +424,9 @@ function OrgRegisterContent() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6 flex-1"
               >
-                <div>
-                   <h2 className="text-2xl font-black text-[#181c1e] tracking-tight">Identity Setup</h2>
-                   <p className="text-[#49607e] text-sm font-medium mt-1">Establish administrative access protocols.</p>
+                <div className="mb-6">
+                   <h2 className="text-xl md:text-[26px] tracking-stripe-tight mb-2 text-stripe-navy font-semibold">Identity Protocol</h2>
+                   <p className="text-sm md:text-[15px] text-stripe-slate">Establish secure administrative access credentials.</p>
                 </div>
                 
                 <div className="space-y-4">
@@ -445,30 +445,37 @@ function OrgRegisterContent() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6 flex-1"
               >
-                <div>
-                   <h2 className="text-2xl font-black text-[#181c1e] tracking-tight">Organization Profile</h2>
-                   <p className="text-[#49607e] text-sm font-medium mt-1">Configure your institutional identity.</p>
+                <div className="mb-6">
+                   <h2 className="text-xl md:text-[26px] tracking-stripe-tight mb-2 text-stripe-navy font-semibold">Institutional Profile</h2>
+                   <p className="text-sm md:text-[15px] text-stripe-slate">Configure your public institutional identity.</p>
                 </div>
 
                 <div className="space-y-4">
                    <InputField label="Organization Name" placeholder="e.g. City Hospital" icon={Building2} value={formData.orgName} onChange={(v:any) => updateFormData({ orgName: v })} />
                    <div className="space-y-2">
-                      <label className="text-xs font-black uppercase tracking-widest text-[#49607e] block">Institution Type</label>
-                      <select 
-                        className="w-full px-5 py-4 bg-[#f7fafd] border border-[#e5e8eb] rounded-2xl outline-none focus:bg-white focus:border-[#493ee5] transition-all font-bold text-[#181c1e] text-sm"
-                        value={formData.orgType}
-                        onChange={(e) => updateFormData({ orgType: e.target.value })}
-                      >
-                        <option value="hospital">Healthcare / Hospital</option>
-                        <option value="bank">Financial / Bank</option>
-                        <option value="government">Government Office</option>
-                        <option value="retail">Retail Hub</option>
-                      </select>
+                      <label className="text-sm font-medium text-stripe-label flex items-center gap-2">Institution Type</label>
+                      <div className="relative">
+                        <select 
+                          className="stripe-input appearance-none"
+                          value={formData.orgType}
+                          onChange={(e) => updateFormData({ orgType: e.target.value })}
+                        >
+                          <option value="hospital">Healthcare / Hospital</option>
+                          <option value="bank">Financial / Bank</option>
+                          <option value="government">Government Office</option>
+                          <option value="retail">Retail Hub</option>
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-stripe-slate">
+                          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                      </div>
                    </div>
-                   <div className="grid grid-cols-2 gap-4">
-                      <InputField label="Chief Officer" placeholder="John Doe" icon={User} value={formData.ownerName} onChange={(v:any) => updateFormData({ ownerName: v })} />
-                      <InputField label="Emergency Contact" placeholder="+91 99999 99999" icon={Phone} value={formData.ownerPhone} onChange={(v:any) => updateFormData({ ownerPhone: v })} />
-                   </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <InputField label="Chief Officer" placeholder="John Doe" icon={User} value={formData.ownerName} onChange={(v:any) => updateFormData({ ownerName: v })} />
+                       <InputField label="Emergency Contact" placeholder="+91 99999 99999" icon={Phone} value={formData.ownerPhone} onChange={(v:any) => updateFormData({ ownerPhone: v })} />
+                    </div>
                 </div>
               </motion.div>
             )}
@@ -481,9 +488,9 @@ function OrgRegisterContent() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6 flex-1"
               >
-                <div>
-                   <h2 className="text-2xl font-black text-[#181c1e] tracking-tight">System Compliance</h2>
-                   <p className="text-[#49607e] text-sm font-medium mt-1">Submit mandatory documents for platform verification.</p>
+                <div className="mb-6">
+                   <h2 className="text-xl md:text-[26px] tracking-stripe-tight mb-2 text-stripe-navy font-semibold">Verification Audit</h2>
+                   <p className="text-sm md:text-[15px] text-stripe-slate">Submit mandatory compliance documents for review.</p>
                 </div>
 
                 <div className="space-y-3">
@@ -518,12 +525,12 @@ function OrgRegisterContent() {
           </AnimatePresence>
 
           {/* Navigation Buttons */}
-          <div className="mt-10 pt-8 border-t border-[#e5e8eb] flex items-center justify-between">
+          <div className="mt-10 pt-8 border-t border-stripe-border flex items-center justify-between">
             <button 
               type="button"
               onClick={prevStep}
               disabled={currentStep === 1 || isLoading}
-              className="flex items-center gap-2 text-sm font-bold text-[#49607e] disabled:opacity-30"
+              className="flex items-center gap-2 text-sm font-medium text-stripe-slate hover:text-stripe-navy transition-colors disabled:opacity-30"
             >
               <ArrowLeft className="w-4 h-4" /> Previous
             </button>
@@ -532,7 +539,7 @@ function OrgRegisterContent() {
               <button 
                 type="button"
                 onClick={nextStep}
-                className="bg-[#493ee5] text-white px-8 py-3 rounded-2xl font-bold text-sm shadow-lg hover:shadow-[#493ee5]/20 transition-all flex items-center gap-2"
+                className="stripe-btn-primary flex items-center gap-2 px-6 md:px-8 py-3 text-sm md:text-base"
               >
                 Continue <ArrowRight className="w-4 h-4" />
               </button>
@@ -541,9 +548,9 @@ function OrgRegisterContent() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={isLoading}
-                className="bg-[#181c1e] text-white px-10 py-3 rounded-2xl font-bold text-sm shadow-xl hover:translate-y-[-2px] transition-all flex items-center gap-2"
+                className="bg-stripe-navy text-white px-6 md:px-10 py-3 rounded-stripe font-medium text-sm shadow-md hover:bg-black transition-all flex items-center gap-2"
               >
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Submit for Verification"}
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Submit"}
               </button>
             )}
           </div>
@@ -568,7 +575,7 @@ export default function OrgRegisterPage() {
 function InputField({ label, type = "text", placeholder, icon: Icon, value, onChange }: any) {
   return (
     <div className="space-y-2">
-      <label className="text-xs font-black uppercase tracking-widest text-[#49607e] flex items-center gap-2">
+      <label className="text-sm font-medium text-stripe-label flex items-center gap-2">
         <Icon className="w-3.5 h-3.5" /> {label}
       </label>
       <input 
@@ -576,7 +583,7 @@ function InputField({ label, type = "text", placeholder, icon: Icon, value, onCh
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-5 py-4 bg-[#f7fafd] border border-[#e5e8eb] rounded-2xl outline-none focus:bg-white focus:border-[#493ee5] transition-all font-bold text-[#181c1e] text-sm"
+        className="stripe-input"
       />
     </div>
   );
@@ -608,7 +615,7 @@ function UploadBox({ label, icon: Icon, value, onUpload }: any) {
   };
 
   return (
-    <div className="flex items-center justify-between p-4 bg-[#f7fafd] border border-[#e5e8eb] rounded-2xl group hover:border-[#493ee5]/30 transition-all">
+    <div className="flex items-center justify-between p-4 bg-white border border-stripe-border rounded-stripe group hover:border-stripe-purple/30 transition-all shadow-sm">
        <input 
          type="file" 
          className="hidden" 
@@ -617,21 +624,21 @@ function UploadBox({ label, icon: Icon, value, onUpload }: any) {
          accept="image/*,application/pdf"
        />
        <div className="flex items-center gap-4">
-          <div className="p-2.5 bg-white rounded-xl border border-[#e5e8eb] text-[#49607e] group-hover:text-[#493ee5] transition-colors relative">
+          <div className="p-2.5 bg-stripe-border/10 rounded-stripe border border-stripe-border text-stripe-slate group-hover:text-stripe-purple transition-colors relative">
              <Icon className="w-5 h-5" />
              {value && (
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white">
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-stripe-green rounded-full flex items-center justify-center border-2 border-white">
                    <Check className="w-2.5 h-2.5 text-white" />
                 </div>
              )}
           </div>
           <div className="flex flex-col">
-             <p className="text-xs font-bold text-[#181c1e]">{label}</p>
-             <p className="text-[10px] text-[#49607e] font-medium break-all max-w-[200px]">
+             <p className="text-xs font-bold text-stripe-navy">{label}</p>
+             <p className="text-[10px] text-stripe-slate font-medium break-all max-w-[200px]">
                {value ? (
-                 <span className="text-emerald-600 font-bold">Synchronized to Cloud</span>
+                 <span className="text-stripe-greenDark font-bold uppercase tracking-tight">Verified Archive</span>
                ) : (
-                 "Action Required"
+                 "Pending Document"
                )}
              </p>
           </div>
@@ -642,7 +649,7 @@ function UploadBox({ label, icon: Icon, value, onUpload }: any) {
              <button 
                type="button"
                onClick={() => window.open(value, "_blank")}
-               className="p-2 bg-white rounded-lg border border-[#e5e8eb] text-[#49607e] hover:bg-slate-100 hover:text-[#181c1e] transition-all"
+               className="p-2 bg-white rounded-stripe border border-stripe-border text-stripe-slate hover:bg-slate-50 hover:text-stripe-navy transition-all"
                title="Preview Document"
              >
                 <Eye className="w-4 h-4" />
@@ -652,10 +659,10 @@ function UploadBox({ label, icon: Icon, value, onUpload }: any) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className={`p-2 rounded-lg border border-[#e5e8eb] transition-all flex items-center justify-center min-w-[36px] min-h-[36px] ${
+            className={`p-2 rounded-stripe border border-stripe-border transition-all flex items-center justify-center min-w-[36px] min-h-[36px] ${
               value 
-                ? "bg-emerald-500 text-white border-emerald-500" 
-                : "bg-white text-[#49607e] hover:bg-[#493ee5] hover:text-white"
+                ? "bg-stripe-green text-white border-stripe-green" 
+                : "bg-white text-stripe-slate hover:bg-stripe-purple hover:text-white"
             } disabled:opacity-50`}
           >
              {isUploading ? (

@@ -69,8 +69,8 @@ function UserLoginContent() {
   };
 
   return (
-    <div className="min-h-screen bg-stripe-border/10 flex flex-col items-center justify-center p-6 selection:bg-stripe-purple/20 selection:text-stripe-purple">
-      <Link href="/" className="mb-10 text-stripe-slate hover:text-stripe-navy transition-colors flex items-center gap-2 group">
+    <div className="min-h-screen bg-stripe-border/10 flex flex-col items-center justify-center p-4 md:p-6 selection:bg-stripe-purple/20 selection:text-stripe-purple">
+      <Link href="/" className="mb-8 md:mb-10 text-stripe-slate hover:text-stripe-navy transition-colors flex items-center gap-2 group text-sm font-medium">
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Home
       </Link>
 
@@ -78,21 +78,21 @@ function UserLoginContent() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-[400px] p-8 bg-white rounded-xl border border-slate-200 shadow-sm"
+        className="stripe-card w-full max-w-[400px] p-6 md:p-10 bg-white"
       >
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">Login to your account</h1>
-          <p className="text-sm text-slate-500">Enter your email below to login to your account</p>
+        <div className="mb-10">
+          <h1 className="text-[26px] tracking-stripe-tight mb-2 text-stripe-navy font-semibold">Welcome back</h1>
+          <p className="text-[15px] text-stripe-slate">Sign in to your account to continue</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg flex items-center gap-2">
+          <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-stripe flex items-center gap-2">
             <AlertCircle className="w-4 h-4" /> {error}
           </div>
         )}
 
         {isRegistered && !error && (
-          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 text-emerald-600 text-sm rounded-lg flex items-start gap-3">
+          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 text-emerald-600 text-sm rounded-stripe flex items-start gap-3">
              <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
              <div>
                 <p className="font-bold">Success</p>
@@ -103,13 +103,15 @@ function UserLoginContent() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Email</label>
+            <label className="text-sm font-medium text-stripe-label flex items-center gap-2">
+              <Mail className="w-3.5 h-3.5" /> Email address
+            </label>
             <input
               type="email"
               placeholder="m@example.com"
-              className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all"
+              className="stripe-input"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -118,15 +120,18 @@ function UserLoginContent() {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-slate-700">Password</label>
-              <Link href="/forgot-password"  className="text-sm font-medium text-slate-900 hover:underline">
-                Forgot your password?
+              <label className="text-sm font-medium text-stripe-label flex items-center gap-2">
+                <Lock className="w-3.5 h-3.5" /> Password
+              </label>
+              <Link href="/forgot-password"  className="text-sm font-medium text-stripe-purple hover:underline">
+                Forgot password?
               </Link>
             </div>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 transition-all pr-10"
+                placeholder="••••••••"
+                className="stripe-input pr-10"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -134,7 +139,7 @@ function UserLoginContent() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-stripe-slate hover:text-stripe-navy transition-colors"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -151,24 +156,24 @@ function UserLoginContent() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-10 bg-slate-950 text-white font-medium rounded-md hover:bg-slate-900 transition-colors flex items-center justify-center gap-2"
+            className="stripe-btn-primary w-full flex items-center justify-center gap-2 py-3"
           >
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Login"}
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign in"}
           </button>
 
           <button
             type="button"
-            className="w-full h-10 bg-white text-slate-950 border border-slate-200 font-medium rounded-md hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 bg-white text-stripe-navy border border-stripe-border rounded-stripe font-medium hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
           >
-            Login with Google
+            Continue with Google
           </button>
         </form>
 
-        <div className="mt-6 text-center">
-          <p className="text-sm text-slate-500">
-            Don&apos;t have an account?{" "}
-            <Link href="/user/register" className="text-slate-900 font-medium hover:underline">
-              Sign up
+        <div className="mt-8 pt-6 border-t border-stripe-border text-center">
+          <p className="text-sm text-stripe-slate">
+            New to Lineo?{" "}
+            <Link href="/user/register" className="text-stripe-purple font-medium hover:underline">
+              Create account
             </Link>
           </p>
         </div>
