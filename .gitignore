@@ -34,3 +34,9 @@ vendor/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Graphify
+graphify-out/
+.agents/
+scratch_*.py
+.graphify_*/

@@ -80,17 +80,19 @@ type queueService struct {
 	orgRepo repository.OrganizationRepository
 	subSvc  UserSubscriptionService
 	bus     events.Bus
+	pushSvc PushService
 
 	limiters   sync.Map
 	limiterRPS rate.Limit
 }
 
-func NewQueueService(repo repository.QueueRepository, orgRepo repository.OrganizationRepository, subSvc UserSubscriptionService, bus events.Bus) QueueService {
+func NewQueueService(repo repository.QueueRepository, orgRepo repository.OrganizationRepository, subSvc UserSubscriptionService, bus events.Bus, pushSvc PushService) QueueService {
 	return &queueService{
 		repo:       repo,
 		orgRepo:    orgRepo,
 		subSvc:     subSvc,
 		bus:        bus,
+		pushSvc:    pushSvc,
 		limiterRPS: 8,
 	}
 }

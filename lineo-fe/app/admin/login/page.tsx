@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Loader2, Mail, Lock, ShieldAlert, AlertCircle } from "lucide-react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import api from "@/lib/api";
+import { initPushNotifications } from "@/lib/push";
 import { useRouter } from "next/navigation";
 import { AxiosError } from "axios";
 
@@ -44,7 +45,7 @@ export default function SystemAdminLoginPage() {
 
       sessionStorage.setItem("admin_token", data.token);
       sessionStorage.setItem("admin_user", JSON.stringify(data.user));
-
+      initPushNotifications().catch(() => {});
       router.push("/admin");
     } catch (err) {
       const axiosError = err as AxiosError<{ message: string }>;

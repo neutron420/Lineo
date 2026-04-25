@@ -31,6 +31,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { LocationProvider, useLocation } from "@/context/LocationContext";
 import { SocketProvider, useSocket } from "@/context/SocketContext";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import { initPushNotifications } from "@/lib/push";
 import api from "@/lib/api";
 
 interface UserData {
@@ -426,6 +427,8 @@ export default function DashboardLayout({
     } catch (e) {
       console.error("Layout user parse error", e);
     }
+    // Register push notifications for returning sessions (idempotent)
+    initPushNotifications().catch(() => {});
   }, []);
 
   const mainNavItems = [
@@ -599,7 +602,7 @@ export default function DashboardLayout({
           </aside>
 
           {/* ━━━ Main Content ━━━ */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0">
             <GlobalHeader />
 
             <main className="flex-1 p-4 md:p-6 lg:p-10 pb-24 md:pb-6 lg:pb-10 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 overflow-y-auto">

@@ -68,6 +68,7 @@ func InitDB() {
 		&models.Feedback{},
 		&models.Terminal{},
 		&models.Announcement{},
+		&models.PushSubscription{},
 	}
 
 	// Auto-migrate models. Some managed Postgres setups hit a pgx/sql interpolation
@@ -125,6 +126,20 @@ func InitDB() {
 
 	// ANNOUNCEMENT TIMER SCHEMA
 	_ = DB.Exec("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS expires_at timestamp with time zone").Error
+
+	// PUSH SUBSCRIPTION SCHEMA
+	_ = DB.Exec(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+		id BIGSERIAL PRIMARY KEY,
+		user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		endpoint TEXT NOT NULL,
+		p256dh TEXT NOT NULL,
+		auth TEXT NOT NULL,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		deleted_at TIMESTAMP WITH TIME ZONE
+	)`).Error
+	_ = DB.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_push_subscriptions_endpoint ON push_subscriptions(endpoint) WHERE deleted_at IS NULL").Error
+	_ = DB.Exec("CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id)").Error
 
 	slog.Info("database connection established and migrated")
 

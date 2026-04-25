@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { SocketProvider } from "@/context/SocketContext";
+import { initPushNotifications } from "@/lib/push";
 import { motion } from "framer-motion";
 
 function OrgHeader() {
@@ -76,6 +77,8 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
       window.location.href = "/org/login";
       return;
     }
+    // Register push notifications for returning staff sessions
+    initPushNotifications().catch(() => {});
   }, [pathname]);
 
   const navItems = [

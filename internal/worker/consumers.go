@@ -31,6 +31,7 @@ type Consumers struct {
 	QueueSvc service.QueueService
 	ApptSvc  service.AppointmentService
 	OrgRepo  repository.OrganizationRepository
+	PushSvc  service.PushService
 	Logger   *slog.Logger
 }
 
@@ -93,10 +94,11 @@ func (w *Consumers) startQueueEventConsumer(ctx context.Context) {
 		// Alert the third waiting user once every 10 minutes.
 		if len(state.WaitingList) >= 3 {
 			target := state.WaitingList[2]
-			if target.PhoneNumber != "" {
-				key := fmt.Sprintf("sms:third:%s", target.TokenNumber)
-				ok, _ := redis.Client.SetNX(ctx, key, "1", 10*time.Minute).Result()
-				if ok {
+			key := fmt.Sprintf("push:third:%s", target.TokenNumber)
+			ok, _ := redis.Client.SetNX(ctx, key, "1", 10*time.Minute).Result()
+			if ok {
+				// SMS alert (existing)
+				if target.PhoneNumber != "" {
 					_ = w.Bus.PublishSMSNotification(ctx, events.SMSNotification{
 						OrgID:       evt.OrgID,
 						UserID:      target.UserID,
@@ -105,6 +107,15 @@ func (w *Consumers) startQueueEventConsumer(ctx context.Context) {
 						Type:        "third_in_line",
 						TokenNumber: target.TokenNumber,
 						CreatedAt:   time.Now().UTC(),
+					})
+				}
+				// Web push notification
+				if target.UserID > 0 && w.PushSvc != nil {
+					_ = w.PushSvc.SendToUser(ctx, target.UserID, service.PushPayload{
+						Title:     "You're 3rd in line!",
+						Body:      "Get ready — your turn is coming up soon.",
+						URL:       "/dashboard",
+						NotifType: "queue",
 					})
 				}
 			}
@@ -170,6 +181,16 @@ func (w *Consumers) startCommuteConsumer(ctx context.Context) {
 			CreatedAt:   time.Now().UTC(),
 		}); err != nil {
 			return err
+		}
+
+		// Web push: leave now alert alongside SMS
+		if job.UserID > 0 && w.PushSvc != nil {
+			_ = w.PushSvc.SendToUser(ctx, job.UserID, service.PushPayload{
+				Title:     "Time to leave!",
+				Body:      message,
+				URL:       "/dashboard",
+				NotifType: "commute",
+			})
 		}
 
 		return db.DB.Model(&models.Appointment{}).

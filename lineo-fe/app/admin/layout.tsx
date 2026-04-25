@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
+import { initPushNotifications } from "@/lib/push";
 import { motion } from "framer-motion";
 
 function SystemAdminHeader() {
@@ -85,6 +86,8 @@ export default function SystemAdminLayout({ children }: { children: React.ReactN
     if (user.role !== "admin") {
       window.location.href = "/admin/login";
     }
+    // Register push notifications for returning admin sessions
+    initPushNotifications().catch(() => {});
   }, [isAuthPage]);
 
   const navItems = [

@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Loader2, Mail, Lock, ShieldCheck, AlertCircle, Building2 } from "lucide-react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import api from "@/lib/api";
+import { initPushNotifications } from "@/lib/push";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AxiosError } from "axios";
 
@@ -57,6 +58,7 @@ function OrgLoginContent() {
         // Organization Staff or Organization Owner
         sessionStorage.setItem("staff_token", data.token);
         sessionStorage.setItem("staff_user", JSON.stringify(user));
+        initPushNotifications().catch(() => {});
         router.push("/org");
       } else {
         setError("Access Denied: This portal is for organization members only.");

@@ -58,13 +58,15 @@ func main() {
 	queueRepo := repository.NewQueueRepository()
 
 	feedbackRepo := repository.NewFeedbackRepository()
+	pushRepo := repository.NewPushSubscriptionRepository()
 
 	authService := service.NewAuthService(userRepo)
 	orgService := service.NewOrganizationService(orgRepo)
 	userSubService := service.NewUserSubscriptionService()
-	queueService := service.NewQueueService(queueRepo, orgRepo, userSubService, bus)
-	mapService := service.NewMapService(orgRepo)
-	apptService := service.NewAppointmentService(orgRepo, queueService, userSubService, bus)
+	pushService := service.NewPushService(pushRepo)
+	queueService := service.NewQueueService(queueRepo, orgRepo, userSubService, bus, pushService)
+	mapService := service.NewMapService(orgRepo, redis.Client)
+	apptService := service.NewAppointmentService(orgRepo, queueService, userSubService, bus, pushService)
 	paymentService := service.NewPaymentService()
 	feedbackService := service.NewFeedbackService(feedbackRepo, queueRepo)
 
@@ -76,6 +78,7 @@ func main() {
 	paymentHandler := handler.NewPaymentHandler(paymentService)
 	subHandler := handler.NewSubscriptionHandler(userSubService)
 	feedbackHandler := handler.NewFeedbackHandler(feedbackService)
+	pushHandler := handler.NewPushHandler(pushRepo)
 	uploadHandler := handler.NewUploadHandler()
 	adminHandler := handler.NewAdminHandler()
 
@@ -145,6 +148,7 @@ func main() {
 		v1.GET("/announcement/latest", adminHandler.GetLatestAnnouncement)
 		v1.POST("/upload", uploadHandler.Upload)
 		v1.POST("/payments/razorpay/webhook", paymentHandler.RazorpayWebhook)
+		v1.GET("/push/vapid-key", pushHandler.VAPIDKey)
 
 		protected := v1.Group("/")
 		protected.Use(middleware.AuthMiddleware())
@@ -166,6 +170,7 @@ func main() {
 			protected.POST("/payments/razorpay/verify", paymentHandler.VerifyRazorpayPayment)
 			protected.POST("/user/upgrade", subHandler.UpgradeTier)
 			protected.POST("/feedback", feedbackHandler.Submit)
+			protected.POST("/push/subscribe", pushHandler.Subscribe)
 
 			staff := v1.Group("/staff")
 			staff.Use(middleware.AuthMiddleware(), middleware.StaffMiddleware())
@@ -240,6 +245,7 @@ func main() {
 		QueueSvc: queueService,
 		ApptSvc:  apptService,
 		OrgRepo:  orgRepo,
+		PushSvc:  pushService,
 		Logger:   slog.Default(),
 	}
 	cronRunner := consumers.Start(workerCtx, &workerWG)

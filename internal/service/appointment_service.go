@@ -27,14 +27,16 @@ type appointmentService struct {
 	queueSvc QueueService
 	subSvc   UserSubscriptionService
 	bus      events.Bus
+	pushSvc  PushService
 }
 
-func NewAppointmentService(orgRepo repository.OrganizationRepository, queueSvc QueueService, subSvc UserSubscriptionService, bus events.Bus) AppointmentService {
+func NewAppointmentService(orgRepo repository.OrganizationRepository, queueSvc QueueService, subSvc UserSubscriptionService, bus events.Bus, pushSvc PushService) AppointmentService {
 	return &appointmentService{
 		orgRepo:  orgRepo,
 		queueSvc: queueSvc,
 		subSvc:   subSvc,
 		bus:      bus,
+		pushSvc:  pushSvc,
 	}
 }
 
@@ -70,6 +72,18 @@ func (s *appointmentService) Book(userID uint, req models.BookAppointmentRequest
 
 	// Increment usage
 	_ = s.subSvc.IncrementAppts(userID)
+
+	// Push notification: appointment confirmed
+	if s.pushSvc != nil {
+		go func() {
+			_ = s.pushSvc.SendToUser(context.Background(), userID, PushPayload{
+				Title:     "Appointment Confirmed",
+				Body:      "Your appointment on " + appt.StartTime.Format("Jan 02 at 03:04 PM") + " has been booked.",
+				URL:       "/dashboard/appointments",
+				NotifType: "appointment",
+			})
+		}()
+	}
 
 	if s.bus != nil {
 		_ = s.bus.PublishCommuteTrigger(context.Background(), events.CommuteTriggerJob{

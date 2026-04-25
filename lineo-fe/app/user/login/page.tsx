@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Loader2, Mail, Lock, ShieldCheck, AlertCircle, User as UserIcon, Eye, EyeOff } from "lucide-react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import api from "@/lib/api";
+import { initPushNotifications } from "@/lib/push";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AxiosError } from "axios";
 
@@ -56,6 +57,8 @@ function UserLoginContent() {
       if (user.role === "user") {
         sessionStorage.setItem("token", data.token);
         sessionStorage.setItem("user", JSON.stringify(user));
+        // Register push notifications in the background
+        initPushNotifications().catch(() => {});
         router.push("/dashboard");
       } else {
         setError("Access Denied: Please use the appropriate portal for your role.");
