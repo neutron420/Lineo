@@ -76,10 +76,38 @@ self.addEventListener("notificationclick", function (event) {
 });
 
 // ─── Service Worker Install & Activate ──────────────────────────────────────
-self.addEventListener("install", function () {
+self.addEventListener("install", function (event) {
+  event.waitUntil(
+    caches.open("lineo-static-v1").then(function (cache) {
+      return cache.addAll([
+        "/",
+        "/favicon.ico",
+        "/icon-512.png",
+        "/manifest.json",
+      ]);
+    })
+  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", function (event) {
   event.waitUntil(self.clients.claim());
+});
+
+// ─── Fetch Event (Offline Support) ──────────────────────────────────────────
+self.addEventListener("fetch", function (event) {
+  // Only handle GET requests
+  if (event.request.method !== "GET") return;
+
+  event.respondWith(
+    caches.match(event.request).then(function (response) {
+      // Return cached response if found, else fetch from network
+      return response || fetch(event.request).catch(function() {
+        // Optional: Return a custom offline page if both fail
+        if (event.request.mode === "navigate") {
+          return caches.match("/");
+        }
+      });
+    })
+  );
 });

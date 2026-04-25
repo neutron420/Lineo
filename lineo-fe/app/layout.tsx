@@ -24,12 +24,18 @@ export const metadata: Metadata = {
     userScalable: false,
     viewportFit: "cover",
   },
+  manifest: "/manifest.json",
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
   },
   themeColor: "#493ee5",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Lineo",
+  },
 };
 
 export default function RootLayout({
