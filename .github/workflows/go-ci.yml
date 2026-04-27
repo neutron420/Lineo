@@ -39,3 +39,19 @@ jobs:
 
       - name: Race tests
         run: go test -race ./...
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          format: 'table'
+          exit-code: '1' # Fails the build if vulnerabilities are found
+          severity: 'CRITICAL,HIGH'

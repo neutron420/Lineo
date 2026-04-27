@@ -1,0 +1,78 @@
+pipeline {
+    agent any
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        disableConcurrentBuilds()
+    }
+
+    environment {
+        TRIVY_SEVERITY = 'HIGH,CRITICAL'
+        PROJECT_TAG = "lineo-${env.BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('Initializing Environment') {
+            steps {
+                script {
+                    echo "Starting Build #${env.BUILD_NUMBER} for Lineo Platform"
+                }
+                deleteDir()
+                checkout scm
+            }
+        }
+
+        stage('Parallel Build and Scan') {
+            parallel {
+                stage('Backend CI') {
+                    steps {
+                        echo 'Building and Scanning Go Backend...'
+                        sh 'go mod download'
+                        sh 'go build -v -o lineo-api ./cmd/api'
+                        sh "trivy fs --severity ${TRIVY_SEVERITY} ."
+                    }
+                }
+
+                stage('Frontend CI') {
+                    steps {
+                        echo 'Building and Scanning Next.js Frontend...'
+                        dir('lineo-fe') {
+                            sh 'bun install'
+                            sh 'bun run build'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Docker Security Scan') {
+            steps {
+                echo 'Performing final security audit...'
+                sh "trivy config --severity ${TRIVY_SEVERITY} ."
+            }
+        }
+
+        stage('Smart Deployment') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo 'Deploying to Staging Environment...'
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+            echo 'Pipeline finished execution.'
+        }
+        success {
+            echo "✅ SUCCESS: Build #${env.BUILD_NUMBER} is ready for production!"
+        }
+        failure {
+            echo "❌ FAILURE: Build #${env.BUILD_NUMBER} failed. Please check the logs."
+        }
+    }
+}
