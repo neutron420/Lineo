@@ -15,6 +15,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
+	"queueless/ai-models/ai/core/api"
+	"queueless/ai-models/ai/core/chatbot"
+	"queueless/ai-models/ai/core/waittime"
+
 	"queueless/internal/events"
 	"queueless/internal/handler"
 	"queueless/internal/repository"
@@ -73,6 +77,20 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 	orgHandler := handler.NewOrgHandler(orgService)
 	queueHandler := handler.NewQueueHandler(queueService)
+	
+	// WaitTime AI Predictor Setup
+	sqlDB, _ := db.DB.DB()
+	waitTimeRepo := &waittime.WaitTimeRepo{DB: sqlDB}
+	waitTimeService := waittime.NewWaitTimeService(waitTimeRepo, redis.Client)
+	aiQueueHandler := api.NewQueueHandler(waitTimeService)
+	
+	// Chatbot AI Receptionist Setup
+	chatRepo := chatbot.NewChatRepo(db.DB)
+	chatAdapter := service.NewChatbotAdapter(queueService, apptService, orgService)
+	chatSvc := chatbot.NewChatbotService(chatRepo, chatAdapter, chatAdapter, chatAdapter)
+	smsHandler := chatbot.NewSMSHandler(chatSvc, os.Getenv("TWILIO_AUTH_TOKEN"))
+	webChatHandler := chatbot.NewWebChatHandler(chatSvc)
+	
 	mapHandler := handler.NewMapHandler(mapService)
 	apptHandler := handler.NewAppointmentHandler(apptService)
 	paymentHandler := handler.NewPaymentHandler(paymentService)
@@ -141,6 +159,7 @@ func main() {
 
 		v1.POST("/org", orgHandler.CreateOrganization)
 		v1.POST("/queue/kiosk", queueHandler.EnqueueKiosk)
+		v1.GET("/queue/:key/wait-time", aiQueueHandler.GetWaitTime)
 		v1.GET("/queue/:key/state", queueHandler.GetState)
 		v1.GET("/queue/:key/position/:token", queueHandler.GetPosition)
 		v1.GET("/search/nearby", mapHandler.SearchNearby)
@@ -149,10 +168,17 @@ func main() {
 		v1.POST("/upload", uploadHandler.Upload)
 		v1.POST("/payments/razorpay/webhook", paymentHandler.RazorpayWebhook)
 		v1.GET("/push/vapid-key", pushHandler.VAPIDKey)
+		
+		// AI Chatbot Twilio Webhook (Still public)
+		v1.POST("/webhook/sms", smsHandler.HandleIncomingSMS)
 
 		protected := v1.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
+			// AI Chatbot Web Routes (Protected)
+			protected.POST("/chat", webChatHandler.HandleWebChat)
+			protected.GET("/chat/history", webChatHandler.HandleGetHistory)
+
 			protected.GET("/org/my", orgHandler.GetMyOrganization)
 			protected.POST("/org/queue", orgHandler.CreateQueue)
 			protected.GET("/queue/active", queueHandler.GetActiveTicket)
@@ -239,6 +265,8 @@ func main() {
 
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	var workerWG sync.WaitGroup
+	aiProactiveSvc := chatbot.NewProactiveService(chatbot.NewOpenAIChatbot(), bus, db.DB)
+
 	consumers := &worker.Consumers{
 		Rabbit:   rabbitClient,
 		Bus:      bus,
@@ -246,6 +274,7 @@ func main() {
 		ApptSvc:  apptService,
 		OrgRepo:  orgRepo,
 		PushSvc:  pushService,
+		AIProactiveSvc: aiProactiveSvc,
 		Logger:   slog.Default(),
 	}
 	cronRunner := consumers.Start(workerCtx, &workerWG)

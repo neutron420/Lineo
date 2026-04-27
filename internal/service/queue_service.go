@@ -21,6 +21,7 @@ import (
 	"queueless/internal/ticket"
 	"queueless/pkg/db"
 	"queueless/pkg/metrics"
+	aimodels "queueless/ai-models/ai/models"
 )
 
 type QueueService interface {
@@ -63,6 +64,16 @@ func (s *queueService) CompleteTicket(queueKey string, orgID uint) error {
 		duration := int(now.Sub(*history.ServedAt).Seconds())
 		db.DB.Model(&history).Updates(map[string]interface{}{
 			"serving_duration": duration,
+		})
+
+		// AI PREDICTION LEARNING LOGIC 🧠
+		// Save to ServiceDuration table so the AI gets smarter over time
+		db.DB.Create(&aimodels.ServiceDuration{
+			OrgID:       orgID,
+			AgentID:     history.UserID, // fallback to whoever originated or 0 if kiosk
+			TicketID:    currentServing.TokenNumber,
+			CalledAt:    *history.ServedAt,
+			CompletedAt: now,
 		})
 	}
 

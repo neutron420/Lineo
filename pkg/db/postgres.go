@@ -8,6 +8,8 @@ import (
 
 	"queueless/internal/models"
 	"queueless/pkg/config"
+	"queueless/ai-models/ai/core/chatbot"
+	aimodels "queueless/ai-models/ai/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -69,6 +71,12 @@ func InitDB() {
 		&models.Terminal{},
 		&models.Announcement{},
 		&models.PushSubscription{},
+		&chatbot.ChatConversation{},
+		&chatbot.ChatMessage{},
+		&chatbot.OrgFAQ{},
+		&chatbot.ChatReminder{},
+		&aimodels.ServiceDuration{},
+		&aimodels.OrgWaitStat{},
 	}
 
 	// Auto-migrate models. Some managed Postgres setups hit a pgx/sql interpolation

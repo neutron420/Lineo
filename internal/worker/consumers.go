@@ -3,8 +3,8 @@ package worker
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -13,6 +13,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/robfig/cron/v3"
 
+	"queueless/ai-models/ai/core/chatbot"
 	"queueless/internal/events"
 	"queueless/internal/handler"
 	"queueless/internal/models"
@@ -32,6 +33,7 @@ type Consumers struct {
 	ApptSvc  service.AppointmentService
 	OrgRepo  repository.OrganizationRepository
 	PushSvc  service.PushService
+	AIProactiveSvc *chatbot.ProactiveService
 	Logger   *slog.Logger
 }
 
@@ -58,6 +60,11 @@ func (w *Consumers) Start(ctx context.Context, wg *sync.WaitGroup) *cron.Cron {
 	_, _ = c.AddFunc("*/5 * * * *", func() {
 		_ = w.ApptSvc.QueueCommuteChecks(ctx)
 	})
+	if w.AIProactiveSvc != nil {
+		_, _ = c.AddFunc("* * * * *", func() {
+			_ = w.AIProactiveSvc.RunReminders(ctx)
+		})
+	}
 	c.Start()
 	return c
 }

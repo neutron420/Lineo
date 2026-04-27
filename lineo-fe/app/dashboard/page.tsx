@@ -46,6 +46,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { useLocation } from "@/context/LocationContext";
 import { useSocket } from "@/context/SocketContext";
+import { AIWaitTimeDisplay } from "@/components/AIWaitTimeDisplay";
 
 // Shadcn UI Components
 import { Button } from "@/components/ui/button";
@@ -519,6 +520,10 @@ export default function UserDashboard() {
                           />
                         </div>
                       </div>
+
+                      {/* Lineo AI Predictor Component */}
+                      <AIWaitTimeDisplay queueKey={activeToken.queue_key} ticketId={activeToken.token_number} />
+                      
                     </div>
                   </div>
 

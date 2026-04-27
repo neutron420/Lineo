@@ -3,6 +3,7 @@ import "./globals.css";
 import { Metadata } from "next";
 import { LocationProvider } from "@/context/LocationContext";
 import { StickyBanner } from "@/components/sticky-banner";
+import { AIChatWidget } from "@/components/AIChatWidget";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -50,6 +51,7 @@ export default function RootLayout({
         <LocationProvider>
           <StickyBanner />
           {children}
+          <AIChatWidget />
         </LocationProvider>
       </body>
     </html>
