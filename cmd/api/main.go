@@ -18,6 +18,7 @@ import (
 	"queueless/ai-models/ai/core/api"
 	"queueless/ai-models/ai/core/chatbot"
 	"queueless/ai-models/ai/core/waittime"
+	"queueless/ai-models/ai/core/slots"
 
 	"queueless/internal/events"
 	"queueless/internal/handler"
@@ -63,6 +64,7 @@ func main() {
 
 	feedbackRepo := repository.NewFeedbackRepository()
 	pushRepo := repository.NewPushSubscriptionRepository()
+	slotAnalyticsRepo := repository.NewSlotAnalyticsRepository(db.DB)
 
 	authService := service.NewAuthService(userRepo)
 	orgService := service.NewOrganizationService(orgRepo)
@@ -70,7 +72,7 @@ func main() {
 	pushService := service.NewPushService(pushRepo)
 	queueService := service.NewQueueService(queueRepo, orgRepo, userSubService, bus, pushService)
 	mapService := service.NewMapService(orgRepo, redis.Client)
-	apptService := service.NewAppointmentService(orgRepo, queueService, userSubService, bus, pushService)
+	apptService := service.NewAppointmentService(orgRepo, queueService, userSubService, bus, pushService, slotAnalyticsRepo)
 	paymentService := service.NewPaymentService()
 	feedbackService := service.NewFeedbackService(feedbackRepo, queueRepo)
 
@@ -99,6 +101,10 @@ func main() {
 	pushHandler := handler.NewPushHandler(pushRepo)
 	uploadHandler := handler.NewUploadHandler()
 	adminHandler := handler.NewAdminHandler()
+
+	// AI Smart Slot Recommendation Setup
+	aiSlotService := slots.NewAISlotService(slotAnalyticsRepo, orgRepo, chatbot.NewOpenAIChatbot())
+	aiSlotHandler := slots.NewAISlotHandler(aiSlotService, orgRepo)
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
@@ -192,6 +198,7 @@ func main() {
 			protected.POST("/appointments/:id/checkin", apptHandler.CheckIn)
 			protected.POST("/appointments/:id/reschedule", apptHandler.Reschedule)
 			protected.POST("/appointments/:id/cancel", apptHandler.Cancel)
+			protected.GET("/appointments/recommend", aiSlotHandler.GetRecommendations)
 			protected.POST("/payments/razorpay/order", paymentHandler.CreateRazorpayOrder)
 			protected.POST("/payments/razorpay/verify", paymentHandler.VerifyRazorpayPayment)
 			protected.POST("/user/upgrade", subHandler.UpgradeTier)

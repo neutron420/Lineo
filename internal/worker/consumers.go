@@ -34,6 +34,7 @@ type Consumers struct {
 	OrgRepo  repository.OrganizationRepository
 	PushSvc  service.PushService
 	AIProactiveSvc *chatbot.ProactiveService
+	SlotAnalyticsRepo repository.SlotAnalyticsRepository
 	Logger   *slog.Logger
 }
 
@@ -65,6 +66,15 @@ func (w *Consumers) Start(ctx context.Context, wg *sync.WaitGroup) *cron.Cron {
 			_ = w.AIProactiveSvc.RunReminders(ctx)
 		})
 	}
+
+	// AI Smart Slot Recommendation: Nightly Brain Update (2 AM)
+	_, _ = c.AddFunc("0 2 * * *", func() {
+		w.Logger.Info("Updating AI Slot Analytics Brain...")
+		if w.SlotAnalyticsRepo != nil {
+			_ = w.SlotAnalyticsRepo.UpdateAnalyticsFromHistory()
+		}
+	})
+
 	c.Start()
 	return c
 }

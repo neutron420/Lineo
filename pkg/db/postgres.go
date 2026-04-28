@@ -77,6 +77,9 @@ func InitDB() {
 		&chatbot.ChatReminder{},
 		&aimodels.ServiceDuration{},
 		&aimodels.OrgWaitStat{},
+		&aimodels.SlotAnalytics{},
+		&aimodels.UserBookingPreference{},
+		&aimodels.RecommendationFeedback{},
 	}
 
 	// Auto-migrate models. Some managed Postgres setups hit a pgx/sql interpolation

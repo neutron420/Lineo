@@ -28,16 +28,21 @@ type appointmentService struct {
 	subSvc   UserSubscriptionService
 	bus      events.Bus
 	pushSvc  PushService
+	slotRepo repository.SlotAnalyticsRepository
 }
 
-func NewAppointmentService(orgRepo repository.OrganizationRepository, queueSvc QueueService, subSvc UserSubscriptionService, bus events.Bus, pushSvc PushService) AppointmentService {
-	return &appointmentService{
+func NewAppointmentService(orgRepo repository.OrganizationRepository, queueSvc QueueService, subSvc UserSubscriptionService, bus events.Bus, pushSvc PushService, slotRepo ...repository.SlotAnalyticsRepository) AppointmentService {
+	svc := &appointmentService{
 		orgRepo:  orgRepo,
 		queueSvc: queueSvc,
 		subSvc:   subSvc,
 		bus:      bus,
 		pushSvc:  pushSvc,
 	}
+	if len(slotRepo) > 0 {
+		svc.slotRepo = slotRepo[0]
+	}
+	return svc
 }
 
 func (s *appointmentService) Book(userID uint, req models.BookAppointmentRequest) (*models.Appointment, error) {
@@ -72,6 +77,13 @@ func (s *appointmentService) Book(userID uint, req models.BookAppointmentRequest
 
 	// Increment usage
 	_ = s.subSvc.IncrementAppts(userID)
+
+	// AI Smart Slot: Learn user preferences from this booking
+	if s.slotRepo != nil {
+		go func() {
+			_ = s.slotRepo.UpdateUserPreferences(userID, startTime.Hour(), int(startTime.Weekday()))
+		}()
+	}
 
 	// Push notification: appointment confirmed
 	if s.pushSvc != nil {

@@ -17,7 +17,8 @@ import {
   HeartPulse,
   Landmark,
   Info,
-  Search
+  Search,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
@@ -27,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AISmartSlotRecommendations } from "@/components/AISmartSlotRecommendations";
 
 interface Appointment {
   id: string;
@@ -474,6 +476,25 @@ export default function AppointmentsPage() {
                       </AnimatePresence>
                     </div>
                   </ScrollArea>
+                </div>
+              )}
+
+              {formData.queue_key && (
+                <div className="pt-2">
+                  <AISmartSlotRecommendations 
+                    orgId={formData.queue_key} 
+                    selectedDateTime={formData.time}
+                    onSelect={(datetime) => {
+                      // datetime format from API: 2025-08-05T10:00:00Z
+                      // input type="datetime-local" needs: YYYY-MM-DDTHH:MM
+                      const val = datetime.substring(0, 16);
+                      setFormData({ ...formData, time: val });
+                      toast.info("AI Optimized Slot Selected", { 
+                        description: "Wait time minimizes in this window.",
+                        icon: <Sparkles className="w-4 h-4 text-[#493ee5]" />
+                      });
+                    }}
+                  />
                 </div>
               )}
 
