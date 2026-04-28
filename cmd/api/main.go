@@ -25,6 +25,7 @@ import (
 	"queueless/internal/repository"
 	"queueless/internal/service"
 	"queueless/internal/worker"
+	cronjobs "queueless/cron-jobs"
 	"queueless/pkg/broker"
 	"queueless/pkg/config"
 	"queueless/pkg/db"
@@ -285,6 +286,16 @@ func main() {
 		Logger:   slog.Default(),
 	}
 	cronRunner := consumers.Start(workerCtx, &workerWG)
+
+	// ═══ Notification Cron Scheduler (Appointment + Queue Reminders) ═══
+	pushAdapter := &pushSenderAdapter{svc: pushService}
+	notifScheduler := cronjobs.NewScheduler(pushAdapter, queueRepo, orgRepo)
+	notifScheduler.Register()
+	notifScheduler.Start()
+
+	// Wire reminder hooks into appointment service (Book → OnBookingConfirmed, etc.)
+	apptService.SetReminderService(notifScheduler.ApptService())
+
 	go handler.StartRedisBroadcaster(workerCtx)
 
 	go func() {
@@ -308,8 +319,13 @@ func main() {
 
 	workerCancel()
 	ctxStopCron := cronRunner.Stop()
+	notifStopCtx := notifScheduler.Stop()
 	select {
 	case <-ctxStopCron.Done():
+	case <-time.After(5 * time.Second):
+	}
+	select {
+	case <-notifStopCtx.Done():
 	case <-time.After(5 * time.Second):
 	}
 
@@ -331,4 +347,21 @@ func main() {
 	redis.CloseRedis()
 
 	slog.Info("server exited cleanly")
+}
+
+// pushSenderAdapter bridges service.PushService → cronjobs.PushSender.
+// Needed because cronjobs cannot import internal/service (cycle), so it
+// defines its own PushPayload with identical fields.
+type pushSenderAdapter struct {
+	svc service.PushService
+}
+
+func (a *pushSenderAdapter) SendToUser(ctx context.Context, userID uint, payload cronjobs.PushPayload) error {
+	return a.svc.SendToUser(ctx, userID, service.PushPayload{
+		Title:     payload.Title,
+		Body:      payload.Body,
+		URL:       payload.URL,
+		Icon:      payload.Icon,
+		NotifType: payload.NotifType,
+	})
 }

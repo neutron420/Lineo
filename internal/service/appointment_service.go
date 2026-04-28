@@ -11,6 +11,14 @@ import (
 	"queueless/pkg/db"
 )
 
+// ReminderHook is a minimal interface for the cron-jobs AppointmentReminderService.
+// Defined here to avoid importing cron-jobs (which would create a cycle).
+type ReminderHook interface {
+	OnBookingConfirmed(ctx context.Context, appointmentID uint, userID uint, orgName string, scheduledAt time.Time)
+	OnAppointmentCancelled(ctx context.Context, appointmentID uint, userID uint, orgName string)
+	OnAppointmentRescheduled(ctx context.Context, appointmentID uint, userID uint, orgName string, newTime time.Time)
+}
+
 type AppointmentService interface {
 	Book(userID uint, req models.BookAppointmentRequest) (*models.Appointment, error)
 	CheckIn(appointmentID uint, userID uint) (*models.QueueResponse, error)
@@ -20,15 +28,17 @@ type AppointmentService interface {
 	GetOrgAppointments(orgID uint) ([]models.Appointment, error)
 	CommuteWorker()
 	QueueCommuteChecks(ctx context.Context) error
+	SetReminderService(r ReminderHook)
 }
 
 type appointmentService struct {
-	orgRepo  repository.OrganizationRepository
-	queueSvc QueueService
-	subSvc   UserSubscriptionService
-	bus      events.Bus
-	pushSvc  PushService
-	slotRepo repository.SlotAnalyticsRepository
+	orgRepo     repository.OrganizationRepository
+	queueSvc    QueueService
+	subSvc      UserSubscriptionService
+	bus         events.Bus
+	pushSvc     PushService
+	slotRepo    repository.SlotAnalyticsRepository
+	reminderSvc ReminderHook
 }
 
 func NewAppointmentService(orgRepo repository.OrganizationRepository, queueSvc QueueService, subSvc UserSubscriptionService, bus events.Bus, pushSvc PushService, slotRepo ...repository.SlotAnalyticsRepository) AppointmentService {
@@ -43,6 +53,12 @@ func NewAppointmentService(orgRepo repository.OrganizationRepository, queueSvc Q
 		svc.slotRepo = slotRepo[0]
 	}
 	return svc
+}
+
+// SetReminderService wires the cron-jobs reminder service into the appointment
+// service after both have been initialised (avoids circular init).
+func (s *appointmentService) SetReminderService(r ReminderHook) {
+	s.reminderSvc = r
 }
 
 func (s *appointmentService) Book(userID uint, req models.BookAppointmentRequest) (*models.Appointment, error) {
@@ -95,6 +111,15 @@ func (s *appointmentService) Book(userID uint, req models.BookAppointmentRequest
 				NotifType: "appointment",
 			})
 		}()
+	}
+
+	// Cron reminder hooks: pre-skip past stages for late bookings
+	if s.reminderSvc != nil {
+		orgName := ""
+		if org, err := s.orgRepo.GetOrganizationByID(appt.OrganizationID); err == nil {
+			orgName = org.Name
+		}
+		go s.reminderSvc.OnBookingConfirmed(context.Background(), appt.ID, userID, orgName, appt.StartTime)
 	}
 
 	if s.bus != nil {
@@ -194,6 +219,15 @@ func (s *appointmentService) Reschedule(appointmentID uint, userID uint, newTime
 		})
 	}
 
+	// Reset reminder stages for the rescheduled appointment
+	if s.reminderSvc != nil {
+		orgName := ""
+		if org, err := s.orgRepo.GetOrganizationByID(appt.OrganizationID); err == nil {
+			orgName = org.Name
+		}
+		go s.reminderSvc.OnAppointmentRescheduled(context.Background(), appt.ID, appt.UserID, orgName, appt.StartTime)
+	}
+
 	return &appt, nil
 }
 
@@ -204,7 +238,20 @@ func (s *appointmentService) Cancel(appointmentID uint, userID uint) error {
 	}
 
 	appt.Status = models.ApptCancelled
-	return db.DB.Save(&appt).Error
+	if err := db.DB.Save(&appt).Error; err != nil {
+		return err
+	}
+
+	// Block all future reminders for this cancelled appointment
+	if s.reminderSvc != nil {
+		orgName := ""
+		if org, err := s.orgRepo.GetOrganizationByID(appt.OrganizationID); err == nil {
+			orgName = org.Name
+		}
+		go s.reminderSvc.OnAppointmentCancelled(context.Background(), appt.ID, userID, orgName)
+	}
+
+	return nil
 }
 
 // Deprecated legacy entrypoint kept for interface compatibility.

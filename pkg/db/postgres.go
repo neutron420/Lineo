@@ -80,6 +80,7 @@ func InitDB() {
 		&aimodels.SlotAnalytics{},
 		&aimodels.UserBookingPreference{},
 		&aimodels.RecommendationFeedback{},
+		&models.AppointmentReminder{},
 	}
 
 	// Auto-migrate models. Some managed Postgres setups hit a pgx/sql interpolation
@@ -151,6 +152,18 @@ func InitDB() {
 	)`).Error
 	_ = DB.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_push_subscriptions_endpoint ON push_subscriptions(endpoint) WHERE deleted_at IS NULL").Error
 	_ = DB.Exec("CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id)").Error
+
+	// APPOINTMENT REMINDERS SCHEMA (cron-jobs notification dedup)
+	_ = DB.Exec(`CREATE TABLE IF NOT EXISTS appointment_reminders (
+		id BIGSERIAL PRIMARY KEY,
+		appointment_id BIGINT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+		stage INTEGER NOT NULL CHECK (stage >= 1 AND stage <= 7),
+		sent_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+		status VARCHAR(20) NOT NULL DEFAULT 'sent',
+		error_message TEXT,
+		UNIQUE(appointment_id, stage)
+	)`).Error
+	_ = DB.Exec("CREATE INDEX IF NOT EXISTS idx_appt_reminders_appointment ON appointment_reminders(appointment_id)").Error
 
 	slog.Info("database connection established and migrated")
 
