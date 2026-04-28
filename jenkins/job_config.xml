@@ -1,0 +1,21 @@
+﻿<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job">
+  <description>Lineo Master CI/CD Pipeline - Automated Setup</description>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-scm">
+    <scm class="hudson.plugins.git.GitSCM" plugin="git">
+      <configVersion>2</configVersion>
+      <userRemoteConfigs>
+        <hudson.plugins.git.UserRemoteConfig>
+          <url>/src/lineo</url> 
+        </hudson.plugins.git.UserRemoteConfig>
+      </userRemoteConfigs>
+      <branches>
+        <hudson.plugins.git.BranchSpec>
+          <name>*/main</name>
+        </hudson.plugins.git.BranchSpec>
+      </branches>
+    </scm>
+    <scriptPath>jenkins/Jenkinsfile</scriptPath>
+    <lightweight>true</lightweight>
+  </definition>
+</flow-definition>

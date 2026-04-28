@@ -3,8 +3,8 @@
 
 $JENKINS_URL = "http://localhost:9090"
 $CLI_PATH = "jenkins/jenkins-cli.jar"
-$ADMIN_USER = "admin"
-$ADMIN_PASS = "6643358f64b44973beebdae963a01215" # Your password from earlier
+$ADMIN_USER = "ritesh"
+$ADMIN_PASS = "Ritesh@2004" # Your password from earlier
 
 Write-Host "Starting Lineo Jenkins Automation..." -ForegroundColor Cyan
 
@@ -24,7 +24,7 @@ $xmlConfig = @"
       <configVersion>2</configVersion>
       <userRemoteConfigs>
         <hudson.plugins.git.UserRemoteConfig>
-          <url>$(Get-Location)</url> 
+          <url>/src/lineo</url> 
         </hudson.plugins.git.UserRemoteConfig>
       </userRemoteConfigs>
       <branches>
@@ -42,8 +42,13 @@ $xmlConfig = @"
 $xmlConfig | Out-File -FilePath "jenkins/job_config.xml" -Encoding utf8
 
 # 3. Push to Jenkins
-Write-Host "Creating job 'Lineo-Master' in Jenkins..." -ForegroundColor Yellow
-java -jar $CLI_PATH -s $JENKINS_URL -auth "$($ADMIN_USER):$($ADMIN_PASS)" create-job Lineo-Master < jenkins/job_config.xml
+Write-Host "Syncing job 'Lineo-Master' with Jenkins..." -ForegroundColor Yellow
+
+# Try updating first, if fails, create it
+$updateResult = Get-Content jenkins/job_config.xml | java -jar $CLI_PATH -s $JENKINS_URL -auth "$($ADMIN_USER):$($ADMIN_PASS)" update-job Lineo-Master 2>$null
+if (!$?) {
+    Get-Content jenkins/job_config.xml | java -jar $CLI_PATH -s $JENKINS_URL -auth "$($ADMIN_USER):$($ADMIN_PASS)" create-job Lineo-Master
+}
 
 Write-Host "DONE! Your job 'Lineo-Master' is now ready in Jenkins." -ForegroundColor Green
 Write-Host "Go to: $JENKINS_URL/job/Lineo-Master/" -ForegroundColor Cyan
