@@ -38,5 +38,9 @@ Thumbs.db
 # Graphify
 graphify-out/
 .agents/
-scratch_*.py
 .graphify_*/
+scratch_*.py
+
+# Jenkins
+jenkins/jenkins-cli.jar
+jenkins/job_config.xml
