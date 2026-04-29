@@ -215,3 +215,31 @@ func (h *AuthHandler) RegisterOrganization(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusCreated, "Organization registered and pending verification", user)
 }
 
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	var req models.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := h.authService.ChangePassword(userID, req); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Failed to change password", err.Error())
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, "Password changed successfully", nil)
+}
+
+func (h *AuthHandler) DeactivateMe(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	if err := h.authService.DeactivateUser(userID); err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to deactivate account", err.Error())
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, "Account deactivated successfully", nil)
+}
+

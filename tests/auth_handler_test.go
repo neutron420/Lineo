@@ -24,6 +24,16 @@ type MockAuthService struct {
 	RegisterOrganizationFunc func(req models.OrgRegistrationRequest) (*models.User, error)
 }
 
+// ChangePassword implements [service.AuthService].
+func (m *MockAuthService) ChangePassword(userID uint, req models.ChangePasswordRequest) error {
+	panic("unimplemented")
+}
+
+// DeactivateUser implements [service.AuthService].
+func (m *MockAuthService) DeactivateUser(userID uint) error {
+	panic("unimplemented")
+}
+
 func (m *MockAuthService) RegisterUser(req models.RegisterRequest) (*models.User, error) {
 	return m.RegisterUserFunc(req)
 }
@@ -56,14 +66,16 @@ type MockSubscriptionService struct {
 	SyncCountersFunc   func(user *models.User) error
 }
 
-func (m *MockSubscriptionService) CheckJoinLimit(userID uint) error                          { return nil }
-func (m *MockSubscriptionService) CheckApptLimit(userID uint) error                          { return nil }
-func (m *MockSubscriptionService) IncrementJoins(userID uint) error                          { return nil }
-func (m *MockSubscriptionService) IncrementAppts(userID uint) error                          { return nil }
-func (m *MockSubscriptionService) DecrementJoins(userID uint) error                          { return nil }
-func (m *MockSubscriptionService) DecrementAppts(userID uint) error                          { return nil }
-func (m *MockSubscriptionService) UpgradeTier(userID uint, tier models.SubscriptionTier) error { return nil }
-func (m *MockSubscriptionService) SyncCounters(user *models.User) error                      { return nil }
+func (m *MockSubscriptionService) CheckJoinLimit(userID uint) error { return nil }
+func (m *MockSubscriptionService) CheckApptLimit(userID uint) error { return nil }
+func (m *MockSubscriptionService) IncrementJoins(userID uint) error { return nil }
+func (m *MockSubscriptionService) IncrementAppts(userID uint) error { return nil }
+func (m *MockSubscriptionService) DecrementJoins(userID uint) error { return nil }
+func (m *MockSubscriptionService) DecrementAppts(userID uint) error { return nil }
+func (m *MockSubscriptionService) UpgradeTier(userID uint, tier models.SubscriptionTier) error {
+	return nil
+}
+func (m *MockSubscriptionService) SyncCounters(user *models.User) error { return nil }
 
 func TestAuthHandler_Login(t *testing.T) {
 	gin.SetMode(gin.TestMode)

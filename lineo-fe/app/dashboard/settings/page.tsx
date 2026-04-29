@@ -54,8 +54,17 @@ export default function SettingsPage() {
   const [showCheck, setShowCheck] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
+  
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  
+  const [passwordData, setPasswordData] = useState({
+    old_password: "",
+    new_password: "",
+    confirm_password: ""
+  });
   
   const [formData, setFormData] = useState({
     username: "",
@@ -150,6 +159,41 @@ export default function SettingsPage() {
       toast.error(msg);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (passwordData.new_password !== passwordData.confirm_password) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post("/users/change-password", {
+        old_password: passwordData.old_password,
+        new_password: passwordData.new_password
+      });
+      toast.success("Password updated successfully!");
+      setIsPasswordModalOpen(false);
+      setPasswordData({ old_password: "", new_password: "", confirm_password: "" });
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to change password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeactivate = async () => {
+    setLoading(true);
+    try {
+      await api.delete("/users/deactivate");
+      toast.success("Account deactivated");
+      sessionStorage.clear();
+      window.location.href = "/user/login";
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to deactivate account");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -498,10 +542,55 @@ export default function SettingsPage() {
                                <p className="text-xs text-[#49607e]">Last changed 3 months ago.</p>
                             </div>
                          </div>
-                         <Button variant="outline" className="text-xs font-bold h-8 rounded-lg">Update</Button>
+                         <Button 
+                           variant="outline" 
+                           className="text-xs font-bold h-8 rounded-lg"
+                           onClick={() => setIsPasswordModalOpen(true)}
+                         >
+                            Update
+                         </Button>
                       </div>
                    </div>
                 </div>
+
+                {/* Change Password Modal */}
+                <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
+                  <DialogContent className="max-w-md p-6 rounded-3xl">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl font-extrabold" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Change Password</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                       <InputField 
+                         label="Current Password" 
+                         type="password" 
+                         placeholder="••••••••"
+                         value={passwordData.old_password} 
+                         onChange={(v) => setPasswordData({...passwordData, old_password: v})} 
+                       />
+                       <InputField 
+                         label="New Password" 
+                         type="password" 
+                         placeholder="••••••••"
+                         value={passwordData.new_password} 
+                         onChange={(v) => setPasswordData({...passwordData, new_password: v})} 
+                       />
+                       <InputField 
+                         label="Confirm New Password" 
+                         type="password" 
+                         placeholder="••••••••"
+                         value={passwordData.confirm_password} 
+                         onChange={(v) => setPasswordData({...passwordData, confirm_password: v})} 
+                       />
+                       <Button 
+                         onClick={handleChangePassword} 
+                         disabled={loading}
+                         className="kinetic-btn-primary w-full h-12 mt-2"
+                       >
+                         {loading ? "Updating..." : "Update Password"}
+                       </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
              </div>
            )}
 
@@ -511,7 +600,17 @@ export default function SettingsPage() {
                    <h3 className="text-lg font-extrabold text-[#181c1e] mb-6" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Notification Preferences</h3>
                    <div className="space-y-6">
                       <NotificationToggle title="Email Notifications" description="Receive updates about your queue status via email." enabled />
-                      <NotificationToggle title="Push Notifications" description="Get real-time alerts on your browser or mobile device." enabled />
+                      <NotificationToggle 
+                        title="Push Notifications" 
+                        description="Get real-time alerts on your browser or mobile device." 
+                        enabled={false} 
+                        onChange={async (enabled) => {
+                          if (enabled) {
+                            const { initPushNotifications } = await import("@/lib/push");
+                            await initPushNotifications();
+                          }
+                        }}
+                      />
                       <NotificationToggle title="SMS Alerts" description="Important queue and appointment reminders via SMS." />
                    </div>
                 </div>
@@ -535,10 +634,32 @@ export default function SettingsPage() {
                     <h4 className="text-sm md:text-base font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Delete Account</h4>
                     <p className="text-xs text-[#49607e]">Permanently remove your account. This is irreversible.</p>
                  </div>
-                 <button className="px-5 py-2.5 border border-red-200 text-red-600 font-bold text-sm rounded-xl hover:bg-red-600 hover:text-white transition-all shrink-0" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                 <button 
+                   onClick={() => setIsDeactivateModalOpen(true)}
+                   className="px-5 py-2.5 border border-red-200 text-red-600 font-bold text-sm rounded-xl hover:bg-red-600 hover:text-white transition-all shrink-0" 
+                   style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+                 >
                     Deactivate Account
                  </button>
               </div>
+
+              {/* Deactivate Confirmation Modal */}
+              <Dialog open={isDeactivateModalOpen} onOpenChange={setIsDeactivateModalOpen}>
+                  <DialogContent className="max-w-sm p-6 rounded-3xl">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl font-extrabold text-red-600" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Are you sure?</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-[#49607e] font-medium py-2">
+                      This action will permanently delete your account and all associated data. This cannot be undone.
+                    </p>
+                    <div className="flex gap-3 mt-4">
+                       <Button variant="ghost" className="flex-1" onClick={() => setIsDeactivateModalOpen(false)}>Cancel</Button>
+                       <Button variant="destructive" className="flex-1 font-bold" onClick={handleDeactivate} disabled={loading}>
+                          {loading ? "Deleting..." : "Yes, Delete"}
+                       </Button>
+                    </div>
+                  </DialogContent>
+               </Dialog>
            </div>
         </div>
       </div>
@@ -577,7 +698,7 @@ function SettingsNavItem({
   );
 }
 
-function NotificationToggle({ title, description, enabled = false }: { title: string, description: string, enabled?: boolean }) {
+function NotificationToggle({ title, description, enabled = false, onChange }: { title: string, description: string, enabled?: boolean, onChange?: (enabled: boolean) => void }) {
   const [isOn, setIsOn] = useState(enabled);
   return (
     <div className="flex items-center justify-between">
@@ -586,7 +707,11 @@ function NotificationToggle({ title, description, enabled = false }: { title: st
           <p className="text-xs text-[#49607e]">{description}</p>
        </div>
        <button 
-         onClick={() => setIsOn(!isOn)}
+         onClick={() => {
+           const next = !isOn;
+           setIsOn(next);
+           onChange?.(next);
+         }}
          className={cn(
            "w-10 h-5 rounded-full transition-colors relative",
            isOn ? "bg-[#493ee5]" : "bg-[#e5e8eb]"

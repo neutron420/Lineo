@@ -28,6 +28,8 @@ type AuthService interface {
 	VerifyTurnstile(token string) bool
 	AddStaff(adminOrgID uint, req models.RegisterRequest) (*models.User, error)
 	RegisterOrganization(req models.OrgRegistrationRequest) (*models.User, error)
+	ChangePassword(userID uint, req models.ChangePasswordRequest) error
+	DeactivateUser(userID uint) error
 }
 
 type authService struct {
@@ -220,6 +222,28 @@ func (s *authService) ResetPassword(email, otp, newPass string) error {
 
 	slog.Info("password reset successful", "email", email)
 	return nil
+}
+
+func (s *authService) ChangePassword(userID uint, req models.ChangePasswordRequest) error {
+	user, err := s.userRepo.GetUserByID(userID)
+	if err != nil || user == nil {
+		return errors.New("user not found")
+	}
+
+	// Verify old password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword)); err != nil {
+		return errors.New("incorrect old password")
+	}
+
+	// Hash and save new password
+	hashed, _ := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	user.Password = string(hashed)
+
+	return s.userRepo.UpdateUser(user)
+}
+
+func (s *authService) DeactivateUser(userID uint) error {
+	return s.userRepo.DeleteUser(userID)
 }
 
 func (s *authService) VerifyTurnstile(token string) bool {

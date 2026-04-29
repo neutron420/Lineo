@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { WifiOff } from "lucide-react";
 import { LocationProvider, useLocation } from "@/context/LocationContext";
 import { SocketProvider, useSocket } from "@/context/SocketContext";
 import { NotificationCenter } from "@/components/NotificationCenter";
@@ -56,6 +57,21 @@ function GlobalHeader() {
   const { address, city, setCity, refreshLocation } = useLocation();
   const [user, setUser] = useState<UserData | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    setIsOnline(navigator.onLine);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     const loadUser = () => {
@@ -89,7 +105,21 @@ function GlobalHeader() {
   );
 
   return (
-    <header className="h-16 md:h-20 bg-white/80 backdrop-blur-xl sticky top-0 z-30 flex items-center justify-between px-4 md:px-8 ghost-border border-t-0 border-x-0">
+    <>
+      <AnimatePresence>
+        {!isOnline && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.2em] py-2 text-center flex items-center justify-center gap-2 sticky top-0 z-[100]"
+          >
+            <WifiOff className="w-3 h-3" />
+            You are currently offline. Some features may be limited.
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <header className="h-16 md:h-20 bg-white/80 backdrop-blur-xl sticky top-0 z-30 flex items-center justify-between px-4 md:px-8 ghost-border border-t-0 border-x-0">
       <div className="flex items-center flex-1 max-w-2xl gap-4 md:gap-6">
         {/* Logo on mobile only */}
         <div className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center shadow-neobrutal shrink-0" style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)' }}>
@@ -147,6 +177,7 @@ function GlobalHeader() {
         <ProfileDropdown user={user} onLogout={handleLogout} />
       </div>
     </header>
+    </>
   );
 }
 

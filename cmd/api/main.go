@@ -206,6 +206,8 @@ func main() {
 			protected.POST("/user/upgrade", subHandler.UpgradeTier)
 			protected.GET("/user/me", authHandler.GetMe)
 			protected.PUT("/users/profile", authHandler.UpdateMe)
+			protected.POST("/users/change-password", authHandler.ChangePassword)
+			protected.DELETE("/users/deactivate", authHandler.DeactivateMe)
 			protected.POST("/feedback", feedbackHandler.Submit)
 			protected.POST("/push/subscribe", pushHandler.Subscribe)
 
