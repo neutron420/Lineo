@@ -25,7 +25,10 @@ RUN apt-get install -y wget gnupg && \
     apt-get update && apt-get install -y trivy
 
 # Install Bun (for Frontend CI)
-RUN curl -fsSL https://bun.sh/install | bash
+RUN curl -fsSL https://bun.sh/install -o install_bun.sh && \
+    chmod +x install_bun.sh && \
+    ./install_bun.sh && \
+    rm install_bun.sh
 ENV BUN_INSTALL="/root/.bun"
 ENV PATH="$BUN_INSTALL/bin:$PATH"
 
