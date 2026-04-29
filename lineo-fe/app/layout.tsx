@@ -15,23 +15,24 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#493ee5",
+};
+
 export const metadata: Metadata = {
   title: "Lineo - Queue & Insights Hub",
   description: "Performance-driven queue management SaaS for elite service centers.",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-    viewportFit: "cover",
-  },
   manifest: "/manifest.json",
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
   },
-  themeColor: "#493ee5",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
