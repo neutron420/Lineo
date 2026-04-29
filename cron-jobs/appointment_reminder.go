@@ -92,7 +92,8 @@ func NewAppointmentReminderService(pushSvc PushSender) *AppointmentReminderServi
 // stage's window, checks that the reminder hasn't been sent already (dedup via
 // appointment_reminders table), sends the push, and marks it as sent.
 func (s *AppointmentReminderService) RunStage(ctx context.Context, stage StageConfig) {
-	now := time.Now().UTC()
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	now := time.Now().In(loc)
 
 	// Calculate the time window in which the appointment's start_time must fall.
 	// For pre-appointment stages: appointment is X hours from now ± slack.

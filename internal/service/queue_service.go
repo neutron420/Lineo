@@ -56,7 +56,8 @@ func (s *queueService) CompleteTicket(queueKey string, orgID uint) error {
 		return errors.New("no active session to complete")
 	}
 
-	now := time.Now()
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	now := time.Now().In(loc)
 	var history models.QueueHistory
 	db.DB.Where("token_number = ?", currentServing.TokenNumber).First(&history)
 
@@ -166,7 +167,8 @@ func (s *queueService) Enqueue(userID uint, username string, req models.EnqueueR
 	}
 	slog.Info("STEP 4 OK: geofence check passed")
 
-	if org.SubscriptionExpiry != nil && time.Now().After(*org.SubscriptionExpiry) {
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	if org.SubscriptionExpiry != nil && time.Now().In(loc).After(*org.SubscriptionExpiry) {
 		return nil, errors.New("organization subscription has expired. please contact administrator")
 	}
 
@@ -255,7 +257,8 @@ func (s *queueService) checkBusinessHours(org *models.Organization, cfg *models.
 		}
 	}
 
-	now := time.Now()
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	now := time.Now().In(loc)
 	currentTime := now.Format("15:04")
 	
 	// Bypass business hours check in development mode for easier testing
@@ -270,8 +273,9 @@ func (s *queueService) checkBusinessHours(org *models.Organization, cfg *models.
 }
 
 func (s *queueService) processEnqueue(userID uint, username, phone string, isKiosk, priority bool, queueKey string, orgID uint, userLat, userLon float64) (*models.QueueResponse, error) {
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	now := time.Now().In(loc)
 	token := s.generateToken()
-	now := time.Now()
 
 	var hasDisability bool
 	var disabilityType string
@@ -371,7 +375,8 @@ func (s *queueService) CallNext(queueKey string, orgID uint, agentID uint) (*mod
 		return nil, err
 	}
 
-	now := time.Now()
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	now := time.Now().In(loc)
 
 	currentServing, _ := s.repo.GetCurrentServing(queueKey)
 	if currentServing != nil {
@@ -414,7 +419,7 @@ func (s *queueService) CallNext(queueKey string, orgID uint, agentID uint) (*mod
 		return nil, err
 	}
 
-	nowServing := time.Now()
+	nowServing := time.Now().In(loc)
 	db.DB.Model(&models.QueueHistory{}).Where("token_number = ?", nextEntry.TokenNumber).Updates(map[string]interface{}{
 		"served_at":      nowServing,
 		"counter_number": agent.CounterNumber,
@@ -429,7 +434,8 @@ func (s *queueService) transitionTicketWithCtx(ctx context.Context, orgID, actor
 		return err
 	}
 
-	now := time.Now()
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	now := time.Now().In(loc)
 	if err := s.repo.UpdateHistoryStatus(token, to, &now); err != nil {
 		return err
 	}
@@ -443,7 +449,7 @@ func (s *queueService) transitionTicketWithCtx(ctx context.Context, orgID, actor
 			ActorID:     actorID,
 			FromState:   string(from),
 			NewState:    string(to),
-			OccurredAt:  now.UTC(),
+			OccurredAt:  now,
 			Metadata:    metadata,
 		}
 		if err := s.bus.PublishQueueEvent(ctx, event); err != nil {
@@ -486,7 +492,7 @@ func (s *queueService) transitionTicketWithCtx(ctx context.Context, orgID, actor
 							PhoneNumber: phone,
 							Message:     msg,
 							Type:        "feedback_request",
-							CreatedAt:   time.Now().UTC(),
+							CreatedAt:   time.Now().In(loc),
 						})
 					}
 				}
@@ -626,6 +632,7 @@ func (s *queueService) ReorderPriority(queueKey, tokenNumber string, position in
 	if err := s.verifyOwnership(queueKey, orgID); err != nil {
 		return err
 	}
+	loc, _ := time.LoadLocation("Asia/Kolkata")
 	if position < 1 {
 		return errors.New("position must be >= 1")
 	}
@@ -646,7 +653,7 @@ func (s *queueService) ReorderPriority(queueKey, tokenNumber string, position in
 				"queue_key": queueKey,
 				"position":  position,
 			},
-			CreatedAt: time.Now().UTC(),
+			CreatedAt: time.Now().In(loc),
 		})
 	}
 
@@ -704,7 +711,8 @@ func (s *queueService) GetPeakHoursByOrg(orgID uint, rangeExpr string) (map[stri
 		return nil, errors.New("org_id is required")
 	}
 	hours := ParseRangeToHours(rangeExpr)
-	since := time.Now().Add(-time.Duration(hours) * time.Hour)
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	since := time.Now().In(loc).Add(-time.Duration(hours) * time.Hour)
 	return s.repo.GetPeakHoursByOrgRange(orgID, since)
 }
 

@@ -143,7 +143,8 @@ func (s *authService) ForgotPassword(email string, method string) error {
 		otp += fmt.Sprintf("%d", b[0]%10)
 	}
 
-	exp := time.Now().Add(45 * time.Second)
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	exp := time.Now().In(loc).Add(45 * time.Second)
 	user.ResetToken = otp
 	user.ResetTokenExp = &exp
 	user.OTPAttempts = 0 // Reset attempts on new OTP request
@@ -180,7 +181,8 @@ func (s *authService) ResetPassword(email, otp, newPass string) error {
 	}
 
 	// 1. Check Lockout
-	if user.LockoutUntil != nil && user.LockoutUntil.After(time.Now()) {
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	if user.LockoutUntil != nil && user.LockoutUntil.After(time.Now().In(loc)) {
 		diff := time.Until(*user.LockoutUntil)
 		return fmt.Errorf("account locked. please try again in %v", diff.Round(time.Second))
 	}
@@ -194,7 +196,8 @@ func (s *authService) ResetPassword(email, otp, newPass string) error {
 	if user.ResetToken != otp {
 		user.OTPAttempts++
 		if user.OTPAttempts >= 3 {
-			lockout := time.Now().Add(15 * time.Minute)
+			loc, _ := time.LoadLocation("Asia/Kolkata")
+			lockout := time.Now().In(loc).Add(15 * time.Minute)
 			user.LockoutUntil = &lockout
 			db.DB.Save(user)
 			return errors.New("too many failed attempts. account locked for 15 minutes")

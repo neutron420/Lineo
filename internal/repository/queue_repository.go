@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	redisClient "github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
 	"queueless/internal/models"
 	database "queueless/pkg/db"
 	"queueless/pkg/redis"
+
+	redisClient "github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
 )
 
 type QueueRepository interface {
@@ -23,7 +24,7 @@ type QueueRepository interface {
 	GetPeakHoursByOrgRange(orgID uint, since time.Time) (map[string]int, error)
 	GetCounterAverages(queueKey string) (map[int]int, error)
 	GetDailyTicketCountByOrg(orgID uint) (int, error)
-	
+
 	// Redis operations
 	Enqueue(queueKey string, entry *models.QueueEntry) error
 	DequeueMin(queueKey string) (*models.QueueEntry, error)
@@ -73,7 +74,7 @@ func (r *queueRepository) UpdateHistoryStatus(tokenNumber string, status models.
 
 func (r *queueRepository) CalculateAverages(queueKey string) (int, int, error) {
 	var wait, serve float64
-	
+
 	// Avg Wait: Time between JoinedAt and ServedAt
 	r.db.Model(&models.QueueHistory{}).
 		Select("COALESCE(AVG(EXTRACT(EPOCH FROM (served_at - joined_at))) / 60, 0)").
@@ -91,19 +92,19 @@ func (r *queueRepository) CalculateAverages(queueKey string) (int, int, error) {
 
 func (r *queueRepository) GetCounterAverages(queueKey string) (map[int]int, error) {
 	averages := make(map[int]int)
-	
+
 	type result struct {
 		Counter int
 		Avg     float64
 	}
 	var res []result
-	
+
 	err := r.db.Model(&models.QueueHistory{}).
 		Select("counter_number as counter, AVG(serving_duration) / 60 as avg").
 		Where("queue_key = ? AND status = ? AND counter_number > 0", queueKey, models.StatusCompleted).
 		Group("counter").
 		Scan(&res).Error
-		
+
 	if err == nil {
 		for _, row := range res {
 			averages[row.Counter] = int(row.Avg)
@@ -114,7 +115,8 @@ func (r *queueRepository) GetCounterAverages(queueKey string) (map[int]int, erro
 
 func (r *queueRepository) GetDailyCount(queueKey string) (int64, error) {
 	var count int64
-	today := time.Now().Truncate(24 * time.Hour)
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	today := time.Now().In(loc).Truncate(24 * time.Hour)
 	err := r.db.Model(&models.QueueHistory{}).
 		Where("queue_key = ? AND created_at >= ?", queueKey, today).
 		Count(&count).Error
@@ -123,7 +125,8 @@ func (r *queueRepository) GetDailyCount(queueKey string) (int64, error) {
 
 func (r *queueRepository) GetDailyTicketCountByOrg(orgID uint) (int, error) {
 	var count int64
-	today := time.Now().Truncate(24 * time.Hour)
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	today := time.Now().In(loc).Truncate(24 * time.Hour)
 	err := r.db.Model(&models.QueueHistory{}).
 		Where("organization_id = ? AND created_at >= ?", orgID, today).
 		Count(&count).Error
@@ -132,20 +135,20 @@ func (r *queueRepository) GetDailyTicketCountByOrg(orgID uint) (int, error) {
 
 func (r *queueRepository) GetPeakHours(queueKey string) (map[string]int, error) {
 	peakMap := make(map[string]int)
-	
+
 	type result struct {
 		Hour  int
 		Count int
 	}
 	var res []result
-	
+
 	// For production PG
 	err := r.db.Model(&models.QueueHistory{}).
 		Select("EXTRACT(HOUR FROM joined_at) as hour, count(*) as count").
 		Where("queue_key = ?", queueKey).
 		Group("hour").
 		Scan(&res).Error
-		
+
 	if err == nil {
 		for _, row := range res {
 			peakMap[fmt.Sprintf("%02d:00", row.Hour)] = row.Count
@@ -180,10 +183,10 @@ func (r *queueRepository) GetPeakHoursByOrgRange(orgID uint, since time.Time) (m
 }
 
 // Redis keys
-func zqKey(qKey string) string       { return fmt.Sprintf("queue:%s:zwaiting", qKey) }
-func servingKey(qKey string) string  { return fmt.Sprintf("queue:%s:serving", qKey) }
-func entriesKey(qKey string) string  { return fmt.Sprintf("queue:%s:entries", qKey) }
-func holdingKey(qKey string) string  { return fmt.Sprintf("queue:%s:holding", qKey) } // List for No-Shows
+func zqKey(qKey string) string      { return fmt.Sprintf("queue:%s:zwaiting", qKey) }
+func servingKey(qKey string) string { return fmt.Sprintf("queue:%s:serving", qKey) }
+func entriesKey(qKey string) string { return fmt.Sprintf("queue:%s:entries", qKey) }
+func holdingKey(qKey string) string { return fmt.Sprintf("queue:%s:holding", qKey) } // List for No-Shows
 
 // Redis logic handles ZSet (Sorted Set)
 func (r *queueRepository) Enqueue(queueKey string, entry *models.QueueEntry) error {
@@ -209,9 +212,9 @@ func (r *queueRepository) DequeueMin(queueKey string) (*models.QueueEntry, error
 	if err != nil || len(res) == 0 {
 		return nil, nil // Empty queue
 	}
-	
+
 	token := res[0].Member.(string)
-	
+
 	data, err := r.redis.HGet(r.ctx, entriesKey(queueKey), token).Result()
 	if err != nil {
 		return nil, err
@@ -221,7 +224,7 @@ func (r *queueRepository) DequeueMin(queueKey string) (*models.QueueEntry, error
 	if err := json.Unmarshal([]byte(data), &entry); err != nil {
 		return nil, err
 	}
-	
+
 	// Remove from hash optionally, but keeping it makes lookup easier for "get position" by token.
 	return &entry, nil
 }
@@ -243,7 +246,9 @@ func (r *queueRepository) GetQueueList(queueKey string) ([]models.QueueEntry, er
 	}
 
 	for _, d := range dataList {
-		if d == nil { continue }
+		if d == nil {
+			continue
+		}
 		var entry models.QueueEntry
 		if err := json.Unmarshal([]byte(d.(string)), &entry); err == nil {
 			entries = append(entries, entry)
@@ -267,11 +272,15 @@ func (r *queueRepository) GetPosition(queueKey, tokenNumber string) (int, error)
 func (r *queueRepository) GetCurrentServing(queueKey string) (*models.QueueEntry, error) {
 	data, err := r.redis.Get(r.ctx, servingKey(queueKey)).Result()
 	if err != nil {
-		if err == redisClient.Nil { return nil, nil }
+		if err == redisClient.Nil {
+			return nil, nil
+		}
 		return nil, err
 	}
 	var entry models.QueueEntry
-	if err := json.Unmarshal([]byte(data), &entry); err != nil { return nil, err }
+	if err := json.Unmarshal([]byte(data), &entry); err != nil {
+		return nil, err
+	}
 	return &entry, nil
 }
 
@@ -280,20 +289,24 @@ func (r *queueRepository) SetCurrentServing(queueKey string, entry *models.Queue
 		return r.redis.Del(r.ctx, servingKey(queueKey)).Err()
 	}
 	data, err := json.Marshal(entry)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	return r.redis.Set(r.ctx, servingKey(queueKey), data, 0).Err()
 }
 
 func (r *queueRepository) HoldToken(queueKey string, entry *models.QueueEntry) error {
 	data, _ := json.Marshal(entry)
-	// Add to holding set/list 
+	// Add to holding set/list
 	return r.redis.HSet(r.ctx, holdingKey(queueKey), entry.TokenNumber, data).Err()
 }
 
 func (r *queueRepository) GetHoldingList(queueKey string) ([]models.QueueEntry, error) {
 	dataMap, err := r.redis.HGetAll(r.ctx, holdingKey(queueKey)).Result()
-	if err != nil { return nil, err }
-	
+	if err != nil {
+		return nil, err
+	}
+
 	var entries []models.QueueEntry
 	for _, data := range dataMap {
 		var entry models.QueueEntry

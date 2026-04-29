@@ -150,7 +150,7 @@ func (s *appointmentService) Book(userID uint, req models.BookAppointmentRequest
 			UserLng:          appt.UserLon,
 			PhoneNumber:      appt.PhoneNumber,
 			ThresholdMinutes: 10,
-			RequestedAt:      time.Now().UTC(),
+			RequestedAt:      time.Now().In(loc),
 		})
 	}
 
@@ -233,7 +233,7 @@ func (s *appointmentService) Reschedule(appointmentID uint, userID uint, newTime
 			UserLng:          appt.UserLon,
 			PhoneNumber:      appt.PhoneNumber,
 			ThresholdMinutes: 10,
-			RequestedAt:      time.Now().UTC(),
+			RequestedAt:      time.Now().In(loc),
 		})
 	}
 
@@ -281,11 +281,14 @@ func (s *appointmentService) Cancel(appointmentID uint, userID uint) error {
 func (s *appointmentService) CommuteWorker() {}
 
 func (s *appointmentService) QueueCommuteChecks(ctx context.Context) error {
-	window := time.Now().Add(2 * time.Hour)
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	now := time.Now().In(loc)
+	window := now.Add(2 * time.Hour)
+
 	var upcomings []models.Appointment
 	if err := db.DB.Where(
 		"status = ? AND start_time > ? AND start_time < ? AND commute_notified = ?",
-		models.ApptScheduled, time.Now(), window, false,
+		models.ApptScheduled, now, window, false,
 	).Find(&upcomings).Error; err != nil {
 		return err
 	}
@@ -305,7 +308,7 @@ func (s *appointmentService) QueueCommuteChecks(ctx context.Context) error {
 			UserLng:          appt.UserLon,
 			PhoneNumber:      appt.PhoneNumber,
 			ThresholdMinutes: 10,
-			RequestedAt:      time.Now().UTC(),
+			RequestedAt:      time.Now().In(loc),
 		})
 	}
 
@@ -313,9 +316,11 @@ func (s *appointmentService) QueueCommuteChecks(ctx context.Context) error {
 }
 
 func (s *appointmentService) AutoCancelNoShows() error {
-	var appts []models.Appointment
-	cutoffTime := time.Now().Add(-30 * time.Minute)
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	now := time.Now().In(loc)
+	cutoffTime := now.Add(-30 * time.Minute)
 
+	var appts []models.Appointment
 	// Find appointments that are scheduled but their start time is 30 mins in the past
 	err := db.DB.Where("status = ? AND start_time < ?", models.ApptScheduled, cutoffTime).Find(&appts).Error
 	if err != nil {

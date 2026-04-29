@@ -83,7 +83,8 @@ func (s *organizationService) DeleteOrgConfig(orgID uint) error {
 }
 
 func (s *organizationService) UpgradePlan(orgID uint, plan string, months int) error {
-	expiry := time.Now().AddDate(0, months, 0)
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	expiry := time.Now().In(loc).AddDate(0, months, 0)
 	return s.orgRepo.UpdateSubscription(orgID, plan, &expiry)
 }
 
