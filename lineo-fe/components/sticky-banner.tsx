@@ -26,6 +26,11 @@ export const StickyBanner = ({
   const [timeLeft, setTimeLeft] = useState<string>("");
   const { scrollY } = useScroll();
 
+  useEffect(() => {
+    const stored = localStorage.getItem("last_dismissed_announcement_id");
+    if (stored) setLastDismissedId(parseInt(stored));
+  }, []);
+
   const fetchLatest = async () => {
     try {
       // Skip showing for admins
@@ -38,10 +43,22 @@ export const StickyBanner = ({
       const res = await api.get("/announcement/latest");
       const data = res.data?.data;
       
-      if (data && data.id !== lastDismissedId) {
+      const dismissedId = parseInt(localStorage.getItem("last_dismissed_announcement_id") || "0");
+
+      if (data && data.id !== dismissedId) {
+        // Check if expired
+        if (data.expires_at) {
+            const now = new Date();
+            const expiry = new Date(data.expires_at);
+            if (expiry.getTime() <= now.getTime()) {
+                setAnnouncement(null);
+                setVisible(false);
+                return;
+            }
+        }
         setAnnouncement(data);
         setVisible(true);
-      } else if (!data) {
+      } else {
         setAnnouncement(null);
         setVisible(false);
       }
@@ -66,6 +83,9 @@ export const StickyBanner = ({
         if (diff <= 0) {
           setTimeLeft("EXPIRED");
           setVisible(false);
+          // Auto-dismiss expired
+          localStorage.setItem("last_dismissed_announcement_id", announcement.id.toString());
+          setLastDismissedId(announcement.id);
           return;
         }
         const mins = Math.floor(diff / 1000 / 60);
@@ -81,9 +101,10 @@ export const StickyBanner = ({
   }, [announcement]);
 
   useMotionValueEvent(scrollY, "change", (latest) => {
+    const dismissedId = parseInt(localStorage.getItem("last_dismissed_announcement_id") || "0");
     if (hideOnScroll && latest > 40) {
       setVisible(false);
-    } else if (hideOnScroll && announcement && latest <= 40 && announcement.id !== lastDismissedId) {
+    } else if (hideOnScroll && announcement && latest <= 40 && announcement.id !== dismissedId) {
       setVisible(true);
     }
   });
@@ -109,6 +130,12 @@ export const StickyBanner = ({
   };
 
   const config = levelConfig[announcement.level] || levelConfig.INFO;
+
+  const handleDismiss = () => {
+    setVisible(false);
+    localStorage.setItem("last_dismissed_announcement_id", announcement.id.toString());
+    setLastDismissedId(announcement.id);
+  };
 
   return (
     <AnimatePresence>
@@ -149,7 +176,7 @@ export const StickyBanner = ({
         </div>
 
         <button 
-          onClick={() => { setVisible(false); setLastDismissedId(announcement.id); }}
+          onClick={handleDismiss}
           className="p-1.5 hover:bg-white/20 rounded-xl transition-all shrink-0 text-white"
         >
           <X className="h-4 w-4" strokeWidth={3} />

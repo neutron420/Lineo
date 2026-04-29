@@ -21,34 +21,73 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import Link from "next/link";
+import api from "@/lib/api";
 
 interface UserProfile {
+  id?: number;
   username: string;
   email: string;
+  phone?: string;
+  timezone?: string;
   subscription_tier?: string;
   daily_joins?: number;
   daily_appts?: number;
+  created_at?: string;
 }
 
 export default function SettingsPage() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    phone: "",
+    timezone: ""
+  });
 
   useEffect(() => {
     const userData = sessionStorage.getItem("user");
-    let parsedUser: UserProfile | null = null;
     if (userData) {
       try {
-        parsedUser = JSON.parse(userData);
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        setFormData({
+          username: parsedUser.username || "",
+          email: parsedUser.email || "",
+          phone: parsedUser.phone || "",
+          timezone: parsedUser.timezone || "UTC+5:30 (IST)"
+        });
       } catch (e) {
         console.error("Failed to parse user data", e);
       }
     }
-    void Promise.resolve().then(() => {
-      setUser(parsedUser);
-      setMounted(true);
-    });
+    setMounted(true);
   }, []);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      // Logic to update profile
+      const response = await api.put("/users/profile", formData);
+      if (response.data?.success) {
+        toast.success("Profile updated successfully!");
+        // Update session storage
+        const updatedUser = { ...user, ...formData };
+        sessionStorage.setItem("user", JSON.stringify(updatedUser));
+        setUser(updatedUser as UserProfile);
+      } else {
+        toast.error(response.data?.message || "Failed to update profile");
+      }
+    } catch (err: any) {
+      console.error("Update failed:", err);
+      toast.error(err.response?.data?.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!mounted) return null;
 
@@ -167,25 +206,66 @@ export default function SettingsPage() {
                     <p className="text-[#49607e] text-sm font-medium">{user?.email || "quest@lineo.ai"}</p>
                     <div className="flex flex-wrap gap-2 mt-2">
                        <span className="px-2.5 py-0.5 bg-[#493ee5]/10 text-[#493ee5] text-[10px] font-bold uppercase rounded-full tracking-widest" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{tier.label}</span>
-                       <span className="px-2.5 py-0.5 bg-[#f1f4f7] text-[#49607e] text-[10px] font-bold uppercase rounded-full tracking-widest">Active since 2024</span>
+                       <span className="px-2.5 py-0.5 bg-[#f1f4f7] text-[#49607e] text-[10px] font-bold uppercase rounded-full tracking-widest">Active since {user?.created_at ? new Date(user.created_at).getFullYear() : '2024'}</span>
                     </div>
                  </div>
               </div>
 
               <div className="space-y-5 pt-5 border-t border-[#e5e8eb]">
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField label="Full Name" placeholder="R.K Singh" defaultValue={user?.username} />
-                    <InputField label="Email Address" placeholder="rk@example.com" defaultValue={user?.email} icon={<Mail className="w-3.5 h-3.5" />} />
-                    <InputField label="Phone Number" placeholder="+91 98765 43210" icon={<Smartphone className="w-3.5 h-3.5" />} />
-                    <InputField label="Timezone" placeholder="UTC+5:30 (IST)" icon={<Globe className="w-3.5 h-3.5" />} />
+                    <InputField 
+                      label="Full Name" 
+                      placeholder="Your Name" 
+                      value={formData.username} 
+                      onChange={(val) => setFormData({...formData, username: val})} 
+                    />
+                    <InputField 
+                      label="Email Address" 
+                      placeholder="email@example.com" 
+                      value={formData.email} 
+                      onChange={(val) => setFormData({...formData, email: val})} 
+                      icon={<Mail className="w-3.5 h-3.5" />} 
+                    />
+                    <InputField 
+                      label="Phone Number" 
+                      placeholder="+91 98765 43210" 
+                      value={formData.phone} 
+                      onChange={(val) => setFormData({...formData, phone: val})} 
+                      icon={<Smartphone className="w-3.5 h-3.5" />} 
+                    />
+                    <InputField 
+                      label="Timezone" 
+                      placeholder="UTC+5:30 (IST)" 
+                      value={formData.timezone} 
+                      onChange={(val) => setFormData({...formData, timezone: val})} 
+                      icon={<Globe className="w-3.5 h-3.5" />} 
+                    />
                  </div>
                  
                  <div className="pt-4 flex flex-col sm:flex-row justify-end gap-2">
-                    <Button variant="ghost" className="h-10 px-5 rounded-xl text-sm font-bold text-[#49607e] bg-[#f1f4f7] hover:bg-[#e5e8eb]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                    <Button 
+                      variant="ghost" 
+                      className="h-10 px-5 rounded-xl text-sm font-bold text-[#49607e] bg-[#f1f4f7] hover:bg-[#e5e8eb]" 
+                      style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+                      onClick={() => {
+                        if (user) {
+                          setFormData({
+                            username: user.username || "",
+                            email: user.email || "",
+                            phone: user.phone || "",
+                            timezone: user.timezone || "UTC+5:30 (IST)"
+                          });
+                        }
+                      }}
+                    >
                        Discard
                     </Button>
-                    <Button onClick={() => toast.success("Settings saved!")} className="kinetic-btn-primary h-10 px-6 text-sm">
-                       Save Changes
+                    <Button 
+                      onClick={handleSave} 
+                      disabled={loading}
+                      className="kinetic-btn-primary h-10 px-6 text-sm"
+                    >
+                       {loading ? "Saving..." : "Save Changes"}
                     </Button>
                  </div>
               </div>
@@ -241,7 +321,7 @@ function SettingsNavItem({ icon, title, active, highlight }: { icon: React.React
   );
 }
 
-function InputField({ label, placeholder, icon, defaultValue }: { label: string, placeholder: string, icon?: React.ReactNode, defaultValue?: string }) {
+function InputField({ label, placeholder, icon, value, onChange }: { label: string, placeholder: string, icon?: React.ReactNode, value?: string, onChange?: (val: string) => void }) {
   return (
     <div className="space-y-1.5">
        <label className="text-[11px] font-extrabold text-[#49607e] uppercase tracking-[0.15em] pl-0.5" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{label}</label>
@@ -250,7 +330,8 @@ function InputField({ label, placeholder, icon, defaultValue }: { label: string,
           <input 
             type="text" 
             placeholder={placeholder} 
-            defaultValue={defaultValue}
+            value={value}
+            onChange={(e) => onChange?.(e.target.value)}
             className={cn(
                "w-full py-3 bg-[#f1f4f7] rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#493ee5]/10 outline-none transition-all",
                icon ? "pl-10 pr-4" : "px-4"
