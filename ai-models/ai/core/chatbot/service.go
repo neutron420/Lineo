@@ -9,7 +9,7 @@ import (
 )
 
 // Interfaces to loosely couple with the main Lineo services
-type QueueService interface {
+type QueueStatusProvider interface {
 	GetUserStatus(ctx context.Context, userID string, orgID string) (interface{}, error)
 }
 
@@ -28,12 +28,12 @@ type OrgService interface {
 type ChatbotService struct {
 	openai   *OpenAIChatbot
 	repo     *ChatRepo
-	queueSvc QueueService
+	queueSvc QueueStatusProvider
 	apptSvc  AppointmentService
 	orgSvc   OrgService
 }
 
-func NewChatbotService(repo *ChatRepo, qSvc QueueService, aSvc AppointmentService, oSvc OrgService) *ChatbotService {
+func NewChatbotService(repo *ChatRepo, qSvc QueueStatusProvider, aSvc AppointmentService, oSvc OrgService) *ChatbotService {
 	return &ChatbotService{
 		openai:   NewOpenAIChatbot(),
 		repo:     repo,
@@ -51,40 +51,46 @@ type UserContext struct {
 }
 
 // ProcessMessage — main entry point for every incoming message
-func (s *ChatbotService) ProcessMessage(ctx context.Context,
-	sessionID, userMessage string,
-	user UserContext,
-	channel string) (string, error) {
-
-	// 1. Load conversation history from DB
-	history, err := s.repo.GetHistory(ctx, sessionID)
+func (s *ChatbotService) ProcessMessage(ctx context.Context, sessionID, userMessage string, user UserContext, channel string) (string, error) {
+	promptHistory, err := s.preparePromptHistory(ctx, sessionID, userMessage)
 	if err != nil {
 		return "", err
 	}
 
-	// 2. Append the new user message (in-memory for the prompt)
+	org := s.getOrganizationContext(ctx, user.OrgID)
+	return s.runAgenticLoop(ctx, sessionID, promptHistory, org, user)
+}
+
+func (s *ChatbotService) preparePromptHistory(ctx context.Context, sessionID, userMessage string) ([]Message, error) {
+	history, err := s.repo.GetHistory(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
 	promptHistory := make([]Message, len(history))
 	for i, h := range history {
 		promptHistory[i] = Message{Role: h.Role, Content: h.Content}
 	}
 	promptHistory = append(promptHistory, Message{Role: "user", Content: userMessage})
 
-	// 3. Save user message to DB
 	if err := s.repo.SaveMessage(ctx, sessionID, "user", userMessage); err != nil {
 		log.Printf("Failed to save user message: %v", err)
 	}
+	return promptHistory, nil
+}
 
-	// 4. Get org info for system prompt
+func (s *ChatbotService) getOrganizationContext(ctx context.Context, orgID string) struct{ Name, Type string } {
 	org := struct{ Name, Type string }{Name: "Lineo Platform", Type: "Business"}
 	if s.orgSvc != nil {
-		if fetchedOrg, err := s.orgSvc.GetOrg(ctx, user.OrgID); err == nil {
+		if fetchedOrg, err := s.orgSvc.GetOrg(ctx, orgID); err == nil {
 			org = fetchedOrg
 		}
 	}
+	return org
+}
 
-	// 5. Agentic loop — ChatGPT may call multiple tools before responding
+func (s *ChatbotService) runAgenticLoop(ctx context.Context, sessionID string, promptHistory []Message, org struct{ Name, Type string }, user UserContext) (string, error) {
 	maxIterations := 5
-
 	for i := 0; i < maxIterations; i++ {
 		response, err := s.openai.Chat(ctx, promptHistory, org.Name, org.Type, user)
 		if err != nil {
@@ -93,7 +99,6 @@ func (s *ChatbotService) ProcessMessage(ctx context.Context,
 		}
 
 		if response.Type == "message" {
-			// ChatGPT gave a final text response — save and return
 			if err := s.repo.SaveMessage(ctx, sessionID, "assistant", response.TextResponse); err != nil {
 				log.Printf("Failed to save assistant response: %v", err)
 			}
@@ -101,28 +106,12 @@ func (s *ChatbotService) ProcessMessage(ctx context.Context,
 		}
 
 		if response.Type == "tool_use" {
-			// Add the assistant's tool call to history
-			promptHistory = append(promptHistory, Message{
-				Role: "assistant",
-				ToolCalls: []map[string]interface{}{
-					{
-						"id":   response.ToolUseID,
-						"type": "function",
-						"function": map[string]interface{}{
-							"name":      response.ToolName,
-							"arguments": string(marshalIgnoreError(response.ToolInput)),
-						},
-					},
-				},
-			})
-
-			// Execute the tool
+			s.handleToolUse(&promptHistory, response)
 			toolResult, err := s.executeTool(ctx, response.ToolName, response.ToolInput, user)
 			if err != nil {
 				toolResult = fmt.Sprintf("Error: %v", err)
 			}
 
-			// Store tool result for next loop iteration
 			promptHistory = append(promptHistory, Message{
 				Role:       "tool",
 				ToolCallID: response.ToolUseID,
@@ -131,8 +120,23 @@ func (s *ChatbotService) ProcessMessage(ctx context.Context,
 			})
 		}
 	}
-
 	return "I wasn't able to complete that. A human agent will assist you shortly.", nil
+}
+
+func (s *ChatbotService) handleToolUse(promptHistory *[]Message, response ChatResponse) {
+	*promptHistory = append(*promptHistory, Message{
+		Role: "assistant",
+		ToolCalls: []map[string]interface{}{
+			{
+				"id":   response.ToolUseID,
+				"type": "function",
+				"function": map[string]interface{}{
+					"name":      response.ToolName,
+					"arguments": string(marshalIgnoreError(response.ToolInput)),
+				},
+			},
+		},
+	})
 }
 
 func marshalIgnoreError(v interface{}) []byte {
@@ -228,7 +232,7 @@ func (s *ChatbotService) executeTool(ctx context.Context, toolName string,
 		return fmt.Sprintf(`{"status": "success", "remind_at": "%s"}`, remindAt.Format(time.Kitchen)), nil
 
 	case "escalate_to_human":
-		log.Printf("ESCALATION - Session for user %s initiated", user.ID)
+		log.Printf("ESCALATION - Support session initiated")
 		// Update DB conversation status
 		// Convert string ID to uint if needed, for now we will skip updating DB if types don't match or parse it
 		return `{"escalated": true}`, nil

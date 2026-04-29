@@ -11,6 +11,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	recommendedSlotsMsg = "Recommended slots"
+)
+
 type AISlotHandler struct {
 	aiSlotService AISlotService
 	orgRepo       repository.OrganizationRepository
@@ -31,7 +35,7 @@ func (h *AISlotHandler) GetRecommendations(c *gin.Context) {
 			queueDef, err := h.orgRepo.GetQueueDefByKey(raw)
 			if err != nil || queueDef == nil {
 				// Graceful fallback: no crash, just return empty recommendations
-				utils.RespondSuccess(c, http.StatusOK, "Recommended slots", map[string]interface{}{
+				utils.RespondSuccess(c, http.StatusOK, recommendedSlotsMsg, map[string]interface{}{
 					"recommended_slots":  []interface{}{},
 					"all_slots_available": 0,
 					"explanation":        "Could not resolve organization. Please try again.",
@@ -48,7 +52,7 @@ func (h *AISlotHandler) GetRecommendations(c *gin.Context) {
 	}
 
 	if orgID == 0 {
-		utils.RespondSuccess(c, http.StatusOK, "Recommended slots", map[string]interface{}{
+		utils.RespondSuccess(c, http.StatusOK, recommendedSlotsMsg, map[string]interface{}{
 			"recommended_slots":  []interface{}{},
 			"all_slots_available": 0,
 			"explanation":        "Organization not found.",
@@ -66,7 +70,7 @@ func (h *AISlotHandler) GetRecommendations(c *gin.Context) {
 	resp, err := h.aiSlotService.GetRecommendedSlots(c.Request.Context(), userID, uint(orgID), date)
 	if err != nil {
 		// Graceful fallback instead of 500
-		utils.RespondSuccess(c, http.StatusOK, "Recommended slots", map[string]interface{}{
+		utils.RespondSuccess(c, http.StatusOK, recommendedSlotsMsg, map[string]interface{}{
 			"recommended_slots":  []interface{}{},
 			"all_slots_available": 0,
 			"explanation":        "AI recommendation temporarily unavailable.",
@@ -74,6 +78,6 @@ func (h *AISlotHandler) GetRecommendations(c *gin.Context) {
 		return
 	}
 
-	utils.RespondSuccess(c, http.StatusOK, "Recommended slots", resp)
+	utils.RespondSuccess(c, http.StatusOK, recommendedSlotsMsg, resp)
 }
 
