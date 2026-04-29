@@ -54,33 +54,21 @@ export default function ForgotPasswordPage() {
     }
   };
 
-  const verifyOTP = async (code: string) => {
-    if (code.length === 6) {
-      setIsValidating(true);
-      setError(null);
-      
-      // Artificial delay for premium feel
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      
-      setIsValidating(false);
-      setStep("password");
-      setSuccess("Code verified! Now set your new password.");
-    }
-  };
-
   const handleVerifyOTP = (e: React.FormEvent) => {
     e.preventDefault();
     if (otp.length !== 6) {
       setError("Please enter a valid 6-digit code.");
       return;
     }
-    verifyOTP(otp);
+    // No more fake verification. We proceed to password step 
+    // and let the final handleResetPassword do the real validation.
+    setStep("password");
+    setError(null);
   };
 
   useEffect(() => {
-    if (otp.length === 6 && step === "otp" && !isValidating) {
-      verifyOTP(otp);
-    }
+    // Keep this empty or remove if not needed. 
+    // Auto-submitting can be annoying if user wants to check the code.
   }, [otp, step]);
 
   const handlePaste = (e: React.ClipboardEvent) => {

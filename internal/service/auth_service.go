@@ -208,7 +208,12 @@ func (s *authService) ResetPassword(email, otp, newPass string) error {
 		return fmt.Errorf("invalid OTP. %d attempts remaining", 3-user.OTPAttempts)
 	}
 
-	// 4. Success
+	// 4. Check for Password Reuse
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(newPass)); err == nil {
+		return errors.New("new password cannot be the same as your current password")
+	}
+
+	// 5. Success
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
 	user.Password = string(hashed)
 	user.ResetToken = ""
@@ -235,7 +240,12 @@ func (s *authService) ChangePassword(userID uint, req models.ChangePasswordReque
 		return errors.New("incorrect old password")
 	}
 
-	// Hash and save new password
+	// 2. Check for Password Reuse
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.NewPassword)); err == nil {
+		return errors.New("new password cannot be the same as your current password")
+	}
+
+	// 3. Hash and save new password
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	user.Password = string(hashed)
 

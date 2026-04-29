@@ -137,6 +137,7 @@ func main() {
 
 	r.Use(middleware.LoggerMiddleware())
 	r.Use(gin.Recovery())
+	r.Use(middleware.SecurityHeaders()) // Added strict security headers
 	r.Use(middleware.RateLimitMiddleware())
 
 	r.GET("/", func(c *gin.Context) {
@@ -162,7 +163,6 @@ func main() {
 			auth.POST("/forgot-password", authHandler.ForgotPassword)
 			auth.POST("/reset-password", authHandler.ResetPassword)
 			auth.POST("/register-org", authHandler.RegisterOrganization)
-			auth.PUT("/update-avatar-public", authHandler.UpdateAvatarPublic)
 		}
 
 		v1.POST("/org", orgHandler.CreateOrganization)

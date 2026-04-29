@@ -21,7 +21,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 		// Permissive rate limit for development
 		limit := 1000 
 		if os.Getenv("ENV") == "production" {
-			limit = 200 // 200 requests per window in production
+			limit = 60 // 60 requests per window (1 min) in production
 		}
 
 		key := "rate_limit_v4:" + c.ClientIP()
