@@ -12,12 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v3.5.3
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@9319731f67f0d45c761d4b1f2e2e3f4a21f7c1e6 # v4.0.1
         with:
           go-version: '1.21'
 
@@ -30,7 +30,7 @@ jobs:
         continue-on-error: true
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarcloud-github-action@db501078e936e4b4c8783d049ce99a2d1ae024dc # v2.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
