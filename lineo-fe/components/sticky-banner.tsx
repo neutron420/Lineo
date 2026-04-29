@@ -28,7 +28,7 @@ export const StickyBanner = ({
 
   useEffect(() => {
     const stored = localStorage.getItem("last_dismissed_announcement_id");
-    if (stored) setLastDismissedId(parseInt(stored));
+    if (stored) setTimeout(() => setLastDismissedId(parseInt(stored)), 0);
   }, []);
 
   const fetchLatest = async () => {

@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils"; // Assuming a utility function for class mergi
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, X, Sparkles } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // --- 1. Typescript Interfaces (API) ---
