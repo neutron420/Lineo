@@ -1,8 +1,9 @@
 package handler
 
 import (
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"net/http"
 	"time"
 
@@ -63,19 +64,20 @@ func (h *AdminHandler) GetSystemMetrics(c *gin.Context) {
 }
 
 func (h *AdminHandler) GetPlatformAnalytics(c *gin.Context) {
-	// A more robust dynamic generation algorithm to populate the Recharts without hardcoding the frontend
-	// #nosec G404 - Weak random is fine for mock/simulated analytics data
-	rand.Seed(time.Now().UnixNano())
 	var analyticsData []gin.H
 
 	baseTickets := 200
 	baseQueues := 20
 
 	for i := 1; i <= 30; i++ {
-		// #nosec G404 - Simulated data doesn't require crypto/rand
-		baseTickets += rand.Intn(40) - 10
-		// #nosec G404 - Simulated data doesn't require crypto/rand
-		baseQueues += rand.Intn(10) - 3
+		ticketsDelta, err1 := rand.Int(rand.Reader, big.NewInt(40))
+		queuesDelta, err2 := rand.Int(rand.Reader, big.NewInt(10))
+
+		if err1 == nil && err2 == nil {
+			baseTickets += int(ticketsDelta.Int64()) - 10
+			baseQueues += int(queuesDelta.Int64()) - 3
+		}
+
 		if baseTickets < 50 {
 			baseTickets = 50
 		}
