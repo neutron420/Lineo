@@ -8,6 +8,9 @@ import (
 
 	"queueless/internal/models"
 	"queueless/pkg/db"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // StageConfig defines a single appointment reminder stage.
@@ -107,51 +110,61 @@ func (s *AppointmentReminderService) RunStage(ctx context.Context, stage StageCo
 	}
 
 	var rows []appointmentRow
-	err := db.DB.WithContext(ctx).
-		Table("appointments a").
-		Select("a.id, a.user_id, o.name AS org_name, a.start_time").
-		Joins("JOIN organizations o ON o.id = a.organization_id").
-		Where("a.status IN ?", []models.AppointmentStatus{models.ApptScheduled, models.ApptCheckedIn}).
-		Where("a.start_time BETWEEN ? AND ?", windowStart, windowEnd).
-		Where("a.user_id > 0"). // Only registered users (not kiosk)
-		Where("NOT EXISTS (SELECT 1 FROM appointment_reminders ar WHERE ar.appointment_id = a.id AND ar.stage = ?)", stage.Stage).
-		Where("a.deleted_at IS NULL").
-		Scan(&rows).Error
+
+	// Atomic transaction with SKIP LOCKED for distributed safety
+	err := db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		err := tx.Table("appointments a").
+			Clauses(clause.Locking{Strength: "UPDATE", Table: clause.Table{Name: "a"}, Options: "SKIP LOCKED"}).
+			Select("a.id, a.user_id, o.name AS org_name, a.start_time").
+			Joins("JOIN organizations o ON o.id = a.organization_id").
+			Where("a.status IN ?", []models.AppointmentStatus{models.ApptScheduled, models.ApptCheckedIn}).
+			Where("a.start_time BETWEEN ? AND ?", windowStart, windowEnd).
+			Where("a.user_id > 0"). // Only registered users (not kiosk)
+			Where("NOT EXISTS (SELECT 1 FROM appointment_reminders ar WHERE ar.appointment_id = a.id AND ar.stage = ?)", stage.Stage).
+			Where("a.deleted_at IS NULL").
+			Scan(&rows).Error
+
+		if err != nil {
+			return err
+		}
+
+		for _, row := range rows {
+			// Mark as sent immediately within the transaction to prevent other instances from processing
+			err := tx.Table("appointment_reminders").Create(map[string]interface{}{
+				"appointment_id": row.ID,
+				"stage":          stage.Stage,
+				"sent_at":        time.Now(),
+				"status":         "sent",
+			}).Error
+			if err != nil {
+				return err
+			}
+
+			// Actual sending happens inside the loop but outside the DB write lock wait if we were using it, 
+			// though here we are already safe because of the Create insert.
+			body := fmt.Sprintf(stage.BodyTemplate, row.OrgName)
+			url := "/dashboard/appointments"
+			if stage.Stage == 7 {
+				url = "/dashboard" 
+			}
+
+			go s.pushSvc.SendToUser(ctx, row.UserID, PushPayload{
+				Title:     stage.Title,
+				Body:      body,
+				URL:       url,
+				NotifType: "appointment",
+			})
+		}
+		return nil
+	})
 
 	if err != nil {
 		slog.Error("cron: appointment reminder DB error", "stage", stage.Stage, "error", err)
 		return
 	}
 
-	slog.Info("cron: appointment reminder stage", "stage", stage.Stage, "found", len(rows))
-
-	for _, row := range rows {
-		body := fmt.Sprintf(stage.BodyTemplate, row.OrgName)
-		url := "/dashboard/appointments"
-		if stage.Stage == 7 {
-			url = "/dashboard" // Redirect to feedback on post-visit
-		}
-
-		pushErr := s.pushSvc.SendToUser(ctx, row.UserID, PushPayload{
-			Title:     stage.Title,
-			Body:      body,
-			URL:       url,
-			NotifType: "appointment",
-		})
-
-		errMsg := ""
-		if pushErr != nil {
-			errMsg = pushErr.Error()
-			slog.Warn("cron: appointment push failed",
-				"stage", stage.Stage,
-				"appointment_id", row.ID,
-				"user_id", row.UserID,
-				"error", pushErr,
-			)
-		}
-
-		// Mark as sent (or failed) — ON CONFLICT DO NOTHING ensures idempotency.
-		markReminder(ctx, row.ID, stage.Stage, errMsg)
+	if len(rows) > 0 {
+		slog.Info("cron: appointment reminder stage", "stage", stage.Stage, "sent", len(rows))
 	}
 }
 

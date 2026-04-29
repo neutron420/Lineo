@@ -1,20 +1,43 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"queueless/internal/models"
 	"queueless/internal/service"
+	"queueless/pkg/db"
 	"queueless/pkg/utils"
 )
 
 type AuthHandler struct {
 	authService service.AuthService
+	subSvc      service.UserSubscriptionService
 }
 
-func NewAuthHandler(s service.AuthService) *AuthHandler {
-	return &AuthHandler{authService: s}
+func NewAuthHandler(s service.AuthService, subSvc service.UserSubscriptionService) *AuthHandler {
+	return &AuthHandler{
+		authService: s,
+		subSvc:      subSvc,
+	}
+}
+
+func (h *AuthHandler) GetMe(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	
+	var user models.User
+	if err := db.DB.First(&user, userID).Error; err != nil {
+		utils.RespondError(c, http.StatusNotFound, "User not found", err.Error())
+		return
+	}
+
+	// Important: Sync counters when fetching profile to ensure daily limits refresh on dashboard load
+	if err := h.subSvc.SyncCounters(&user); err != nil {
+		slog.Error("Failed to sync counters for user", "userID", userID, "error", err)
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, "User profile fetched", user)
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {

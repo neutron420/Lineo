@@ -15,6 +15,7 @@ type UserSubscriptionService interface {
 	IncrementJoins(userID uint) error
 	IncrementAppts(userID uint) error
 	UpgradeTier(userID uint, tier models.SubscriptionTier) error
+	SyncCounters(user *models.User) error
 }
 
 type userSubscriptionService struct{}
@@ -34,7 +35,7 @@ func (s *userSubscriptionService) getLimits(tier models.SubscriptionTier) (int, 
 	}
 }
 
-func (s *userSubscriptionService) syncCounters(user *models.User) error {
+func (s *userSubscriptionService) SyncCounters(user *models.User) error {
 	now := time.Now().Truncate(24 * time.Hour)
 	if user.LastActionDate == nil || user.LastActionDate.Before(now) {
 		user.DailyJoins = 0
@@ -55,7 +56,7 @@ func (s *userSubscriptionService) CheckJoinLimit(userID uint) error {
 		return err
 	}
 
-	if err := s.syncCounters(&user); err != nil {
+	if err := s.SyncCounters(&user); err != nil {
 		return err
 	}
 
@@ -73,7 +74,7 @@ func (s *userSubscriptionService) CheckApptLimit(userID uint) error {
 		return err
 	}
 
-	if err := s.syncCounters(&user); err != nil {
+	if err := s.SyncCounters(&user); err != nil {
 		return err
 	}
 

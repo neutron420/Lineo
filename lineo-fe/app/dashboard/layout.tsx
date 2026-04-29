@@ -427,6 +427,22 @@ export default function DashboardLayout({
     } catch (e) {
       console.error("Layout user parse error", e);
     }
+
+    // Fresh fetch from backend to sync daily limits/counters
+    const syncProfile = async () => {
+      try {
+        const resp = await api.get("/user/me");
+        const freshUser = resp.data.data;
+        if (freshUser) {
+          setUser(freshUser);
+          sessionStorage.setItem("user", JSON.stringify(freshUser));
+        }
+      } catch (err) {
+        console.error("Failed to sync user profile", err);
+      }
+    };
+    syncProfile();
+
     // Register push notifications for returning sessions (idempotent)
     initPushNotifications().catch(() => {});
   }, []);

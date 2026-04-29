@@ -62,9 +62,28 @@ func (s *appointmentService) SetReminderService(r ReminderHook) {
 }
 
 func (s *appointmentService) Book(userID uint, req models.BookAppointmentRequest) (*models.Appointment, error) {
-	queueDef, err := s.orgRepo.GetQueueDefByKey(req.QueueKey)
-	if err != nil {
-		return nil, errors.New("queue not found")
+	var orgID uint
+	var orgName string
+
+	if req.QueueKey != "" {
+		queueDef, err := s.orgRepo.GetQueueDefByKey(req.QueueKey)
+		if err != nil {
+			return nil, errors.New("queue not found")
+		}
+		orgID = queueDef.OrganizationID
+		
+		// Fetch org for hook/name
+		org, _ := s.orgRepo.GetByID(orgID)
+		if org != nil {
+			orgName = org.Name
+		}
+	} else {
+		orgID = req.OrganizationID
+		org, err := s.orgRepo.GetByID(orgID)
+		if err != nil || org == nil {
+			return nil, errors.New("organization not found")
+		}
+		orgName = org.Name
 	}
 
 	// Check subscription limit
@@ -78,7 +97,7 @@ func (s *appointmentService) Book(userID uint, req models.BookAppointmentRequest
 	}
 
 	appt := &models.Appointment{
-		OrganizationID: queueDef.OrganizationID,
+		OrganizationID: orgID,
 		QueueKey:       req.QueueKey,
 		UserID:         userID,
 		StartTime:      startTime,
@@ -115,10 +134,6 @@ func (s *appointmentService) Book(userID uint, req models.BookAppointmentRequest
 
 	// Cron reminder hooks: pre-skip past stages for late bookings
 	if s.reminderSvc != nil {
-		orgName := ""
-		if org, err := s.orgRepo.GetOrganizationByID(appt.OrganizationID); err == nil {
-			orgName = org.Name
-		}
 		go s.reminderSvc.OnBookingConfirmed(context.Background(), appt.ID, userID, orgName, appt.StartTime)
 	}
 

@@ -77,7 +77,7 @@ func main() {
 	paymentService := service.NewPaymentService()
 	feedbackService := service.NewFeedbackService(feedbackRepo, queueRepo)
 
-	authHandler := handler.NewAuthHandler(authService)
+	authHandler := handler.NewAuthHandler(authService, userSubService)
 	orgHandler := handler.NewOrgHandler(orgService)
 	queueHandler := handler.NewQueueHandler(queueService)
 	
@@ -203,6 +203,7 @@ func main() {
 			protected.POST("/payments/razorpay/order", paymentHandler.CreateRazorpayOrder)
 			protected.POST("/payments/razorpay/verify", paymentHandler.VerifyRazorpayPayment)
 			protected.POST("/user/upgrade", subHandler.UpgradeTier)
+			protected.GET("/user/me", authHandler.GetMe)
 			protected.POST("/feedback", feedbackHandler.Submit)
 			protected.POST("/push/subscribe", pushHandler.Subscribe)
 

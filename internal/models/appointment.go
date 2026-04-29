@@ -18,7 +18,7 @@ const (
 type Appointment struct {
 	ID             uint              `gorm:"primaryKey" json:"id"`
 	OrganizationID uint              `gorm:"not null;index" json:"organization_id"`
-	QueueKey       string            `gorm:"not null;index" json:"queue_key"`
+	QueueKey       string            `gorm:"index" json:"queue_key"` // Optional now
 	UserID         uint              `json:"user_id"`
 	PhoneNumber    string            `json:"phone_number"`
 	TokenNumber    string            `json:"token_number"` 
@@ -34,10 +34,11 @@ type Appointment struct {
 }
 
 type BookAppointmentRequest struct {
-	QueueKey  string  `json:"queue_key" binding:"required"`
-	StartTime string  `json:"start_time" binding:"required"` // Format: YYYY-MM-DD HH:MM
-	UserLat   float64 `json:"user_lat"`
-	UserLon   float64 `json:"user_lon"`
+	OrganizationID uint    `json:"organization_id" binding:"required"`
+	QueueKey       string  `json:"queue_key"` // Optional
+	StartTime      string  `json:"start_time" binding:"required"` // Format: YYYY-MM-DD HH:MM
+	UserLat        float64 `json:"user_lat"`
+	UserLon        float64 `json:"user_lon"`
 }
 
 type CommuteInfo struct {

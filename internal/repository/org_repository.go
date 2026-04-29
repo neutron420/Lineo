@@ -23,6 +23,13 @@ type OrganizationRepository interface {
 	DeleteOrgConfig(orgID uint) error
 	GetQueueCountByOrg(orgID uint) (int, error)
 	UpdateSubscription(orgID uint, plan string, expiry *time.Time) error
+	GetByID(id uint) (*models.Organization, error)
+}
+
+func (r *organizationRepository) GetByID(id uint) (*models.Organization, error) {
+	var org models.Organization
+	err := r.db.First(&org, id).Error
+	return &org, err
 }
 
 func (r *organizationRepository) GetQueueCountByOrg(orgID uint) (int, error) {
