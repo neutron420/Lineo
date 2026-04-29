@@ -41,6 +41,7 @@ interface UserData {
   subscription_tier?: string;
   daily_joins?: number;
   daily_appts?: number;
+  avatar_url?: string;
 }
 
 interface SocketQueueData {
@@ -302,12 +303,16 @@ function ProfileDropdown({ user, onLogout }: { user: UserData | null, onLogout: 
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         className={cn(
-          "w-9 h-9 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-white cursor-pointer transition-shadow",
+          "w-9 h-9 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-white cursor-pointer transition-shadow overflow-hidden",
           isOpen ? "shadow-lg ring-2 ring-[#493ee5]/30" : "shadow-neobrutal"
         )}
         style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)' }}
       >
-        <User className="w-4 h-4 md:w-5 md:h-5" />
+        {user?.avatar_url ? (
+          <img src={user.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+        ) : (
+          <User className="w-4 h-4 md:w-5 md:h-5" />
+        )}
       </motion.button>
 
       <AnimatePresence>
@@ -324,8 +329,12 @@ function ProfileDropdown({ user, onLogout }: { user: UserData | null, onLogout: 
               {/* ── Profile Header ── */}
               <div className="p-4 border-b border-[#e5e8eb]">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-extrabold shrink-0" style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)', fontFamily: 'var(--font-manrope), sans-serif' }}>
-                    {user?.username?.charAt(0).toUpperCase() || "U"}
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-extrabold shrink-0 overflow-hidden" style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)', fontFamily: 'var(--font-manrope), sans-serif' }}>
+                    {user?.avatar_url ? (
+                      <img src={user.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      user?.username?.charAt(0).toUpperCase() || "U"
+                    )}
                   </div>
                   <div className="min-w-0">
                     <p className="font-bold text-[13px] text-[#181c1e] truncate" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{user?.username || "User"}</p>

@@ -162,6 +162,7 @@ func main() {
 			auth.POST("/forgot-password", authHandler.ForgotPassword)
 			auth.POST("/reset-password", authHandler.ResetPassword)
 			auth.POST("/register-org", authHandler.RegisterOrganization)
+			auth.PUT("/update-avatar-public", authHandler.UpdateAvatarPublic)
 		}
 
 		v1.POST("/org", orgHandler.CreateOrganization)
@@ -204,6 +205,7 @@ func main() {
 			protected.POST("/payments/razorpay/verify", paymentHandler.VerifyRazorpayPayment)
 			protected.POST("/user/upgrade", subHandler.UpgradeTier)
 			protected.GET("/user/me", authHandler.GetMe)
+			protected.PUT("/users/profile", authHandler.UpdateMe)
 			protected.POST("/feedback", feedbackHandler.Submit)
 			protected.POST("/push/subscribe", pushHandler.Subscribe)
 

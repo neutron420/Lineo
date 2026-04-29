@@ -40,6 +40,71 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusOK, "User profile fetched", user)
 }
 
+func (h *AuthHandler) UpdateMe(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	var req models.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	var user models.User
+	if err := db.DB.First(&user, userID).Error; err != nil {
+		utils.RespondError(c, http.StatusNotFound, "User not found", err.Error())
+		return
+	}
+
+	// Update fields
+	if req.Username != "" {
+		user.Username = req.Username
+	}
+	if req.Email != "" {
+		user.Email = req.Email
+	}
+	if req.PhoneNumber != "" {
+		user.PhoneNumber = req.PhoneNumber
+	}
+	if req.Timezone != "" {
+		user.Timezone = req.Timezone
+	}
+	if req.AvatarURL != "" {
+		user.AvatarURL = req.AvatarURL
+	}
+
+	if err := db.DB.Save(&user).Error; err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to update profile", err.Error())
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, "Profile updated successfully", user)
+}
+
+func (h *AuthHandler) UpdateAvatarPublic(c *gin.Context) {
+	var req struct {
+		Email     string `json:"email" binding:"required"`
+		AvatarURL string `json:"avatar_url" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	var user models.User
+	if err := db.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		utils.RespondError(c, http.StatusNotFound, "User not found", err.Error())
+		return
+	}
+
+	user.AvatarURL = req.AvatarURL
+	if err := db.DB.Save(&user).Error; err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to update avatar", err.Error())
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, "Avatar updated successfully", nil)
+}
+
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

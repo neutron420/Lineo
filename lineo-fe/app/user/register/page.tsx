@@ -24,7 +24,15 @@ export default function UserRegisterPage() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [countryCode, setCountryCode] = useState("+91");
   const router = useRouter();
+
+  const countries = [
+    { code: "+91", flag: "🇮🇳", name: "India" },
+    { code: "+1", flag: "🇺🇸", name: "USA" },
+    { code: "+44", flag: "🇬🇧", name: "UK" },
+    { code: "+971", flag: "🇦🇪", name: "UAE" },
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +69,7 @@ export default function UserRegisterPage() {
         username,
         email,
         password,
-        phone: phone.startsWith("+91") ? phone : `+91${phone}`,
+        phone: `${countryCode} ${phone}`,
         dob,
         gender,
         has_disability: hasDisability,
@@ -71,7 +79,7 @@ export default function UserRegisterPage() {
         turnstile_token: captchaToken
       });
 
-      router.push("/user/login?registered=true");
+      router.push(`/user/upload-avatar?email=${encodeURIComponent(email)}`);
     } catch (err: any) {
       const msg = err.response?.data?.message || "Registration failed. Please try again.";
       setError(msg);
@@ -134,17 +142,32 @@ export default function UserRegisterPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
              <div className="space-y-2">
                <label className="text-sm font-medium text-stripe-label">Phone Number</label>
-               <div className="relative">
-                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-stripe-slate">+91</span>
-                 <input 
-                   type="tel" 
-                   placeholder="00000 00000" 
-                   className="stripe-input pl-12"
-                   value={phone}
-                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                   required 
-                 />
-               </div>
+                <div className="flex gap-2">
+                  <div className="relative shrink-0">
+                    <select 
+                      value={countryCode}
+                      onChange={(e) => setCountryCode(e.target.value)}
+                      className="stripe-input w-24 pl-3 pr-8 appearance-none bg-white font-bold"
+                    >
+                      {countries.map(c => <option key={c.code} value={c.code}>{c.flag} {c.code}</option>)}
+                    </select>
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-stripe-slate">
+                      <svg width="8" height="5" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="relative flex-1">
+                    <input 
+                      type="tel" 
+                      placeholder="00000 00000" 
+                      className="stripe-input"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      required 
+                    />
+                  </div>
+                </div>
              </div>
 
              <div className="space-y-2">

@@ -28,6 +28,7 @@ type User struct {
 	Email          string `gorm:"uniqueIndex;not null" json:"email"`
 	Password       string `gorm:"not null" json:"-"`
 	PhoneNumber    string `json:"phone_number"`
+	AvatarURL      string `json:"avatar_url"`
 	DOB            string `json:"dob"`
 	Gender         string `json:"gender"`
 	HasDisability  bool   `json:"has_disability"`
@@ -56,6 +57,15 @@ type User struct {
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	Timezone  string         `gorm:"type:varchar(50);default:'UTC+5:30 (IST)'" json:"timezone"`
+}
+
+type UpdateProfileRequest struct {
+	Username    string `json:"username"`
+	Email       string `json:"email"`
+	PhoneNumber string `json:"phone_number"`
+	Timezone    string `json:"timezone"`
+	AvatarURL   string `json:"avatar_url"`
 }
 
 type LoginRequest struct {
