@@ -19,14 +19,16 @@ import {
   Maximize2,
   X,
   Loader2,
-  Check
+  Check,
+  UserIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import Link from "next/link";
 import api from "@/lib/api";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Camera as CameraIcon } from "lucide-react";
 
 interface UserProfile {
   id?: number;
@@ -51,6 +53,9 @@ export default function SettingsPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [showCheck, setShowCheck] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
   
   const [formData, setFormData] = useState({
     username: "",
@@ -102,14 +107,20 @@ export default function SettingsPage() {
     }
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement> | Blob) => {
+    let file: File | Blob | undefined;
+    if ("target" in e) {
+      file = e.target.files?.[0];
+    } else {
+      file = e;
+    }
+    
     if (!file) return;
 
     setIsUploading(true);
     try {
       const formDataUpload = new FormData();
-      formDataUpload.append("file", file);
+      formDataUpload.append("file", file instanceof File ? file : new File([file], "camera-capture.jpg", { type: "image/jpeg" }));
       const res = await api.post("/upload", formDataUpload, {
         headers: { "Content-Type": "multipart/form-data" }
       });
@@ -132,12 +143,52 @@ export default function SettingsPage() {
       setShowCheck(true);
       setTimeout(() => setShowCheck(false), 3000);
       toast.success("Profile picture updated!");
+      setIsCameraOpen(false);
     } catch (err: any) {
       console.error("Upload failed", err);
       const msg = err.response?.data?.message || "Failed to upload avatar";
       toast.error(msg);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const startCamera = async () => {
+    setIsCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      toast.error("Camera access denied or not available");
+      setIsCameraOpen(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+    }
+    setIsCameraOpen(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(video, 0, 0);
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          handleAvatarUpload(blob);
+          stopCamera();
+        }
+      }, "image/jpeg", 0.9);
     }
   };
 
@@ -263,17 +314,62 @@ export default function SettingsPage() {
                               <Maximize2 className="w-6 h-6 text-white" />
                            </div>
                         </div>
-                        <label className="absolute -bottom-1.5 -right-1.5 w-7 h-7 bg-white rounded-full flex items-center justify-center text-[#49607e] hover:text-[#493ee5] shadow-sm ghost-border hover:scale-110 transition-all cursor-pointer overflow-hidden">
-                           <input type="file" className="hidden" onChange={handleAvatarUpload} accept="image/*" />
-                           {isUploading ? (
-                             <Loader2 className="w-3.5 h-3.5 text-[#493ee5] animate-spin" />
-                           ) : showCheck ? (
-                             <Check className="w-3.5 h-3.5 text-green-500 animate-bounce" />
-                           ) : (
-                             <Camera className="w-3.5 h-3.5" />
-                           )}
-                        </label>
-                     </div>
+                         <div className="absolute -bottom-1.5 -right-1.5 flex gap-1">
+                            <label className="w-7 h-7 bg-white rounded-full flex items-center justify-center text-[#49607e] hover:text-[#493ee5] shadow-sm ghost-border hover:scale-110 transition-all cursor-pointer overflow-hidden">
+                               <input type="file" className="hidden" onChange={handleAvatarUpload} accept="image/*" />
+                               {isUploading ? (
+                                 <Loader2 className="w-3.5 h-3.5 text-[#493ee5] animate-spin" />
+                               ) : showCheck ? (
+                                 <Check className="w-3.5 h-3.5 text-green-500 animate-bounce" />
+                               ) : (
+                                 <UserIcon className="w-3.5 h-3.5" />
+                               )}
+                            </label>
+                            <button 
+                              onClick={startCamera}
+                              className="w-7 h-7 bg-[#493ee5] rounded-full flex items-center justify-center text-white shadow-sm hover:scale-110 transition-all"
+                            >
+                               <Camera className="w-3.5 h-3.5" />
+                            </button>
+                         </div>
+                      </div>
+
+                      {/* Camera Capture Modal */}
+                      <Dialog open={isCameraOpen} onOpenChange={(open) => !open && stopCamera()}>
+                        <DialogContent className="max-w-[95vw] sm:max-w-md p-0 overflow-hidden bg-black rounded-3xl border-none">
+                          <div className="relative aspect-[3/4] w-full bg-black flex items-center justify-center">
+                             <video 
+                               ref={videoRef} 
+                               autoPlay 
+                               playsInline 
+                               className="w-full h-full object-cover"
+                             />
+                             <canvas ref={canvasRef} className="hidden" />
+                             
+                             <div className="absolute bottom-8 left-0 right-0 flex items-center justify-center gap-8">
+                                <button 
+                                  onClick={stopCamera}
+                                  className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20"
+                                >
+                                   <X className="w-6 h-6" />
+                                </button>
+                                <button 
+                                  onClick={capturePhoto}
+                                  className="w-20 h-20 rounded-full bg-white flex items-center justify-center shadow-2xl scale-100 active:scale-90 transition-transform"
+                                >
+                                   <div className="w-16 h-16 rounded-full border-4 border-black/5" />
+                                </button>
+                                <div className="w-12 h-12" /> {/* Spacer */}
+                             </div>
+                             
+                             <div className="absolute top-6 left-0 right-0 text-center">
+                                <span className="px-4 py-1.5 bg-black/40 backdrop-blur-md rounded-full text-white text-xs font-bold uppercase tracking-widest border border-white/10">
+                                   Camera Preview
+                                </span>
+                             </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
 
                      {/* Avatar Full View Modal */}
                      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
