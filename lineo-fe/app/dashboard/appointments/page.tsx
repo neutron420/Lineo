@@ -18,7 +18,11 @@ import {
   Landmark,
   Info,
   Search,
-  Sparkles
+  Sparkles,
+  CalendarPlus,
+  ExternalLink,
+  ChevronRight,
+  Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
@@ -190,6 +194,22 @@ export default function AppointmentsPage() {
     setIsModalOpen(true);
   };
 
+  const getDirections = (orgName: string) => {
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(orgName)}`;
+    window.open(url, '_blank');
+  };
+
+  const addToCalendar = (appt: Appointment) => {
+    const start = new Date(appt.start_time);
+    const end = new Date(start.getTime() + 30 * 60000); // 30 min duration
+    
+    const fmt = (d: Date) => d.toISOString().replace(/-|:|\.\d+/g, "");
+    const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('Appointment: ' + appt.queue_key)}&dates=${fmt(start)}/${fmt(end)}&details=${encodeURIComponent('Manage your queue with Lineo.')}&location=${encodeURIComponent(appt.queue_key)}`;
+    
+    window.open(googleUrl, '_blank');
+    toast.success("Calendar link generated!");
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -262,47 +282,62 @@ export default function AppointmentsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 z-10">
+                  <div className="flex flex-wrap items-center gap-2 z-10 md:ml-auto">
                      {appt.status.toLowerCase() === "scheduled" && (
                        <button 
                         onClick={() => handleCheckIn(appt.id)}
-                        className="px-6 py-3 bg-[#493ee5] text-white rounded-2xl text-xs font-black hover:bg-[#3428c5] transition-all shadow-md active:scale-95" 
+                        className="px-5 py-2.5 bg-[#493ee5] text-white rounded-xl text-[11px] font-black hover:bg-[#3428c5] transition-all shadow-md active:scale-95 flex items-center gap-2" 
                         style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
                        >
-                         Check-in
+                         <Zap className="w-3.5 h-3.5" /> Check-in
                        </button>
                      )}
-                     <button 
-                      onClick={() => openScheduleModal(appt)}
-                      className="px-6 py-3 bg-white border border-[#e5e8eb] rounded-2xl text-xs font-black text-[#181c1e] hover:bg-slate-50 transition-all shadow-sm active:scale-95" 
-                      style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
-                     >
-                       Reschedule
-                     </button>
-                     <button 
-                        onClick={() => handleCancel(appt.id)}
-                        className="w-12 h-12 flex items-center justify-center rounded-2xl bg-rose-50 border border-transparent hover:border-rose-200 hover:bg-rose-100 transition-all group/btn"
-                        title="Cancel Appointment"
-                      >
-                       <X className="w-5 h-5 text-rose-500" />
-                     </button>
+                     
+                     <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => addToCalendar(appt)}
+                          className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-[#e5e8eb] text-[#49607e] hover:text-[#493ee5] hover:border-[#493ee5]/30 transition-all shadow-sm"
+                          title="Add to Calendar"
+                        >
+                          <CalendarPlus className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => getDirections(appt.queue_key)}
+                          className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-[#e5e8eb] text-[#49607e] hover:text-[#493ee5] hover:border-[#493ee5]/30 transition-all shadow-sm"
+                          title="Get Directions"
+                        >
+                          <Navigation className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => openScheduleModal(appt)}
+                          className="px-4 py-2.5 bg-white border border-[#e5e8eb] rounded-xl text-[11px] font-black text-[#181c1e] hover:bg-slate-50 transition-all shadow-sm active:scale-95" 
+                          style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+                        >
+                          Reschedule
+                        </button>
+                        <button 
+                            onClick={() => handleCancel(appt.id)}
+                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-rose-50 border border-transparent hover:border-rose-200 hover:bg-rose-100 transition-all"
+                            title="Cancel"
+                          >
+                          <X className="w-4 h-4 text-rose-500" />
+                        </button>
+                     </div>
                   </div>
                 </motion.div>
               );
             })
           ) : (
-            <div className="bg-white rounded-[40px] p-24 flex flex-col items-center justify-center text-center space-y-8 border border-[#e5e8eb] relative overflow-hidden backdrop-blur-xl shadow-sm">
-               <div className="absolute inset-0 bg-grid-slate-100/50 [mask-image:radial-gradient(ellipse_at_center,white,transparent)]" />
-               <div className="w-24 h-24 bg-[#493ee5]/5 rounded-[32px] flex items-center justify-center relative group">
-                  <div className="absolute inset-0 bg-[#493ee5] opacity-20 rounded-[32px] blur-2xl group-hover:opacity-40 transition-opacity" />
-                  <CalendarDays className="w-12 h-12 text-[#493ee5] relative" />
+            <div className="bg-white rounded-[32px] p-16 flex flex-col items-center justify-center text-center space-y-6 border border-[#e5e8eb] shadow-sm">
+               <div className="w-16 h-16 bg-[#f1f4f7] rounded-2xl flex items-center justify-center text-[#49607e]">
+                  <CalendarDays className="w-8 h-8" />
                </div>
-               <div className="space-y-2 relative">
-                 <h3 className="text-3xl font-black text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Calendar Inertia</h3>
-                 <p className="text-[#49607e] max-w-[340px] mx-auto text-sm font-medium leading-relaxed">Your professional schedule is currently static. Initialize a bridge to your favorite institutions.</p>
+               <div className="space-y-1">
+                 <h3 className="text-xl font-extrabold text-[#181c1e] tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>No upcoming sessions</h3>
+                 <p className="text-[#49607e] max-w-[280px] mx-auto text-sm font-medium">Your schedule is clear. Book your next visit to see it here.</p>
                </div>
-               <Button onClick={() => openScheduleModal()} className="kinetic-btn-primary h-14 px-12 text-md shadow-2xl relative">
-                 Schedule First Vector
+               <Button onClick={() => openScheduleModal()} className="kinetic-btn-primary h-12 px-8 text-sm">
+                 Schedule Now
                </Button>
             </div>
           )}

@@ -35,6 +35,9 @@ import { NotificationCenter } from "@/components/NotificationCenter";
 import { initPushNotifications } from "@/lib/push";
 import api from "@/lib/api";
 import { CitySelection } from "@/components/CitySelection";
+import { FeedbackModal } from "@/components/FeedbackModal";
+import { WelcomeOnboarding } from "@/components/WelcomeOnboarding";
+import { MessageSquare } from "lucide-react";
 
 interface UserData {
   username: string;
@@ -460,6 +463,7 @@ export default function DashboardLayout({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
   const pathname = usePathname();
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   useEffect(() => {
     const userData = sessionStorage.getItem("user");
@@ -627,6 +631,18 @@ export default function DashboardLayout({
                 );
               })}
 
+              <button
+                onClick={() => setIsFeedbackOpen(true)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-[#49607e] hover:bg-amber-50 hover:text-amber-600 font-medium text-sm mt-1 w-full text-left",
+                  isCollapsed && "justify-center px-0"
+                )}
+                style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+              >
+                <MessageSquare className="w-[18px] h-[18px] shrink-0" />
+                {!isCollapsed && <span>Report an Issue</span>}
+              </button>
+
               {/* Subscription Usage Card */}
               {!isCollapsed && user && (
                 <div className="mt-4 p-4 rounded-2xl bg-[#f7fafd] border border-[#e5e8eb] shadow-sm relative overflow-hidden group">
@@ -692,6 +708,9 @@ export default function DashboardLayout({
 
           {/* ━━━ Mobile Bottom Tab Bar ━━━ */}
           <MobileTabBar pathname={pathname} />
+          
+          <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
+          <WelcomeOnboarding />
         </div>
       </SocketProvider>
     </LocationProvider>
