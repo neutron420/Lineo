@@ -13,6 +13,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	roleCondition = "role = ?"
+	orderIDDesc   = "id desc"
+)
+
 type AdminHandler struct{}
 
 func NewAdminHandler() *AdminHandler {
@@ -23,21 +28,21 @@ func (h *AdminHandler) GetSystemMetrics(c *gin.Context) {
 	var orgCount, userCount, staffCount, adminCount int64
 
 	db.DB.Model(&models.Organization{}).Count(&orgCount)
-	db.DB.Model(&models.User{}).Where("role = ?", "user").Count(&userCount)
-	db.DB.Model(&models.User{}).Where("role = ?", "staff").Count(&staffCount)
-	db.DB.Model(&models.User{}).Where("role = ?", "admin").Count(&adminCount)
+	db.DB.Model(&models.User{}).Where(roleCondition, "user").Count(&userCount)
+	db.DB.Model(&models.User{}).Where(roleCondition, "staff").Count(&staffCount)
+	db.DB.Model(&models.User{}).Where(roleCondition, "admin").Count(&adminCount)
 
 	utils.RespondSuccess(c, http.StatusOK, "System metrics fetched", gin.H{
 		"organizations": orgCount,
 		"users": gin.H{
 			"end_users": userCount,
-			"staff": staffCount,
-			"admins": adminCount,
-			"total": userCount + staffCount + adminCount,
+			"staff":     staffCount,
+			"admins":    adminCount,
+			"total":     userCount + staffCount + adminCount,
 		},
 		"unverified_institutions": 4, // Simulated static components for layout completion
-		"peak_active_queues": 124,
-		"banned_violators": 2,
+		"peak_active_queues":      124,
+		"banned_violators":        2,
 		"monthly_volume": []gin.H{
 			{"month": "2025-10", "count": 420}, {"month": "2025-11", "count": 500},
 			{"month": "2025-12", "count": 830}, {"month": "2026-01", "count": 1200},
@@ -62,31 +67,35 @@ func (h *AdminHandler) GetPlatformAnalytics(c *gin.Context) {
 	// #nosec G404 - Weak random is fine for mock/simulated analytics data
 	rand.Seed(time.Now().UnixNano())
 	var analyticsData []gin.H
-	
+
 	baseTickets := 200
 	baseQueues := 20
-	
+
 	for i := 1; i <= 30; i++ {
 		// #nosec G404 - Simulated data doesn't require crypto/rand
 		baseTickets += rand.Intn(40) - 10
 		// #nosec G404 - Simulated data doesn't require crypto/rand
 		baseQueues += rand.Intn(10) - 3
-		if baseTickets < 50 { baseTickets = 50 }
-		if baseQueues < 5 { baseQueues = 5 }
+		if baseTickets < 50 {
+			baseTickets = 50
+		}
+		if baseQueues < 5 {
+			baseQueues = 5
+		}
 
 		analyticsData = append(analyticsData, gin.H{
-			"day": "Day " + string(rune(i)),
-			"tickets": baseTickets,
+			"day":          "Day " + string(rune(i)),
+			"tickets":      baseTickets,
 			"activeQueues": baseQueues,
 		})
 	}
-	
+
 	utils.RespondSuccess(c, http.StatusOK, "Analytics fetched", analyticsData)
 }
 
 func (h *AdminHandler) GetVerifications(c *gin.Context) {
 	var orgs []models.Organization
-	if err := db.DB.Order("id desc").Find(&orgs).Error; err != nil {
+	if err := db.DB.Order(orderIDDesc).Find(&orgs).Error; err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to fetch verifications", err.Error())
 		return
 	}
@@ -99,30 +108,30 @@ func (h *AdminHandler) GetVerifications(c *gin.Context) {
 		}
 
 		verifications = append(verifications, gin.H{
-			"id":             org.ID,
-			"name":           org.Name,
-			"owner_name":     org.OwnerName,
-			"owner_phone":    org.OwnerPhone,
-			"address":        org.Address,
-			"pincode":        org.Pincode,
-			"state":          org.State,
-			"isVerified":     org.IsVerified,
-			"status":         status,
-			"office_img":     org.OfficeImageURL,
-			"cert_pdf":       org.CertPdfURL,
-			"ptax_pdf":       org.PTaxPaperURL,
-			"lat":            org.Latitude,
-			"lng":            org.Longitude,
-			"createdAt":      org.CreatedAt.Format(time.RFC3339),
+			"id":          org.ID,
+			"name":        org.Name,
+			"owner_name":  org.OwnerName,
+			"owner_phone": org.OwnerPhone,
+			"address":     org.Address,
+			"pincode":     org.Pincode,
+			"state":       org.State,
+			"isVerified":  org.IsVerified,
+			"status":      status,
+			"office_img":  org.OfficeImageURL,
+			"cert_pdf":    org.CertPdfURL,
+			"ptax_pdf":    org.PTaxPaperURL,
+			"lat":         org.Latitude,
+			"lng":         org.Longitude,
+			"createdAt":   org.CreatedAt.Format(time.RFC3339),
 		})
 	}
-	
+
 	utils.RespondSuccess(c, http.StatusOK, "Verification queue fetched", verifications)
 }
 
 func (h *AdminHandler) GetUsers(c *gin.Context) {
 	var users []models.User
-	if err := db.DB.Order("id desc").Find(&users).Error; err != nil {
+	if err := db.DB.Order(orderIDDesc).Find(&users).Error; err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to fetch users", err.Error())
 		return
 	}
@@ -187,7 +196,7 @@ func (h *AdminHandler) UpdateVerificationStatus(c *gin.Context) {
 	}
 
 	isVerified := req.Status == "FULLY_VERIFIED" || req.Status == "APPROVED"
-	
+
 	updateData := map[string]interface{}{
 		"is_verified": isVerified,
 	}
@@ -205,7 +214,7 @@ func (h *AdminHandler) UpdateVerificationStatus(c *gin.Context) {
 		return
 	}
 
-	utils.RespondSuccess(c, http.StatusOK, "Protocol Activated: Organization status moved to " + req.Status, nil)
+	utils.RespondSuccess(c, http.StatusOK, "Protocol Activated: Organization status moved to "+req.Status, nil)
 }
 
 func (h *AdminHandler) UpdateSystemConfig(c *gin.Context) {
@@ -215,15 +224,15 @@ func (h *AdminHandler) UpdateSystemConfig(c *gin.Context) {
 
 func (h *AdminHandler) GetPayments(c *gin.Context) {
 	var dbTransactions []models.PaymentTransaction
-	
+
 	// Fetch real transactions and preload both Org and User data for full auditing
-	if err := db.DB.Preload("Organization").Preload("User").Order("id desc").Find(&dbTransactions).Error; err != nil {
+	if err := db.DB.Preload("Organization").Preload("User").Order(orderIDDesc).Find(&dbTransactions).Error; err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to fetch payment database", err.Error())
 		return
 	}
 
 	var response []gin.H
-	
+
 	for _, txn := range dbTransactions {
 		amount := float64(txn.AmountMinor) / 100.0
 		status := string(txn.Status)
@@ -239,7 +248,7 @@ func (h *AdminHandler) GetPayments(c *gin.Context) {
 		typeLabel := "User Subscription"
 		entityName := "Global Consumer"
 		plan := string(txn.User.SubscriptionTier)
-		
+
 		if txn.OrgID != 0 {
 			typeLabel = "Org Settlement"
 			if txn.Organization.Name != "" {
@@ -250,7 +259,9 @@ func (h *AdminHandler) GetPayments(c *gin.Context) {
 			entityName = txn.User.Username
 		}
 
-		if plan == "" { plan = "basic" }
+		if plan == "" {
+			plan = "basic"
+		}
 
 		response = append(response, gin.H{
 			"id":                txn.ProviderPaymentID,
@@ -267,15 +278,15 @@ func (h *AdminHandler) GetPayments(c *gin.Context) {
 			"receipt_url":       "https://dashboard.razorpay.com/payments/" + txn.ProviderPaymentID,
 		})
 	}
-	
+
 	utils.RespondSuccess(c, http.StatusOK, "Payment vault accessed", response)
 }
 
 func (h *AdminHandler) GetUserPayments(c *gin.Context) {
 	var dbTransactions []models.PaymentTransaction
-	
+
 	// Specifically audit the personal/pro subscriptions of end-users
-	if err := db.DB.Preload("User").Where("org_id = 0 OR org_id IS NULL").Order("id desc").Find(&dbTransactions).Error; err != nil {
+	if err := db.DB.Preload("User").Where("org_id = 0 OR org_id IS NULL").Order(orderIDDesc).Find(&dbTransactions).Error; err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to fetch user payment records", err.Error())
 		return
 	}
@@ -299,22 +310,24 @@ func (h *AdminHandler) GetUserPayments(c *gin.Context) {
 			userName = txn.User.Username
 			userEmail = txn.User.Email
 		}
-		if plan == "" { plan = "basic" }
+		if plan == "" {
+			plan = "basic"
+		}
 
 		response = append(response, gin.H{
-			"id":                txn.ProviderPaymentID,
-			"user_id":           txn.UserID,
-			"user_name":         userName,
-			"user_email":        userEmail,
-			"amount":            amount,
-			"currency":          txn.Currency,
-			"plan_tier":         plan,
-			"status":            status,
-			"timestamp":         txn.CreatedAt.Format(time.RFC3339),
-			"receipt_url":       "https://dashboard.razorpay.com/payments/" + txn.ProviderPaymentID,
+			"id":          txn.ProviderPaymentID,
+			"user_id":     txn.UserID,
+			"user_name":   userName,
+			"user_email":  userEmail,
+			"amount":      amount,
+			"currency":    txn.Currency,
+			"plan_tier":   plan,
+			"status":      status,
+			"timestamp":   txn.CreatedAt.Format(time.RFC3339),
+			"receipt_url": "https://dashboard.razorpay.com/payments/" + txn.ProviderPaymentID,
 		})
 	}
-	
+
 	utils.RespondSuccess(c, http.StatusOK, "User payment audit accessed", response)
 }
 
@@ -325,26 +338,26 @@ func (h *AdminHandler) GetNotifications(c *gin.Context) {
 	notifications := []gin.H{
 		{
 			"id": "log-001", "level": "CRITICAL", "title": "System Reboot Initialized",
-			"message": "The centralized go-fiber backend router was forcibly restarted by root.",
+			"message":   "The centralized go-fiber backend router was forcibly restarted by root.",
 			"timestamp": now.Add(-time.Minute * 2), "actor": "System Admin",
 		},
 		{
 			"id": "log-002", "level": "INFO", "title": "Protocol Launch",
-			"message": "Organization 'Global Health Clinic' auditing protocol activated.",
+			"message":   "Organization 'Global Health Clinic' auditing protocol activated.",
 			"timestamp": now.Add(-time.Minute * 14), "actor": "Staff Agent",
 		},
 		{
 			"id": "log-003", "level": "WARNING", "title": "DDoS Anomaly Blocked",
-			"message": "Cloudflare Turnstile intercepted and null-routed 420 suspicious requests.",
+			"message":   "Cloudflare Turnstile intercepted and null-routed 420 suspicious requests.",
 			"timestamp": now.Add(-time.Hour * 1), "actor": "Security Firewall",
 		},
 		{
 			"id": "log-004", "level": "INFO", "title": "Payment Clearance",
-			"message": "Organization Apollo Beta successfully settled their Pro Tier invoice.",
+			"message":   "Organization Apollo Beta successfully settled their Pro Tier invoice.",
 			"timestamp": now.Add(-time.Hour * 24), "actor": "Razorpay Webhook",
 		},
 	}
-	
+
 	utils.RespondSuccess(c, http.StatusOK, "Global Audit Ledger accessed", notifications)
 }
 
@@ -382,7 +395,7 @@ func (h *AdminHandler) SendBroadcast(c *gin.Context) {
 	}
 
 	fmt.Printf("[BROADCAST] %s: %s (%s)\n", input.Level, input.Title, input.Message)
-	
+
 	utils.RespondSuccess(c, http.StatusOK, "Broadcast successfully transmitted and logged to cluster data node", nil)
 }
 
@@ -396,24 +409,24 @@ func (h *AdminHandler) GetTerminals(c *gin.Context) {
 	// Seed with dummy data if none exists so the user sees something initially
 	if len(terminals) == 0 {
 		seeds := []models.Terminal{
-			{ ID: "TRM-001", Name: "Kiosk Alpha-1", OrgName: "Apollo Hosp.", Status: "ONLINE", Health: 100, LastSeen: time.Now().Add(-time.Minute * 2) },
-			{ ID: "TRM-002", Name: "Kiosk Alpha-2", OrgName: "Apollo Hosp.", Status: "LOW_PAPER", Health: 85, LastSeen: time.Now().Add(-time.Minute * 5) },
-			{ ID: "TRM-003", Name: "Main Entrance 1", OrgName: "Visa Center", Status: "ONLINE", Health: 100, LastSeen: time.Now().Add(-time.Minute * 1) },
-			{ ID: "TRM-004", Name: "Gate B Tablet", OrgName: "Global Clinic", Status: "OFFLINE", Health: 0, LastSeen: time.Now().Add(-time.Hour * 12) },
+			{ID: "TRM-001", Name: "Kiosk Alpha-1", OrgName: "Apollo Hosp.", Status: "ONLINE", Health: 100, LastSeen: time.Now().Add(-time.Minute * 2)},
+			{ID: "TRM-002", Name: "Kiosk Alpha-2", OrgName: "Apollo Hosp.", Status: "LOW_PAPER", Health: 85, LastSeen: time.Now().Add(-time.Minute * 5)},
+			{ID: "TRM-003", Name: "Main Entrance 1", OrgName: "Visa Center", Status: "ONLINE", Health: 100, LastSeen: time.Now().Add(-time.Minute * 1)},
+			{ID: "TRM-004", Name: "Gate B Tablet", OrgName: "Global Clinic", Status: "OFFLINE", Health: 0, LastSeen: time.Now().Add(-time.Hour * 12)},
 		}
 		for _, s := range seeds {
 			db.DB.Create(&s)
 		}
 		terminals = seeds
 	}
-	
+
 	utils.RespondSuccess(c, http.StatusOK, "Infrastructure telemetry accessed", terminals)
 }
 
 func (h *AdminHandler) GetLatestAnnouncement(c *gin.Context) {
 	var announcements []models.Announcement
 	// Use Find().Limit(1) instead of First() to avoid "record not found" log noise
-	if err := db.DB.Order("id desc").Limit(1).Find(&announcements).Error; err != nil {
+	if err := db.DB.Order(orderIDDesc).Limit(1).Find(&announcements).Error; err != nil {
 		c.JSON(http.StatusOK, gin.H{"data": nil})
 		return
 	}
@@ -428,7 +441,7 @@ func (h *AdminHandler) GetLatestAnnouncement(c *gin.Context) {
 
 func (h *AdminHandler) GetAnnouncements(c *gin.Context) {
 	var announcements []models.Announcement
-	if err := db.DB.Order("id desc").Find(&announcements).Error; err != nil {
+	if err := db.DB.Order(orderIDDesc).Find(&announcements).Error; err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to fetch protocol ledger", err.Error())
 		return
 	}
@@ -455,9 +468,15 @@ func (h *AdminHandler) UpdateAnnouncement(c *gin.Context) {
 		return
 	}
 
-	if input.Title != "" { announcement.Title = input.Title }
-	if input.Message != "" { announcement.Message = input.Message }
-	if input.Level != "" { announcement.Level = input.Level }
+	if input.Title != "" {
+		announcement.Title = input.Title
+	}
+	if input.Message != "" {
+		announcement.Message = input.Message
+	}
+	if input.Level != "" {
+		announcement.Level = input.Level
+	}
 
 	if input.DurationMinutes > 0 {
 		t := time.Now().Add(time.Duration(input.DurationMinutes) * time.Minute)

@@ -31,14 +31,21 @@ type ScoredSlot struct {
 var dayNames = []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
 
 // ScoreSlots enriches each available slot with analytics signals
-func ScoreSlots(
-	baseSlots []string,
-	date time.Time,
-	analytics []aimodels.SlotAnalytics,
-	prefs *aimodels.UserBookingPreference,
-) []ScoredSlot {
+func ScoreSlots(baseSlots []string, date time.Time, analytics []aimodels.SlotAnalytics, prefs *aimodels.UserBookingPreference) []ScoredSlot {
+	statsMap, maxWait, maxDepth := buildStatsLookup(analytics)
+	prefHours, prefDays := buildPreferenceLookup(prefs)
+	dow := int(date.Weekday())
 
-	// Build a lookup map: (hour, day) -> SlotStats
+	var scored []ScoredSlot
+	for i, slotTime := range baseSlots {
+		if ss, ok := scoreIndividualSlot(i, slotTime, date, dow, statsMap, maxWait, maxDepth, prefHours, prefDays); ok {
+			scored = append(scored, ss)
+		}
+	}
+	return scored
+}
+
+func buildStatsLookup(analytics []aimodels.SlotAnalytics) (map[string]aimodels.SlotAnalytics, float64, float64) {
 	statsMap := make(map[string]aimodels.SlotAnalytics)
 	var maxWait, maxDepth float64
 	for _, s := range analytics {
@@ -51,8 +58,10 @@ func ScoreSlots(
 			maxDepth = s.AvgQueueDepth
 		}
 	}
+	return statsMap, maxWait, maxDepth
+}
 
-	// Build preference lookup sets
+func buildPreferenceLookup(prefs *aimodels.UserBookingPreference) (map[int]bool, map[int]bool) {
 	prefHours := make(map[int]bool)
 	prefDays := make(map[int]bool)
 	if prefs != nil {
@@ -63,83 +72,74 @@ func ScoreSlots(
 			prefDays[int(d)] = true
 		}
 	}
+	return prefHours, prefDays
+}
 
-	dow := int(date.Weekday())
-
-	var scored []ScoredSlot
-	for i, slotTime := range baseSlots {
-		// Parse hour from "09:00" format
-		var hour, minute int
-		if _, err := fmt.Sscanf(slotTime, "%d:%d", &hour, &minute); err != nil {
-			// If parsing fails, skip or use default
-			continue
-		}
-
-		slotStart := time.Date(date.Year(), date.Month(), date.Day(), hour, minute, 0, 0, date.Location())
-		key := fmt.Sprintf("%d_%d", hour, dow)
-
-		stat, hasStat := statsMap[key]
-
-		ss := ScoredSlot{
-			SlotID:    fmt.Sprintf("slot_%03d", i+1),
-			StartsAt:  slotStart,
-			Label:     fmt.Sprintf("%s %d:%02d %s", dayNames[dow], normalizeHour(hour), minute, amPm(hour)),
-			DayOfWeek: dayNames[dow],
-			HourOfDay: hour,
-		}
-
-		if hasStat && stat.TotalBookings > 0 {
-			// Wait time score: invert (low wait = high score)
-			if maxWait > 0 {
-				ss.WaitTimeScore = 1.0 - (float64(stat.AvgWaitSecs) / maxWait)
-			} else {
-				ss.WaitTimeScore = 1.0
-			}
-
-			// Busyness score: invert queue depth
-			if maxDepth > 0 {
-				ss.BusynessScore = 1.0 - (stat.AvgQueueDepth / maxDepth)
-			} else {
-				ss.BusynessScore = 1.0
-			}
-
-			// No-show risk as proxy for reliability
-			ss.NoShowRiskScore = 1.0 - stat.NoShowRate
-
-			ss.AvgWaitMins = float64(stat.AvgWaitSecs) / 60.0
-			ss.AvgQueueDepth = stat.AvgQueueDepth
-			ss.TotalSamples = stat.TotalBookings
-
-			switch {
-			case stat.TotalBookings >= 500:
-				ss.DataConfidence = "high"
-			case stat.TotalBookings >= 50:
-				ss.DataConfidence = "medium"
-			default:
-				ss.DataConfidence = "low"
-			}
-		} else {
-			// No historical data: neutral scores
-			ss.WaitTimeScore = 0.5
-			ss.BusynessScore = 0.5
-			ss.NoShowRiskScore = 0.5
-			ss.DataConfidence = "low"
-		}
-
-		// User preference match
-		matchScore := 0.0
-		if prefHours[hour] {
-			matchScore += 0.5
-		}
-		if prefDays[dow] {
-			matchScore += 0.5
-		}
-		ss.UserMatchScore = matchScore
-
-		scored = append(scored, ss)
+func scoreIndividualSlot(i int, slotTime string, date time.Time, dow int, statsMap map[string]aimodels.SlotAnalytics, maxWait, maxDepth float64, prefHours, prefDays map[int]bool) (ScoredSlot, bool) {
+	var hour, minute int
+	if _, err := fmt.Sscanf(slotTime, "%d:%d", &hour, &minute); err != nil {
+		return ScoredSlot{}, false
 	}
 
-	return scored
+	slotStart := time.Date(date.Year(), date.Month(), date.Day(), hour, minute, 0, 0, date.Location())
+	key := fmt.Sprintf("%d_%d", hour, dow)
+	stat, hasStat := statsMap[key]
+
+	ss := ScoredSlot{
+		SlotID:    fmt.Sprintf("slot_%03d", i+1),
+		StartsAt:  slotStart,
+		Label:     fmt.Sprintf("%s %d:%02d %s", dayNames[dow], normalizeHour(hour), minute, amPm(hour)),
+		DayOfWeek: dayNames[dow],
+		HourOfDay: hour,
+	}
+
+	if hasStat && stat.TotalBookings > 0 {
+		applyHistoricalStats(&ss, stat, maxWait, maxDepth)
+	} else {
+		applyNeutralStats(&ss)
+	}
+
+	matchScore := 0.0
+	if prefHours[hour] { matchScore += 0.5 }
+	if prefDays[dow] { matchScore += 0.5 }
+	ss.UserMatchScore = matchScore
+
+	return ss, true
+}
+
+func applyHistoricalStats(ss *ScoredSlot, stat aimodels.SlotAnalytics, maxWait, maxDepth float64) {
+	if maxWait > 0 {
+		ss.WaitTimeScore = 1.0 - (float64(stat.AvgWaitSecs) / maxWait)
+	} else {
+		ss.WaitTimeScore = 1.0
+	}
+
+	if maxDepth > 0 {
+		ss.BusynessScore = 1.0 - (stat.AvgQueueDepth / maxDepth)
+	} else {
+		ss.BusynessScore = 1.0
+	}
+
+	ss.NoShowRiskScore = 1.0 - stat.NoShowRate
+	ss.AvgWaitMins = float64(stat.AvgWaitSecs) / 60.0
+	ss.AvgQueueDepth = stat.AvgQueueDepth
+	ss.TotalSamples = stat.TotalBookings
+
+	switch {
+	case stat.TotalBookings >= 500:
+		ss.DataConfidence = "high"
+	case stat.TotalBookings >= 50:
+		ss.DataConfidence = "medium"
+	default:
+		ss.DataConfidence = "low"
+	}
+}
+
+func applyNeutralStats(ss *ScoredSlot) {
+	ss.WaitTimeScore = 0.5
+	ss.BusynessScore = 0.5
+	ss.NoShowRiskScore = 0.5
+	ss.DataConfidence = "low"
 }
 
 func normalizeHour(h int) int {
