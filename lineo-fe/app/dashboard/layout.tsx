@@ -58,20 +58,24 @@ function GlobalHeader() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const userData = sessionStorage.getItem("user");
-    let parsedUser = null;
-    if (userData) {
-      try {
-        parsedUser = JSON.parse(userData);
-      } catch (e) {
-        console.error("Failed to parse user data", e);
+    const loadUser = () => {
+      const userData = sessionStorage.getItem("user");
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          setUser(parsedUser);
+        } catch (e) {
+          console.error("Failed to parse user data", e);
+        }
       }
-    }
-    
-    void Promise.resolve().then(() => {
-      setUser(parsedUser);
       setMounted(true);
-    });
+    };
+
+    loadUser();
+    
+    // Listen for storage changes in the same window
+    window.addEventListener("user-updated", loadUser);
+    return () => window.removeEventListener("user-updated", loadUser);
   }, []);
 
   const handleLogout = () => {

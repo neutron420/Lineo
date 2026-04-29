@@ -3,11 +3,12 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2, User, Mail, Lock, Phone, Calendar, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Loader2, User, Mail, Lock, Phone, Calendar, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { AxiosError } from "axios";
+import { cn } from "@/lib/utils";
 
 export default function UserRegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -290,13 +291,27 @@ export default function UserRegisterPage() {
                     />
                     <label 
                       htmlFor="disability-upload"
-                      className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-stripe-border rounded-stripe cursor-pointer hover:border-stripe-purple transition-colors bg-white group"
+                      className={cn(
+                        "flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded-stripe cursor-pointer transition-all bg-white group",
+                        disabilityFile ? "border-green-500 bg-green-50/30" : "border-stripe-border hover:border-stripe-purple"
+                      )}
                     >
                       <div className="text-center">
-                        <p className="text-sm font-medium text-stripe-navy group-hover:text-stripe-purple transition-colors">
-                          {disabilityFile ? disabilityFile.name : "Click to upload document"}
-                        </p>
-                        <p className="text-[10px] text-stripe-slate mt-1">PDF, JPG or PNG (Max 5MB)</p>
+                        {disabilityFile ? (
+                          <div className="flex items-center justify-center gap-2 text-green-600">
+                             <CheckCircle className="w-5 h-5 animate-bounce" />
+                             <p className="text-sm font-bold truncate max-w-[200px]">
+                                {disabilityFile.name}
+                             </p>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm font-medium text-stripe-navy group-hover:text-stripe-purple transition-colors">
+                              Click to upload document
+                            </p>
+                            <p className="text-[10px] text-stripe-slate mt-1">PDF, JPG or PNG (Max 5MB)</p>
+                          </>
+                        )}
                       </div>
                     </label>
                   </div>

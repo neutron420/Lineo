@@ -15,13 +15,18 @@ import {
   Camera,
   Zap,
   Crown,
-  ArrowRight
+  ArrowRight,
+  Maximize2,
+  X,
+  Loader2,
+  Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import Link from "next/link";
 import api from "@/lib/api";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface UserProfile {
   id?: number;
@@ -43,6 +48,10 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("Profile");
   
   // Form state
+  const [isUploading, setIsUploading] = useState(false);
+  const [showCheck, setShowCheck] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -97,7 +106,7 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setLoading(true);
+    setIsUploading(true);
     try {
       const formDataUpload = new FormData();
       formDataUpload.append("file", file);
@@ -117,11 +126,18 @@ export default function SettingsPage() {
       sessionStorage.setItem("user", JSON.stringify(updatedUser));
       setUser(updatedUser as UserProfile);
       
+      // Notify other components (Header)
+      window.dispatchEvent(new Event("user-updated"));
+      
+      setShowCheck(true);
+      setTimeout(() => setShowCheck(false), 3000);
       toast.success("Profile picture updated!");
-    } catch (err) {
-      toast.error("Failed to upload avatar");
+    } catch (err: any) {
+      console.error("Upload failed", err);
+      const msg = err.response?.data?.message || "Failed to upload avatar";
+      toast.error(msg);
     } finally {
-      setLoading(false);
+      setIsUploading(false);
     }
   };
 
@@ -233,18 +249,51 @@ export default function SettingsPage() {
                <div className="bg-white rounded-2xl p-4 md:p-6 ghost-border">
                   <div className="flex items-center gap-4 md:gap-6 mb-6 md:mb-8">
                      <div className="relative group">
-                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center text-white text-xl md:text-2xl font-extrabold shadow-neobrutal group-hover:scale-105 transition-transform overflow-hidden" style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)', fontFamily: 'var(--font-manrope), sans-serif' }}>
+                        <div 
+                          className="w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center text-white text-xl md:text-2xl font-extrabold shadow-neobrutal group-hover:scale-105 transition-transform overflow-hidden cursor-pointer" 
+                          style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)', fontFamily: 'var(--font-manrope), sans-serif' }}
+                          onClick={() => setIsPreviewOpen(true)}
+                        >
                            {formData.avatar_url ? (
                              <img src={formData.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                            ) : (
                              user?.username?.charAt(0).toUpperCase() || "U"
                            )}
+                           <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <Maximize2 className="w-6 h-6 text-white" />
+                           </div>
                         </div>
-                        <label className="absolute -bottom-1.5 -right-1.5 w-7 h-7 bg-white rounded-full flex items-center justify-center text-[#49607e] hover:text-[#493ee5] shadow-sm ghost-border hover:scale-110 transition-all cursor-pointer">
+                        <label className="absolute -bottom-1.5 -right-1.5 w-7 h-7 bg-white rounded-full flex items-center justify-center text-[#49607e] hover:text-[#493ee5] shadow-sm ghost-border hover:scale-110 transition-all cursor-pointer overflow-hidden">
                            <input type="file" className="hidden" onChange={handleAvatarUpload} accept="image/*" />
-                           <Camera className="w-3.5 h-3.5" />
+                           {isUploading ? (
+                             <Loader2 className="w-3.5 h-3.5 text-[#493ee5] animate-spin" />
+                           ) : showCheck ? (
+                             <Check className="w-3.5 h-3.5 text-green-500 animate-bounce" />
+                           ) : (
+                             <Camera className="w-3.5 h-3.5" />
+                           )}
                         </label>
                      </div>
+
+                     {/* Avatar Full View Modal */}
+                     <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+                       <DialogContent className="max-w-[90vw] sm:max-w-md p-0 overflow-hidden bg-transparent border-none shadow-none">
+                         <div className="relative aspect-square w-full rounded-3xl overflow-hidden bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-2xl">
+                            {formData.avatar_url ? (
+                              <img src={formData.avatar_url} alt="Full view" className="w-full h-full object-contain" />
+                            ) : (
+                              <div className="text-white text-8xl font-black opacity-20">{user?.username?.charAt(0).toUpperCase()}</div>
+                            )}
+                            <button 
+                              onClick={() => setIsPreviewOpen(false)}
+                              className="absolute top-4 right-4 w-10 h-10 bg-black/40 text-white rounded-full flex items-center justify-center hover:bg-black/60 transition-colors"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                         </div>
+                       </DialogContent>
+                     </Dialog>
+
                      <div>
                         <h3 className="text-lg md:text-xl font-extrabold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{user?.username || "Quest User"}</h3>
                         <p className="text-[#49607e] text-sm font-medium">{user?.email || "quest@lineo.ai"}</p>
