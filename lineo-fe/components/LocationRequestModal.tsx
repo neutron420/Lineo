@@ -4,10 +4,9 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Navigation, Search, X, Shield, Map as MapIcon } from "lucide-react";
 import { useLocation } from "@/context/LocationContext";
-import { cn } from "@/lib/utils";
 
 export default function LocationRequestModal() {
-  const { coords, refreshLocation, isLoading, address } = useLocation();
+  const { refreshLocation, address } = useLocation();
   const [show, setShow] = useState(false);
   const [manualMode, setManualMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");

@@ -32,7 +32,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
       });
       setMessage("");
       onClose();
-    } catch (err) {
+    } catch {
       toast.error("Submission Failed", { 
         description: "Please try again later or check your connection." 
       });
@@ -78,7 +78,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 
             <form onSubmit={handleSubmit} className="p-6 space-y-6 bg-white">
               <div className="space-y-3">
-                <p className="text-xs font-bold text-[#49607e] uppercase tracking-widest">What's the context?</p>
+                <p className="text-xs font-bold text-[#49607e] uppercase tracking-widest">What&apos;s the context?</p>
                 <div className="grid grid-cols-2 gap-3">
                   {["bug", "suggestion"].map((cat) => (
                     <button

@@ -77,7 +77,7 @@ export function NotificationCenter() {
 
   useEffect(() => {
     if (isOpen) {
-      updatePosition();
+      setTimeout(() => updatePosition(), 0);
       window.addEventListener("resize", updatePosition);
       window.addEventListener("scroll", updatePosition, true);
       return () => {

@@ -68,7 +68,7 @@ export const StickyBanner = ({
   };
 
   useEffect(() => {
-    fetchLatest();
+    setTimeout(() => fetchLatest(), 0);
     const interval = setInterval(fetchLatest, 30000);
     return () => clearInterval(interval);
   }, [lastDismissedId]);
@@ -92,7 +92,7 @@ export const StickyBanner = ({
         const secs = Math.floor((diff / 1000) % 60);
         setTimeLeft(`${mins}:${secs.toString().padStart(2, '0')}`);
       };
-      updateTimer();
+      setTimeout(() => updateTimer(), 0);
       timer = setInterval(updateTimer, 1000);
     } else {
       setTimeout(() => setTimeLeft(""), 0);

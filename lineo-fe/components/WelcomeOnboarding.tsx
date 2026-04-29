@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, X, ChevronRight, Zap, MapPin, Calendar } from "lucide-react";
+import { Sparkles, ChevronRight, Zap, MapPin, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function WelcomeOnboarding() {
