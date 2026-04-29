@@ -149,7 +149,9 @@ func (c *OpenAIChatbot) Chat(ctx context.Context,
 	if len(message.ToolCalls) > 0 {
 		toolCall := message.ToolCalls[0]
 		var input interface{}
-		json.Unmarshal([]byte(toolCall.Function.Arguments), &input)
+		if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &input); err != nil {
+			return ChatResponse{}, fmt.Errorf("failed to parse tool arguments: %w", err)
+		}
 		return ChatResponse{
 			Type:      "tool_use",
 			ToolName:  toolCall.Function.Name,

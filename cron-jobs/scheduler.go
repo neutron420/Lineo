@@ -45,45 +45,59 @@ func (s *Scheduler) Register() {
 	// ═══════════════════════════════════════════════════════════════════
 
 	// Stage 1 — 7 days before — daily at 9:00 AM UTC
-	s.cron.AddFunc("0 9 * * *", func() {
+	if _, err := s.cron.AddFunc("0 9 * * *", func() {
 		s.logger.Info("🔔 Running Appointment Stage 1 (7-day reminder)...")
 		s.apptSvc.RunStage(context.Background(), Stages[0])
-	})
+	}); err != nil {
+		s.logger.Error("failed to register Stage 1 cron", "error", err)
+	}
 
 	// Stage 2 — 3 days before — daily at 9:00 AM UTC
-	s.cron.AddFunc("0 9 * * *", func() {
+	if _, err := s.cron.AddFunc("0 9 * * *", func() {
 		s.logger.Info("🔔 Running Appointment Stage 2 (3-day reminder)...")
 		s.apptSvc.RunStage(context.Background(), Stages[1])
-	})
+	}); err != nil {
+		s.logger.Error("failed to register Stage 2 cron", "error", err)
+	}
 
 	// Stage 3 — 24 hours before — daily at 8:00 AM UTC
-	s.cron.AddFunc("0 8 * * *", func() {
+	if _, err := s.cron.AddFunc("0 8 * * *", func() {
 		s.logger.Info("🔔 Running Appointment Stage 3 (24-hour reminder)...")
 		s.apptSvc.RunStage(context.Background(), Stages[2])
-	})
+	}); err != nil {
+		s.logger.Error("failed to register Stage 3 cron", "error", err)
+	}
 
 	// Stage 4 — 2 hours before — every hour on the hour
-	s.cron.AddFunc("0 * * * *", func() {
+	if _, err := s.cron.AddFunc("0 * * * *", func() {
 		s.logger.Info("🔔 Running Appointment Stage 4 (2-hour reminder)...")
 		s.apptSvc.RunStage(context.Background(), Stages[3])
-	})
+	}); err != nil {
+		s.logger.Error("failed to register Stage 4 cron", "error", err)
+	}
 
 	// Stage 5 — 30 minutes before — every 5 minutes
-	s.cron.AddFunc("*/5 * * * *", func() {
+	if _, err := s.cron.AddFunc("*/5 * * * *", func() {
 		s.logger.Info("🔔 Running Appointment Stage 5 (30-min reminder)...")
 		s.apptSvc.RunStage(context.Background(), Stages[4])
-	})
+	}); err != nil {
+		s.logger.Error("failed to register Stage 5 cron", "error", err)
+	}
 
 	// Stage 6 — 5 minutes before — every 1 minute
-	s.cron.AddFunc("* * * * *", func() {
+	if _, err := s.cron.AddFunc("* * * * *", func() {
 		s.apptSvc.RunStage(context.Background(), Stages[5])
-	})
+	}); err != nil {
+		s.logger.Error("failed to register Stage 6 cron", "error", err)
+	}
 
 	// Stage 7 — Post-visit follow-up — every hour
-	s.cron.AddFunc("0 * * * *", func() {
+	if _, err := s.cron.AddFunc("0 * * * *", func() {
 		s.logger.Info("🔔 Running Appointment Stage 7 (post-visit feedback)...")
 		s.apptSvc.RunStage(context.Background(), Stages[6])
-	})
+	}); err != nil {
+		s.logger.Error("failed to register Stage 7 cron", "error", err)
+	}
 
 	// ═══════════════════════════════════════════════════════════════════
 	//  LIVE QUEUE REMINDERS (5 stages, single idempotent check)
@@ -92,9 +106,11 @@ func (s *Scheduler) Register() {
 	// Queue check runs every minute. The function itself is idempotent — Redis
 	// dedup keys ensure each stage is only sent once per ticket. Running it
 	// every minute means Q5 ("you're almost up!") fires with ≤1 min latency.
-	s.cron.AddFunc("* * * * *", func() {
+	if _, err := s.cron.AddFunc("* * * * *", func() {
 		s.queueSvc.RunQueueCheck(context.Background())
-	})
+	}); err != nil {
+		s.logger.Error("failed to register queue check cron", "error", err)
+	}
 
 	s.logger.Info("✅ Notification cron scheduler registered — 7 appointment stages + 5 queue stages")
 }

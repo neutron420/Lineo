@@ -189,12 +189,17 @@ func fallbackRecommend(scored []ScoredSlot, total int) aimodels.RecommendationRe
 		if i >= 3 {
 			break
 		}
+		badge := "Recommended"
+		if i < len(badges) {
+			badge = badges[i]
+		}
+
 		slots = append(slots, aimodels.RecommendedSlot{
 			SlotID:   s.SlotID,
 			DateTime: s.StartsAt.Format(time.RFC3339),
 			Label:    s.Label,
 			Score:    s.WaitTimeScore,
-			Badge:    badges[i],
+			Badge:    badge,
 			Reason:   fmt.Sprintf("Historically low wait time: ~%.0f minutes.", s.AvgWaitMins),
 		})
 	}

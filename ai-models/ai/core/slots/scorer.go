@@ -70,7 +70,10 @@ func ScoreSlots(
 	for i, slotTime := range baseSlots {
 		// Parse hour from "09:00" format
 		var hour, minute int
-		fmt.Sscanf(slotTime, "%d:%d", &hour, &minute)
+		if _, err := fmt.Sscanf(slotTime, "%d:%d", &hour, &minute); err != nil {
+			// If parsing fails, skip or use default
+			continue
+		}
 
 		slotStart := time.Date(date.Year(), date.Month(), date.Day(), hour, minute, 0, 0, date.Location())
 		key := fmt.Sprintf("%d_%d", hour, dow)

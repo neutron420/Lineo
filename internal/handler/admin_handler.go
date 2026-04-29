@@ -59,6 +59,7 @@ func (h *AdminHandler) GetSystemMetrics(c *gin.Context) {
 
 func (h *AdminHandler) GetPlatformAnalytics(c *gin.Context) {
 	// A more robust dynamic generation algorithm to populate the Recharts without hardcoding the frontend
+	// #nosec G404 - Weak random is fine for mock/simulated analytics data
 	rand.Seed(time.Now().UnixNano())
 	var analyticsData []gin.H
 	
@@ -66,7 +67,9 @@ func (h *AdminHandler) GetPlatformAnalytics(c *gin.Context) {
 	baseQueues := 20
 	
 	for i := 1; i <= 30; i++ {
+		// #nosec G404 - Simulated data doesn't require crypto/rand
 		baseTickets += rand.Intn(40) - 10
+		// #nosec G404 - Simulated data doesn't require crypto/rand
 		baseQueues += rand.Intn(10) - 3
 		if baseTickets < 50 { baseTickets = 50 }
 		if baseQueues < 5 { baseQueues = 5 }

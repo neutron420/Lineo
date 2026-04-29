@@ -94,7 +94,9 @@ func (s *ChatbotService) ProcessMessage(ctx context.Context,
 
 		if response.Type == "message" {
 			// ChatGPT gave a final text response — save and return
-			s.repo.SaveMessage(ctx, sessionID, "assistant", response.TextResponse)
+			if err := s.repo.SaveMessage(ctx, sessionID, "assistant", response.TextResponse); err != nil {
+				log.Printf("Failed to save assistant response: %v", err)
+			}
 			return response.TextResponse, nil
 		}
 

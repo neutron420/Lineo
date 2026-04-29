@@ -310,7 +310,9 @@ func (r *queueRepository) GetHoldingList(queueKey string) ([]models.QueueEntry, 
 	var entries []models.QueueEntry
 	for _, data := range dataMap {
 		var entry models.QueueEntry
-		json.Unmarshal([]byte(data), &entry)
+		if err := json.Unmarshal([]byte(data), &entry); err != nil {
+			continue // Skip corrupted entries
+		}
 		entries = append(entries, entry)
 	}
 	return entries, nil

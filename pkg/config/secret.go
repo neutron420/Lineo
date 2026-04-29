@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -15,6 +16,7 @@ func Secret(key string) string {
 		return ""
 	}
 
+	filePath = filepath.Clean(filePath)
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return ""

@@ -474,6 +474,7 @@ func (s *queueService) transitionTicketWithCtx(ctx context.Context, orgID, actor
 
 		// Trigger feedback SMS for completed tickets
 		if to == models.StatusCompleted {
+			// #nosec G118 - Using Background context intentionally as SMS sending should outlive the request
 			go func() {
 				var history models.QueueHistory
 				if err := db.DB.Where("token_number = ?", token).First(&history).Error; err == nil && (history.PhoneNumber != "" || history.UserID != 0) {

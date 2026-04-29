@@ -2,7 +2,7 @@ package utils
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -118,7 +118,7 @@ func buildCacheKey(query string, lat, lng float64, radius int) string {
 	roundedLat := math.Round(lat*1000) / 1000
 	roundedLng := math.Round(lng*1000) / 1000
 	raw := fmt.Sprintf("search:%s:%.3f:%.3f:%d", strings.ToLower(query), roundedLat, roundedLng, radius)
-	hash := md5.Sum([]byte(raw))
+	hash := sha256.Sum256([]byte(raw))
 	return fmt.Sprintf("lineo:search:%x", hash)
 }
 
@@ -455,7 +455,11 @@ func (g *GoogleMapsClient) GetAddressFromCoords(lat, lng float64) (string, error
 		lat, lng, g.APIKey,
 	)
 
-	resp, err := http.Get(apiURL)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, apiURL, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := g.httpClient.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -495,7 +499,11 @@ func (g *GoogleMapsClient) GetDistanceMatrix(originLat, originLng, destLat, dest
 		originLat, originLng, destLat, destLng, g.APIKey,
 	)
 
-	resp, err := http.Get(apiURL)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, apiURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := g.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

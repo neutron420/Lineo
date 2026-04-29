@@ -272,8 +272,9 @@ func main() {
 	}
 
 	srv := &http.Server{
-		Addr:    ":" + port,
-		Handler: r,
+		Addr:              ":" + port,
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second, // Fix G112: Slowloris Protection
 	}
 
 	workerCtx, workerCancel := context.WithCancel(context.Background())

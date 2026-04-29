@@ -62,7 +62,10 @@ func SendSMS(to string, message string) {
 	} else {
 		// Read body to see exact error from Twilio
 		var twilioErr map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&twilioErr)
-		slog.Warn("twilio sms failed", "status_code", resp.StatusCode, "to", cleanTo, "error", twilioErr["message"])
+		if err := json.NewDecoder(resp.Body).Decode(&twilioErr); err != nil {
+			slog.Warn("twilio sms failed to decode error body", "status_code", resp.StatusCode, "to", cleanTo)
+		} else {
+			slog.Warn("twilio sms failed", "status_code", resp.StatusCode, "to", cleanTo, "error", twilioErr["message"])
+		}
 	}
 }

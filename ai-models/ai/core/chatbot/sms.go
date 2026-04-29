@@ -2,7 +2,7 @@ package chatbot
 
 import (
 	"crypto/hmac"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 - Twilio requires SHA1 for signature verification
 	"encoding/base64"
 	"net/http"
 	"net/url"
@@ -77,7 +77,9 @@ func (h *SMSHandler) verifyTwilioSignature(r *http.Request) bool {
 		return false
 	}
 
-	r.ParseForm()
+	if err := r.ParseForm(); err != nil {
+		return false
+	}
 	params := r.Form
 	keys := make([]string, 0, len(params))
 	for k := range params {
@@ -93,6 +95,7 @@ func (h *SMSHandler) verifyTwilioSignature(r *http.Request) bool {
 		sb.WriteString(url.QueryEscape(params.Get(k)))
 	}
 
+	// #nosec G505 - Twilio signature validation requires SHA1 HMAC as per their legacy protocol
 	mac := hmac.New(sha1.New, []byte(h.authToken))
 	mac.Write([]byte(sb.String()))
 	expected := base64.StdEncoding.EncodeToString(mac.Sum(nil))
