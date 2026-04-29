@@ -80,8 +80,9 @@ func (s *authService) RegisterUser(req models.RegisterRequest) (*models.User, er
 		PhoneNumber:    req.PhoneNumber,
 		DOB:            req.DOB,
 		Gender:         req.Gender,
-		HasDisability:  req.HasDisability,
-		DisabilityType: req.DisabilityType,
+		HasDisability:      req.HasDisability,
+		DisabilityType:      req.DisabilityType,
+		DisabilityProofURL:  req.DisabilityProofURL,
 	}
 
 	err = s.userRepo.CreateUser(user)

@@ -65,7 +65,7 @@ export const StickyBanner = ({
         const diff = expiry.getTime() - now.getTime();
         if (diff <= 0) {
           setTimeLeft("EXPIRED");
-          setTimeout(() => setVisible(false), 5000);
+          setVisible(false);
           return;
         }
         const mins = Math.floor(diff / 1000 / 60);

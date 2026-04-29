@@ -19,6 +19,8 @@ export default function UserRegisterPage() {
   const [gender, setGender] = useState("");
   const [hasDisability, setHasDisability] = useState(false);
   const [disabilityType, setDisabilityType] = useState("");
+  const [disabilityFile, setDisabilityFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,28 +35,49 @@ export default function UserRegisterPage() {
       return;
     }
 
+    if (hasDisability && !disabilityFile) {
+      setError("Please upload a disability proof document.");
+      return;
+    }
+
     setIsLoading(true);
+    let proofUrl = "";
 
     try {
+      // 1. Upload file if exists
+      if (hasDisability && disabilityFile) {
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append("file", disabilityFile);
+        const uploadRes = await api.post("/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+        proofUrl = uploadRes.data.data.url;
+        setIsUploading(false);
+      }
+
+      // 2. Register user
       await api.post("/auth/register", {
         username,
         email,
         password,
-        phone,
+        phone: phone.startsWith("+91") ? phone : `+91${phone}`,
         dob,
         gender,
         has_disability: hasDisability,
         disability_type: disabilityType,
+        disability_proof_url: proofUrl,
         role: "user",
         turnstile_token: captchaToken
       });
 
       router.push("/user/login?registered=true");
-    } catch (err) {
-      const axiosError = err as AxiosError<{ message: string }>;
-      setError(axiosError.response?.data?.message || "Registration failed. Please try again.");
+    } catch (err: any) {
+      const msg = err.response?.data?.message || "Registration failed. Please try again.";
+      setError(msg);
     } finally {
       setIsLoading(false);
+      setIsUploading(false);
     }
   };
 
@@ -111,14 +134,17 @@ export default function UserRegisterPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
              <div className="space-y-2">
                <label className="text-sm font-medium text-stripe-label">Phone Number</label>
-               <input 
-                 type="tel" 
-                 placeholder="+1 555-000-0000" 
-                 className="stripe-input"
-                 value={phone}
-                 onChange={(e) => setPhone(e.target.value)}
-                 required 
-               />
+               <div className="relative">
+                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-stripe-slate">+91</span>
+                 <input 
+                   type="tel" 
+                   placeholder="00000 00000" 
+                   className="stripe-input pl-12"
+                   value={phone}
+                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                   required 
+                 />
+               </div>
              </div>
 
              <div className="space-y-2">
@@ -198,28 +224,58 @@ export default function UserRegisterPage() {
              <motion.div
                initial={false}
                animate={{ height: hasDisability ? 'auto' : 0, opacity: hasDisability ? 1 : 0 }}
-               className="overflow-hidden space-y-2"
+               className="overflow-hidden space-y-4"
              >
-                <label className="text-sm font-medium text-stripe-label">
-                   Specific care requirement?
-                </label>
-                <div className="relative">
-                  <select 
-                    className="stripe-input appearance-none"
-                    value={disabilityType}
-                    onChange={(e) => setDisabilityType(e.target.value)}
-                  >
-                     <option value="">Select Disability Type</option>
-                     <option value="mobility">Mobility Impairment</option>
-                     <option value="visual">Visual Impairment</option>
-                     <option value="hearing">Hearing Impairment</option>
-                     <option value="cognitive">Cognitive / Learning</option>
-                     <option value="other">Other Preference</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-stripe-slate">
-                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-stripe-label">
+                    Specific care requirement?
+                  </label>
+                  <div className="relative">
+                    <select 
+                      className="stripe-input appearance-none"
+                      value={disabilityType}
+                      onChange={(e) => setDisabilityType(e.target.value)}
+                      required={hasDisability}
+                    >
+                       <option value="">Select Disability Type</option>
+                       <option value="mobility">Mobility Impairment</option>
+                       <option value="visual">Visual Impairment</option>
+                       <option value="hearing">Hearing Impairment</option>
+                       <option value="cognitive">Cognitive / Learning</option>
+                       <option value="other">Other Preference</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-stripe-slate">
+                      <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-stripe-label">
+                    Upload Proof (ID/Certificate)
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type="file" 
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) => setDisabilityFile(e.target.files?.[0] || null)}
+                      className="hidden" 
+                      id="disability-upload"
+                      required={hasDisability}
+                    />
+                    <label 
+                      htmlFor="disability-upload"
+                      className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-stripe-border rounded-stripe cursor-pointer hover:border-stripe-purple transition-colors bg-white group"
+                    >
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-stripe-navy group-hover:text-stripe-purple transition-colors">
+                          {disabilityFile ? disabilityFile.name : "Click to upload document"}
+                        </p>
+                        <p className="text-[10px] text-stripe-slate mt-1">PDF, JPG or PNG (Max 5MB)</p>
+                      </div>
+                    </label>
                   </div>
                 </div>
              </motion.div>
@@ -234,10 +290,15 @@ export default function UserRegisterPage() {
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || isUploading}
             className="stripe-btn-primary w-full py-3 flex items-center justify-center gap-2"
           >
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create account"}
+            {isLoading || isUploading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {isUploading ? "Uploading proof..." : "Creating account..."}
+              </>
+            ) : "Create account"}
           </button>
         </form>
 

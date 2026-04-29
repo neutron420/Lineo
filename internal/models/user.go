@@ -32,6 +32,7 @@ type User struct {
 	Gender         string `json:"gender"`
 	HasDisability  bool   `json:"has_disability"`
 	DisabilityType string `json:"disability_type"`
+	DisabilityProofURL string `json:"disability_proof_url"`
 	Role           Role   `gorm:"type:varchar(20);default:'user'" json:"role"`
 	OrganizationID *uint  `gorm:"index" json:"organization_id"`
 
@@ -84,6 +85,7 @@ type RegisterRequest struct {
 	Gender         string `json:"gender"`
 	HasDisability  bool   `json:"has_disability"`
 	DisabilityType string `json:"disability_type"`
+	DisabilityProofURL string `json:"disability_proof_url"`
 	OrganizationID *uint  `json:"organization_id"`
 	TurnstileToken string `json:"turnstile_token"`
 	CounterNumber  int    `json:"counter_number"`
