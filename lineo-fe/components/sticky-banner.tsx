@@ -95,7 +95,7 @@ export const StickyBanner = ({
       updateTimer();
       timer = setInterval(updateTimer, 1000);
     } else {
-      setTimeLeft(prev => prev === "" ? prev : "");
+      setTimeout(() => setTimeLeft(""), 0);
     }
     return () => clearInterval(timer);
   }, [announcement]);
