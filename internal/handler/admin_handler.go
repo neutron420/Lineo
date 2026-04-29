@@ -153,7 +153,7 @@ func (h *AdminHandler) GetUsers(c *gin.Context) {
 func (h *AdminHandler) BanUser(c *gin.Context) {
 	id := c.Param("id")
 	var user models.User
-	if err := db.DB.First(&user, id).Error; err != nil {
+	if err := db.DB.Where("id = ?", id).First(&user).Error; err != nil {
 		utils.RespondError(c, http.StatusNotFound, "User not found", err.Error())
 		return
 	}
@@ -181,7 +181,7 @@ func (h *AdminHandler) UpdateVerificationStatus(c *gin.Context) {
 	}
 
 	var org models.Organization
-	if err := db.DB.First(&org, id).Error; err != nil {
+	if err := db.DB.Where("id = ?", id).First(&org).Error; err != nil {
 		utils.RespondError(c, http.StatusNotFound, "Organization not found", err.Error())
 		return
 	}
@@ -450,7 +450,7 @@ func (h *AdminHandler) UpdateAnnouncement(c *gin.Context) {
 	}
 
 	var announcement models.Announcement
-	if err := db.DB.First(&announcement, id).Error; err != nil {
+	if err := db.DB.Where("id = ?", id).First(&announcement).Error; err != nil {
 		utils.RespondError(c, http.StatusNotFound, "Announcement not found", err.Error())
 		return
 	}
@@ -478,7 +478,7 @@ func (h *AdminHandler) UpdateAnnouncement(c *gin.Context) {
 
 func (h *AdminHandler) DeleteAnnouncement(c *gin.Context) {
 	id := c.Param("id")
-	if err := db.DB.Delete(&models.Announcement{}, id).Error; err != nil {
+	if err := db.DB.Where("id = ?", id).Delete(&models.Announcement{}).Error; err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to abort broadcast", err.Error())
 		return
 	}

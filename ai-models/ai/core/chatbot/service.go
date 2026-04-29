@@ -228,8 +228,7 @@ func (s *ChatbotService) executeTool(ctx context.Context, toolName string,
 		return fmt.Sprintf(`{"status": "success", "remind_at": "%s"}`, remindAt.Format(time.Kitchen)), nil
 
 	case "escalate_to_human":
-		reason := fmt.Sprintf("%v", inputMap["reason"])
-		log.Printf("ESCALATION - Session for user %s: %s", user.ID, reason)
+		log.Printf("ESCALATION - Session for user %s initiated", user.ID)
 		// Update DB conversation status
 		// Convert string ID to uint if needed, for now we will skip updating DB if types don't match or parse it
 		return `{"escalated": true}`, nil
