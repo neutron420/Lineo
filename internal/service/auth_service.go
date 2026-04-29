@@ -188,16 +188,15 @@ func (s *authService) ResetPassword(email, otp, newPass string) error {
 		return fmt.Errorf("account locked. please try again in %v", diff.Round(time.Second))
 	}
 
-	// 2. Check Expiry
-	if user.ResetTokenExp == nil || user.ResetTokenExp.Before(time.Now()) {
-		return errors.New("OTP expired. please request a new one")
+	// 2. Check Expiry & Validity
+	if user.ResetToken == "" || user.ResetTokenExp == nil || user.ResetTokenExp.Before(time.Now().In(loc)) {
+		return errors.New("OTP expired or invalid. please request a new one")
 	}
 
 	// 3. Verify OTP
-	if user.ResetToken != otp {
+	if otp == "" || user.ResetToken != otp {
 		user.OTPAttempts++
 		if user.OTPAttempts >= 3 {
-			loc, _ := time.LoadLocation("Asia/Kolkata")
 			lockout := time.Now().In(loc).Add(15 * time.Minute)
 			user.LockoutUntil = &lockout
 			db.DB.Save(user)
