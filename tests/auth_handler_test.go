@@ -60,6 +60,8 @@ func (m *MockSubscriptionService) CheckJoinLimit(userID uint) error             
 func (m *MockSubscriptionService) CheckApptLimit(userID uint) error                          { return nil }
 func (m *MockSubscriptionService) IncrementJoins(userID uint) error                          { return nil }
 func (m *MockSubscriptionService) IncrementAppts(userID uint) error                          { return nil }
+func (m *MockSubscriptionService) DecrementJoins(userID uint) error                          { return nil }
+func (m *MockSubscriptionService) DecrementAppts(userID uint) error                          { return nil }
 func (m *MockSubscriptionService) UpgradeTier(userID uint, tier models.SubscriptionTier) error { return nil }
 func (m *MockSubscriptionService) SyncCounters(user *models.User) error                      { return nil }
 
