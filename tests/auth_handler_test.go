@@ -46,6 +46,23 @@ func (m *MockAuthService) RegisterOrganization(req models.OrgRegistrationRequest
 	return m.RegisterOrganizationFunc(req)
 }
 
+// MockSubscriptionService implements service.UserSubscriptionService
+type MockSubscriptionService struct {
+	CheckJoinLimitFunc func(userID uint) error
+	CheckApptLimitFunc func(userID uint) error
+	IncrementJoinsFunc func(userID uint) error
+	IncrementApptsFunc func(userID uint) error
+	UpgradeTierFunc    func(userID uint, tier models.SubscriptionTier) error
+	SyncCountersFunc   func(user *models.User) error
+}
+
+func (m *MockSubscriptionService) CheckJoinLimit(userID uint) error                          { return nil }
+func (m *MockSubscriptionService) CheckApptLimit(userID uint) error                          { return nil }
+func (m *MockSubscriptionService) IncrementJoins(userID uint) error                          { return nil }
+func (m *MockSubscriptionService) IncrementAppts(userID uint) error                          { return nil }
+func (m *MockSubscriptionService) UpgradeTier(userID uint, tier models.SubscriptionTier) error { return nil }
+func (m *MockSubscriptionService) SyncCounters(user *models.User) error                      { return nil }
+
 func TestAuthHandler_Login(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -55,7 +72,8 @@ func TestAuthHandler_Login(t *testing.T) {
 				return "fake-jwt-token", &models.User{ID: 1, Email: req.Email}, nil
 			},
 		}
-		h := handler.NewAuthHandler(mockSvc)
+		mockSub := &MockSubscriptionService{}
+		h := handler.NewAuthHandler(mockSvc, mockSub)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -86,7 +104,8 @@ func TestAuthHandler_Login(t *testing.T) {
 				return "", nil, errors.New("invalid credentials")
 			},
 		}
-		h := handler.NewAuthHandler(mockSvc)
+		mockSub := &MockSubscriptionService{}
+		h := handler.NewAuthHandler(mockSvc, mockSub)
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
