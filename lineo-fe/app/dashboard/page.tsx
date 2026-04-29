@@ -305,6 +305,7 @@ export default function UserDashboard() {
       success: (resp) => {
         setJoinQueueKey("");
         setActiveToken(resp.data.data); // Optimistic update
+        window.dispatchEvent(new Event("userSync"));
         setActivities(prev => [{
           id: Math.random().toString(),
           title: `Joined ${resp.data.data.queue_key}`,
@@ -348,6 +349,7 @@ export default function UserDashboard() {
           
           try {
             await api.post(`/queue/${originalToken.queue_key}/cancel/${originalToken.token_number}`);
+            window.dispatchEvent(new Event("userSync"));
             toast.success("Spot Released", { description: "You are no longer in the queue." });
             setActivities(prev => [{
               id: Math.random().toString(),
@@ -393,14 +395,14 @@ export default function UserDashboard() {
   // RENDER
   // ─────────────────────────────────────────────────────
   return (
-    <div className="space-y-8">
-      
+    <><div className="space-y-8">
+
       {/* ━━━ DASHBOARD GRID ━━━ */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
         {/* ━━━ MAIN CONTENT (COL 8) ━━━ */}
         <div className="lg:col-span-8 space-y-8">
-          
+
           {/* ── Live Session Hub / Empty State ── */}
           <AnimatePresence mode="wait">
             {showSuccessScreen ? (
@@ -410,24 +412,23 @@ export default function UserDashboard() {
                 exit={{ opacity: 0, y: 20 }}
                 key="success-screen"
               >
-                 <div className="bg-white border-2 border-emerald-500/10 rounded-3xl p-8 md:p-12 relative overflow-hidden flex flex-col items-center text-center shadow-[0_32px_64px_-16px_rgba(16,185,129,0.1)]">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500" />
-                    <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-8 relative group">
-                       <CheckCircle2 className="w-12 h-12 text-emerald-600 relative z-10" />
-                       <motion.div 
-                         animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
-                         transition={{ duration: 2, repeat: Infinity }}
-                         className="absolute inset-0 bg-emerald-200 rounded-full"
-                       />
-                    </div>
-                    <h2 className="text-2xl md:text-3xl font-black text-[#181c1e] mb-4" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Vector Synchronization Complete</h2>
-                    <p className="text-[#49607e] text-sm md:text-base max-w-md font-medium leading-relaxed mb-8 px-4">
-                       Your session at <span className="text-emerald-600 font-bold">{completedInfo?.queueKey}</span> with token <span className="text-[#181c1e] font-black">#{completedInfo?.tokenNumber}</span> has been successfully executed.
-                    </p>
-                    <div className="flex items-center gap-2 px-6 py-3 bg-emerald-50 text-emerald-700 rounded-2xl text-xs font-black uppercase tracking-widest border border-emerald-100">
-                       <Smile className="w-4 h-4" /> Thank you for choosing Lineo
-                    </div>
-                 </div>
+                <div className="bg-white border-2 border-emerald-500/10 rounded-3xl p-8 md:p-12 relative overflow-hidden flex flex-col items-center text-center shadow-[0_32px_64px_-16px_rgba(16,185,129,0.1)]">
+                  <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500" />
+                  <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-8 relative group">
+                    <CheckCircle2 className="w-12 h-12 text-emerald-600 relative z-10" />
+                    <motion.div
+                      animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute inset-0 bg-emerald-200 rounded-full" />
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-black text-[#181c1e] mb-4" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Vector Synchronization Complete</h2>
+                  <p className="text-[#49607e] text-sm md:text-base max-w-md font-medium leading-relaxed mb-8 px-4">
+                    Your session at <span className="text-emerald-600 font-bold">{completedInfo?.queueKey}</span> with token <span className="text-[#181c1e] font-black">#{completedInfo?.tokenNumber}</span> has been successfully executed.
+                  </p>
+                  <div className="flex items-center gap-2 px-6 py-3 bg-emerald-50 text-emerald-700 rounded-2xl text-xs font-black uppercase tracking-widest border border-emerald-100">
+                    <Smile className="w-4 h-4" /> Thank you for choosing Lineo
+                  </div>
+                </div>
               </motion.div>
             ) : activeToken ? (
               <motion.div
@@ -439,7 +440,7 @@ export default function UserDashboard() {
                 <div className="glass-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
                   {/* Decorative glow */}
                   <div className="absolute -top-24 -right-24 w-48 md:w-64 h-48 md:h-64 bg-[#493ee5]/10 rounded-full blur-3xl" />
-                  
+
                   {/* Header */}
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-8 md:mb-10 relative z-10">
                     <div>
@@ -447,14 +448,14 @@ export default function UserDashboard() {
                         Live Session Hub
                       </h2>
                       <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                         <p className="text-[#49607e] font-medium text-sm">Unit: {activeToken.queue_key}</p>
-                         <div className="h-4 w-px bg-[#e5e8eb] hidden sm:block" />
-                         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#493ee5]/5 rounded-lg border border-[#493ee5]/10">
-                            <Zap className="w-3 h-3 text-[#493ee5]" />
-                            <span className="text-[9px] md:text-[10px] font-black text-[#181c1e] uppercase tracking-wider">
-                               Serving: {queueMatrix?.currently_serving?.username || "Idle"}
-                            </span>
-                         </div>
+                        <p className="text-[#49607e] font-medium text-sm">Unit: {activeToken.queue_key}</p>
+                        <div className="h-4 w-px bg-[#e5e8eb] hidden sm:block" />
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#493ee5]/5 rounded-lg border border-[#493ee5]/10">
+                          <Zap className="w-3 h-3 text-[#493ee5]" />
+                          <span className="text-[9px] md:text-[10px] font-black text-[#181c1e] uppercase tracking-wider">
+                            Serving: {queueMatrix?.currently_serving?.username || "Idle"}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 bg-[#e2dfff] text-[#181c1e] px-4 py-2 rounded-full text-sm font-bold shadow-neobrutal shrink-0" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
@@ -477,7 +478,7 @@ export default function UserDashboard() {
                         {activeToken.position === 0 ? "At Counter" : `Position #${activeToken.position} in line`}
                       </p>
                     </div>
-                    
+
                     {/* Queue Details */}
                     <div className="flex flex-col justify-center space-y-6">
                       {/* Stats Row */}
@@ -516,14 +517,13 @@ export default function UserDashboard() {
                             animate={{ width: activeToken.position === 0 ? "100%" : `${Math.max(100 - activeToken.position * 10, 10)}%` }}
                             className="absolute top-0 left-0 h-full rounded-full pulse-glow"
                             style={{ background: 'linear-gradient(90deg, #493ee5, #635bff)' }}
-                            transition={{ duration: 1.5, ease: "easeOut" }}
-                          />
+                            transition={{ duration: 1.5, ease: "easeOut" }} />
                         </div>
                       </div>
 
                       {/* Lineo AI Predictor Component */}
                       <AIWaitTimeDisplay queueKey={activeToken.queue_key} ticketId={activeToken.token_number} />
-                      
+
                     </div>
                   </div>
 
@@ -532,9 +532,9 @@ export default function UserDashboard() {
                     <Button onClick={() => setIsTicketModalOpen(true)} className="kinetic-btn-primary w-full sm:flex-1 h-14 text-base gap-3">
                       <QrCode className="w-5 h-5" /> Digital Pass
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      onClick={handleCancelToken} 
+                    <Button
+                      variant="ghost"
+                      onClick={handleCancelToken}
                       className="w-full sm:w-auto h-14 px-6 rounded-2xl font-semibold text-[#49607e] bg-[#f1f4f7] hover:bg-red-50 hover:text-red-600 transition-all"
                       style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
                     >
@@ -551,7 +551,7 @@ export default function UserDashboard() {
               >
                 <div className="glass-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
                   <div className="absolute -top-24 -right-24 w-48 md:w-64 h-48 md:h-64 bg-[#493ee5]/10 rounded-full blur-3xl" />
-                  
+
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-8 md:mb-10 relative z-10">
                     <div>
                       <h2 className="text-2xl md:text-3xl font-extrabold text-[#181c1e] tracking-tight mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
@@ -577,9 +577,9 @@ export default function UserDashboard() {
                       <Button onClick={() => setIsJoinModalOpen(true)} className="kinetic-btn-primary h-11 md:h-12 px-8 text-sm gap-2 w-full sm:w-auto">
                         <Search className="w-4 h-4" /> Search Live Queues
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => refreshLocation()} 
+                      <Button
+                        variant="outline"
+                        onClick={() => refreshLocation()}
                         disabled={locationLoading}
                         className="h-11 md:h-12 px-6 rounded-xl border-[#e5e8eb] text-[#49607e] hover:text-[#493ee5] gap-2 w-full sm:w-auto bg-white/50 backdrop-blur-sm"
                       >
@@ -595,22 +595,19 @@ export default function UserDashboard() {
 
           {/* ── Stat Metric Cards ── */}
           <div className="grid grid-cols-3 gap-4 md:gap-6">
-            <StatCard 
+            <StatCard
               icon={<Clock className="w-[18px] h-[18px]" />}
               label="Avg Wait"
               value={activeToken ? `${activeToken.estimated_wait_mins}` : "14"}
-              unit="m"
-            />
-            <StatCard 
+              unit="m" />
+            <StatCard
               icon={<Users className="w-[18px] h-[18px]" />}
               label="In Queue"
-              value={activeToken ? `${activeToken.position}` : "42"}
-            />
-            <StatCard 
+              value={activeToken ? `${activeToken.position}` : "42"} />
+            <StatCard
               icon={<CheckCircle2 className="w-[18px] h-[18px]" />}
               label="Served"
-              value="128"
-            />
+              value="128" />
           </div>
 
           <Tabs defaultValue="nearby" className="w-full">
@@ -618,23 +615,23 @@ export default function UserDashboard() {
             <div className="bg-white rounded-2xl p-2.5 md:p-4 ghost-border mb-4 md:mb-6">
               <div className="flex items-center gap-2.5 md:gap-3 overflow-x-auto no-scrollbar">
                 <h3 className="text-sm md:text-lg font-bold text-[#181c1e] shrink-0" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Discover</h3>
-                
+
                 {/* Unified pill bar: Nearby/History + All/Hospital/Bank */}
                 <div className="flex items-center bg-[#f1f4f7] rounded-xl p-0.5 gap-0.5 shrink-0">
                   <TabsList className="bg-transparent p-0 h-auto gap-0.5 shrink-0">
                     <TabsTrigger value="nearby" className="rounded-lg px-3 md:px-4 h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#493ee5] text-[11px] md:text-xs font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Nearby</TabsTrigger>
                     <TabsTrigger value="history" className="rounded-lg px-3 md:px-4 h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#493ee5] text-[11px] md:text-xs font-bold transition-all" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>History</TabsTrigger>
                   </TabsList>
-                  
+
                   <div className="w-px h-4 bg-[#dde0e4] shrink-0 mx-0.5" />
 
                   {['all', 'hospital', 'bank'].map((cat) => (
-                    <button 
+                    <button
                       key={cat}
                       className={cn(
                         "rounded-lg h-8 px-3 text-[11px] md:text-xs font-bold capitalize transition-all shrink-0",
-                        activeCategory === cat 
-                          ? "bg-white text-[#493ee5] shadow-sm" 
+                        activeCategory === cat
+                          ? "bg-white text-[#493ee5] shadow-sm"
                           : "text-[#49607e] hover:text-[#181c1e]"
                       )}
                       style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
@@ -656,7 +653,7 @@ export default function UserDashboard() {
                     whileHover={{ y: -4 }}
                     transition={{ type: "spring", stiffness: 400, damping: 25 }}
                   >
-                    <div 
+                    <div
                       onClick={() => {
                         if (org.key) {
                           setJoinQueueKey(org.key);
@@ -665,7 +662,7 @@ export default function UserDashboard() {
                         } else {
                           toast.info("Partner Pending", { icon: <Info className="w-4 h-4" /> });
                         }
-                      }}
+                      } }
                       className="group cursor-pointer bg-white rounded-2xl p-5 ghost-border hover:shadow-ambient transition-all duration-300"
                     >
                       <div className="flex items-center gap-4">
@@ -703,27 +700,27 @@ export default function UserDashboard() {
 
             <TabsContent value="history" className="mt-0 outline-none">
               <div className="space-y-3">
-                 {[
-                   { org: "SBI Main Branch", status: "Completed", time: "15m wait", color: "green" },
-                   { org: "Apollo Heart Center", status: "Active", time: "Joined", color: "blue" },
-                   { org: "HDFC Bank", status: "Completed", time: "22m wait", color: "green" }
-                 ].map((h, i) => (
-                   <div key={i} className="bg-white rounded-2xl p-5 flex items-center justify-between ghost-border hover:shadow-ambient transition-all duration-300">
-                      <div className="flex items-center gap-4">
-                        <div className={cn(
-                          "w-3 h-3 rounded-full",
-                          h.color === 'green' ? 'bg-green-500' : 'bg-[#493ee5] pulse-glow'
-                        )} />
-                        <div>
-                          <h5 className="text-base font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{h.org}</h5>
-                          <p className="text-xs text-[#49607e] font-medium">Today • {h.status}</p>
-                        </div>
+                {[
+                  { org: "SBI Main Branch", status: "Completed", time: "15m wait", color: "green" },
+                  { org: "Apollo Heart Center", status: "Active", time: "Joined", color: "blue" },
+                  { org: "HDFC Bank", status: "Completed", time: "22m wait", color: "green" }
+                ].map((h, i) => (
+                  <div key={i} className="bg-white rounded-2xl p-5 flex items-center justify-between ghost-border hover:shadow-ambient transition-all duration-300">
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        "w-3 h-3 rounded-full",
+                        h.color === 'green' ? 'bg-green-500' : 'bg-[#493ee5] pulse-glow'
+                      )} />
+                      <div>
+                        <h5 className="text-base font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{h.org}</h5>
+                        <p className="text-xs text-[#49607e] font-medium">Today • {h.status}</p>
                       </div>
-                      <div className="bg-[#f1f4f7] px-4 py-1.5 rounded-xl text-sm font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
-                        {h.time}
-                      </div>
-                   </div>
-                 ))}
+                    </div>
+                    <div className="bg-[#f1f4f7] px-4 py-1.5 rounded-xl text-sm font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                      {h.time}
+                    </div>
+                  </div>
+                ))}
               </div>
             </TabsContent>
           </Tabs>
@@ -733,7 +730,7 @@ export default function UserDashboard() {
         <div className="lg:col-span-4 space-y-8">
 
           {/* ── Digital Entry Pass (Dynamic Card) ── */}
-          <div 
+          <div
             className="rounded-2xl p-6 bg-white ghost-border relative overflow-hidden group hover:shadow-ambient transition-all duration-300"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-[#493ee5]/5 rounded-full blur-2xl group-hover:bg-[#493ee5]/10 transition-colors pointer-events-none" />
@@ -741,8 +738,8 @@ export default function UserDashboard() {
               <div className="w-16 h-16 bg-[#493ee5]/5 text-[#493ee5] rounded-2xl flex items-center justify-center mb-4 border border-[#493ee5]/10 group-hover:scale-105 transition-transform duration-300">
                 {activeToken ? (
                   <div className="relative group/qr p-2 bg-white rounded-xl">
-                    <QRCodeSVG 
-                      value={`${activeToken.token_number}-${activeToken.queue_key}`} 
+                    <QRCodeSVG
+                      value={`${activeToken.token_number}-${activeToken.queue_key}`}
                       size={64}
                       level="H"
                       includeMargin={false}
@@ -755,8 +752,7 @@ export default function UserDashboard() {
                         height: 12,
                         width: 12,
                         excavate: true,
-                      }}
-                    />
+                      }} />
                     {/* Animated scanning line effect */}
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-[#493ee5]/30 animate-scan pointer-events-none" />
                   </div>
@@ -770,7 +766,7 @@ export default function UserDashboard() {
               <p className="text-[#49607e] text-xs font-medium mb-6">
                 {activeToken ? `Token ${activeToken.token_number} is active at ${activeToken.queue_key}` : "Scan to join the fast track instantly"}
               </p>
-              <button 
+              <button
                 onClick={() => activeToken ? setIsTicketModalOpen(true) : setIsJoinModalOpen(true)}
                 className="w-full py-3 rounded-xl font-bold text-sm text-white shadow-neobrutal hover:-translate-y-0.5 active:translate-y-0 transition-all font-manrope"
                 style={{ background: '#493ee5' }}
@@ -809,7 +805,7 @@ export default function UserDashboard() {
               <h3 className="text-xs font-extrabold uppercase tracking-[0.25em] text-[#49607e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Next Appointment</h3>
               <Calendar className="w-4.5 h-4.5 text-[#493ee5]" />
             </div>
-            
+
             {appointments.length > 0 ? (
               <div className="space-y-5">
                 <div className="space-y-2">
@@ -846,30 +842,31 @@ export default function UserDashboard() {
           {/* ── Map Preview ── */}
           <div className="rounded-2xl overflow-hidden bg-white p-2">
             <div className="relative h-[280px] w-full rounded-xl overflow-hidden">
-               <iframe
+              <iframe
                 width="100%"
                 height="100%"
                 title="Nearby Map"
                 style={{ border: 0, filter: 'grayscale(0.1) contrast(1.05)' }}
                 loading="lazy"
                 allowFullScreen
-                src={selectedOrg 
-                    ? `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY?.replace('#', '') || ''}&q=${selectedOrg.lat && selectedOrg.lng ? `${selectedOrg.lat},${selectedOrg.lng}` : encodeURIComponent(selectedOrg.name + ' ' + (locationName || ''))}&zoom=16`
-                    : `https://www.google.com/maps/embed/v1/view?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY?.replace('#', '')}&center=${coords.lat},${coords.lng}&zoom=15&maptype=roadmap`}
+                src={selectedOrg
+                  ? `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY?.replace('#', '') || ''}&q=${selectedOrg.lat && selectedOrg.lng ? `${selectedOrg.lat},${selectedOrg.lng}` : encodeURIComponent(selectedOrg.name + ' ' + (locationName || ''))}&zoom=16`
+                  : `https://www.google.com/maps/embed/v1/view?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY?.replace('#', '')}&center=${coords.lat},${coords.lng}&zoom=15&maptype=roadmap`}
               ></iframe>
               <div className="absolute inset-x-3 bottom-3 glass-panel p-3 rounded-xl flex items-center justify-between">
-                 <div>
-                    <p className="text-[9px] font-extrabold text-[#493ee5] uppercase tracking-[0.3em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Active Node</p>
-                    <p className="text-sm font-bold text-[#181c1e] truncate max-w-[160px]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{selectedOrg?.name || locationName || "Central Area"}</p>
-                 </div>
-                 <div className="w-9 h-9 rounded-xl bg-[#181c1e] flex items-center justify-center text-white shadow-neobrutal hover:rotate-12 transition-transform">
-                    <Navigation className="w-4 h-4" />
-                 </div>
+                <div>
+                  <p className="text-[9px] font-extrabold text-[#493ee5] uppercase tracking-[0.3em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Active Node</p>
+                  <p className="text-sm font-bold text-[#181c1e] truncate max-w-[160px]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{selectedOrg?.name || locationName || "Central Area"}</p>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-[#181c1e] flex items-center justify-center text-white shadow-neobrutal hover:rotate-12 transition-transform">
+                  <Navigation className="w-4 h-4" />
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {/* MODALS                                         */}
@@ -877,186 +874,196 @@ export default function UserDashboard() {
 
       {/* ── Join Queue Modal ── */}
       <Dialog open={isJoinModalOpen} onOpenChange={setIsJoinModalOpen}>
-        <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden rounded-3xl border-none shadow-ambient">
-          <div className="p-8 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)' }}>
-             <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-24 -mt-24 blur-3xl animate-pulse" />
-             <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center mb-5 backdrop-blur-xl border border-white/20">
-                <Building2 className="w-7 h-7" />
-             </div>
-             <DialogTitle className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Access Local Queues</DialogTitle>
-             <DialogDescription className="text-white/70 text-sm mt-1.5 font-medium">Connect with active nodes in your vicinity.</DialogDescription>
+        <DialogContent className="sm:max-w-[550px] p-0 overflow-hidden rounded-[32px] md:rounded-3xl border-none shadow-ambient overflow-y-auto max-h-[95vh]">
+          {/* Header Section - Compact & Mobile Friendly */}
+          <div className="p-6 md:p-8 text-white relative overflow-hidden shrink-0" style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)' }}>
+            <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-24 -mt-24 blur-3xl animate-pulse" />
+
+            {/* Top Action Row */}
+            <div className="flex items-center justify-between mb-4 relative z-10">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xl border border-white/20">
+                <Building2 className="w-6 h-6" />
+              </div>
+              <button
+                onClick={() => setIsJoinModalOpen(false)}
+                className="p-2.5 bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-md border border-white/10 transition-all"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            <DialogTitle className="text-xl md:text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Access Local Queues</DialogTitle>
+            <DialogDescription className="text-white/70 text-xs md:text-sm mt-1 font-medium">Connect with active nodes in your vicinity.</DialogDescription>
           </div>
-          
+
           <div className="p-6 space-y-5 bg-white">
-             {/* Search and Filter in Modal */}
-             <div className="space-y-4">
-                <div className="relative group">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#49607e] group-focus-within:text-[#493ee5] transition-colors" />
-                  <input
-                    type="text"
-                    placeholder="Search by name or type..."
-                    className="w-full pl-11 pr-4 py-3 bg-[#f1f4f7] rounded-xl outline-none transition-all text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#493ee5]/10"
-                    onChange={(e) => setModalSearchQuery(e.target.value)}
-                    value={modalSearchQuery}
-                  />
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                  {['all', 'hospital', 'bank'].map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setModalCategory(cat)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
-                        modalCategory === cat 
-                          ? "bg-[#493ee5] text-white shadow-neobrutal" 
-                          : "bg-[#f1f4f7] text-[#49607e] hover:text-[#493ee5] hover:bg-[#493ee5]/5"
+            {/* Search and Filter in Modal */}
+            <div className="space-y-4">
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#49607e] group-focus-within:text-[#493ee5] transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Search by name or type..."
+                  className="w-full pl-11 pr-4 py-3 bg-[#f1f4f7] rounded-xl outline-none transition-all text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#493ee5]/10"
+                  onChange={(e) => setModalSearchQuery(e.target.value)}
+                  value={modalSearchQuery} />
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                {['all', 'hospital', 'bank'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setModalCategory(cat)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+                      modalCategory === cat
+                        ? "bg-[#493ee5] text-white shadow-neobrutal"
+                        : "bg-[#f1f4f7] text-[#49607e] hover:text-[#493ee5] hover:bg-[#493ee5]/5"
+                    )}
+                    style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <ScrollArea className="h-[350px] pr-3 -mr-3">
+              <div className="space-y-3 pb-4">
+                <AnimatePresence mode="popLayout">
+                  {nearbyOrgs.filter(org => {
+                    const matchesSearch = org.name.toLowerCase().includes(modalSearchQuery.toLowerCase());
+                    const matchesCat = modalCategory === 'all' || org.types?.includes(modalCategory);
+                    return matchesSearch && matchesCat;
+                  }).length > 0 ? (
+                    nearbyOrgs
+                      .filter(org => {
+                        const matchesSearch = org.name.toLowerCase().includes(modalSearchQuery.toLowerCase());
+                        const matchesCat = modalCategory === 'all' || org.types?.includes(modalCategory);
+                        return matchesSearch && matchesCat;
+                      })
+                      .map((org, i) => (
+                        <motion.div
+                          key={org.key || i}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 25 }}
+                        >
+                          <div
+                            onClick={() => {
+                              if (org.key) {
+                                setJoinQueueKey(org.key);
+                                setSelectedOrg(org);
+                              } else {
+                                toast.info("Partner Pending", { description: `${org.name} hasn't joined Lineo yet.` });
+                              }
+                            } }
+                            className={cn(
+                              "group p-4 rounded-2xl transition-all flex items-center justify-between border border-transparent hover:border-[#493ee5]/10",
+                              joinQueueKey === org.key && org.key
+                                ? "bg-[#493ee5]/5 ring-2 ring-[#493ee5] shadow-inner cursor-pointer"
+                                : org.key
+                                  ? "bg-[#f1f4f7] hover:bg-white hover:shadow-ambient cursor-pointer"
+                                  : "opacity-60 saturate-50 cursor-not-allowed bg-[#f1f4f7] border border-[#e5e8eb]/50"
+                            )}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className={cn(
+                                "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300",
+                                org.key ? "bg-white text-[#493ee5] shadow-sm group-hover:bg-[#493ee5] group-hover:text-white" : "bg-[#ebeef1] text-[#49607e]"
+                              )}>
+                                {org.types?.includes("hospital") ? <HeartPulse className="w-6 h-6" /> : <Landmark className="w-6 h-6" />}
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-[#181c1e] text-base group-hover:text-[#493ee5] transition-colors" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+                                  {org.name}
+                                </h4>
+                                <p className="text-xs text-[#49607e] font-medium mt-0.5">
+                                  {org.partnered
+                                    ? (org.distance ? `${(org.distance / 1000).toFixed(1)} km away` : 'Partner Active')
+                                    : 'Not on Lineo yet'}
+                                </p>
+                              </div>
+                            </div>
+                            {org.key && joinQueueKey === org.key && (
+                              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                                <CheckCircle2 className="w-5 h-5 text-[#493ee5]" />
+                              </motion.div>
+                            )}
+                          </div>
+                        </motion.div>
+                      ))
+                  ) : (
+                    <div className="text-center py-16 opacity-40">
+                      {modalSearchQuery ? (
+                        <div className="space-y-2">
+                          <Search className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                          <p className="font-bold text-sm text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>No nodes found</p>
+                          <p className="text-xs">Try a different search term</p>
+                        </div>
+                      ) : (
+                        <>
+                          <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4 text-[#493ee5]" />
+                          <p className="font-bold text-sm text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Scanning Nodes...</p>
+                        </>
                       )}
-                      style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+                    </div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </ScrollArea>
+
+            {selectedOrg && selectedOrg.partnered && selectedOrg.queues && (
+              <div className="space-y-4">
+                <Label className="text-xs font-bold text-[#49607e] uppercase tracking-[0.2em]">Operational Units Available</Label>
+                <div className="grid grid-cols-1 gap-2">
+                  {selectedOrg.queues.map((q) => (
+                    <button
+                      key={q.key}
+                      onClick={() => setJoinQueueKey(q.key)}
+                      disabled={q.is_paused}
+                      className={cn(
+                        "flex items-center justify-between p-4 rounded-xl border transition-all text-left",
+                        joinQueueKey === q.key
+                          ? "border-[#493ee5] bg-[#493ee5]/5 shadow-sm"
+                          : "border-transparent bg-[#f1f4f7] hover:bg-[#e2dfff]/30",
+                        q.is_paused && "opacity-40 cursor-not-allowed grayscale"
+                      )}
                     >
-                      {cat}
+                      <div>
+                        <p className="font-bold text-[#181c1e] text-sm" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{q.name}</p>
+                        <p className="text-[10px] text-[#49607e] font-extrabold uppercase mt-0.5">{q.key}</p>
+                      </div>
+                      {q.is_paused ? (
+                        <Badge variant="outline" className="text-[9px] bg-red-50 text-red-600 border-red-100">SUSPENDED</Badge>
+                      ) : (
+                        joinQueueKey === q.key && <CheckCircle2 className="w-4 h-4 text-[#493ee5]" />
+                      )}
                     </button>
                   ))}
                 </div>
-             </div>
+              </div>
+            )}
 
-             <ScrollArea className="h-[350px] pr-3 -mr-3">
-                <div className="space-y-3 pb-4">
-                  <AnimatePresence mode="popLayout">
-                    {nearbyOrgs.filter(org => {
-                      const matchesSearch = org.name.toLowerCase().includes(modalSearchQuery.toLowerCase());
-                      const matchesCat = modalCategory === 'all' || org.types?.includes(modalCategory);
-                      return matchesSearch && matchesCat;
-                    }).length > 0 ? (
-                      nearbyOrgs
-                        .filter(org => {
-                          const matchesSearch = org.name.toLowerCase().includes(modalSearchQuery.toLowerCase());
-                          const matchesCat = modalCategory === 'all' || org.types?.includes(modalCategory);
-                          return matchesSearch && matchesCat;
-                        })
-                        .map((org, i) => (
-                          <motion.div
-                            key={org.key || i}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 25 }}
-                          >
-                            <div
-                              onClick={() => {
-                                if (org.key) {
-                                  setJoinQueueKey(org.key);
-                                  setSelectedOrg(org);
-                                } else {
-                                  toast.info("Partner Pending", { description: `${org.name} hasn't joined Lineo yet.` });
-                                }
-                              }}
-                              className={cn(
-                                "group p-4 rounded-2xl transition-all flex items-center justify-between border border-transparent hover:border-[#493ee5]/10",
-                                joinQueueKey === org.key && org.key 
-                                  ? "bg-[#493ee5]/5 ring-2 ring-[#493ee5] shadow-inner cursor-pointer"
-                                  : org.key 
-                                    ? "bg-[#f1f4f7] hover:bg-white hover:shadow-ambient cursor-pointer"
-                                    : "opacity-60 saturate-50 cursor-not-allowed bg-[#f1f4f7] border border-[#e5e8eb]/50"
-                              )}
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className={cn(
-                                  "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300",
-                                  org.key ? "bg-white text-[#493ee5] shadow-sm group-hover:bg-[#493ee5] group-hover:text-white" : "bg-[#ebeef1] text-[#49607e]"
-                                )}>
-                                    {org.types?.includes("hospital") ? <HeartPulse className="w-6 h-6" /> : <Landmark className="w-6 h-6" />}
-                                </div>
-                                <div>
-                                    <h4 className="font-bold text-[#181c1e] text-base group-hover:text-[#493ee5] transition-colors" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
-                                      {org.name}
-                                    </h4>
-                                    <p className="text-xs text-[#49607e] font-medium mt-0.5">
-                                      {org.partnered 
-                                          ? (org.distance ? `${(org.distance/1000).toFixed(1)} km away` : 'Partner Active')
-                                          : 'Not on Lineo yet'}
-                                    </p>
-                                </div>
-                              </div>
-                              {org.key && joinQueueKey === org.key && (
-                                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                                  <CheckCircle2 className="w-5 h-5 text-[#493ee5]" />
-                                </motion.div>
-                              )}
-                            </div>
-                          </motion.div>
-                        ))
-                    ) : (
-                      <div className="text-center py-16 opacity-40">
-                         {modalSearchQuery ? (
-                           <div className="space-y-2">
-                             <Search className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                             <p className="font-bold text-sm text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>No nodes found</p>
-                             <p className="text-xs">Try a different search term</p>
-                           </div>
-                         ) : (
-                           <>
-                             <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4 text-[#493ee5]" />
-                             <p className="font-bold text-sm text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Scanning Nodes...</p>
-                           </>
-                         )}
-                      </div>
-                    )}
-                  </AnimatePresence>
-                </div>
-             </ScrollArea>
-
-             {selectedOrg && selectedOrg.partnered && selectedOrg.queues && (
-                <div className="space-y-4">
-                  <Label className="text-xs font-bold text-[#49607e] uppercase tracking-[0.2em]">Operational Units Available</Label>
-                  <div className="grid grid-cols-1 gap-2">
-                    {selectedOrg.queues.map((q) => (
-                      <button
-                        key={q.key}
-                        onClick={() => setJoinQueueKey(q.key)}
-                        disabled={q.is_paused}
-                        className={cn(
-                          "flex items-center justify-between p-4 rounded-xl border transition-all text-left",
-                          joinQueueKey === q.key 
-                            ? "border-[#493ee5] bg-[#493ee5]/5 shadow-sm" 
-                            : "border-transparent bg-[#f1f4f7] hover:bg-[#e2dfff]/30",
-                          q.is_paused && "opacity-40 cursor-not-allowed grayscale"
-                        )}
-                      >
-                        <div>
-                          <p className="font-bold text-[#181c1e] text-sm" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{q.name}</p>
-                          <p className="text-[10px] text-[#49607e] font-extrabold uppercase mt-0.5">{q.key}</p>
-                        </div>
-                        {q.is_paused ? (
-                          <Badge variant="outline" className="text-[9px] bg-red-50 text-red-600 border-red-100">SUSPENDED</Badge>
-                        ) : (
-                          joinQueueKey === q.key && <CheckCircle2 className="w-4 h-4 text-[#493ee5]" />
-                        )}
-                      </button>
-                    ))}
+            {joinQueueKey && (
+              <form onSubmit={handleJoinQueue} className="space-y-5 pt-5 border-t border-[#e5e8eb]">
+                <div className="flex items-center justify-between p-5 bg-[#f1f4f7] rounded-2xl">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="priority-mode" className="text-base font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>VIP Priority Pass</Label>
+                    <p className="text-xs text-[#49607e] font-medium">Bypass the current queue (+₹150 fee)</p>
                   </div>
+                  <Switch
+                    id="priority-mode"
+                    checked={isPriorityToggle}
+                    onCheckedChange={setIsPriorityToggle}
+                    className="data-[state=checked]:bg-[#493ee5]" />
                 </div>
-             )}
-
-             {joinQueueKey && (
-               <form onSubmit={handleJoinQueue} className="space-y-5 pt-5 border-t border-[#e5e8eb]">
-                  <div className="flex items-center justify-between p-5 bg-[#f1f4f7] rounded-2xl">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="priority-mode" className="text-base font-bold text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>VIP Priority Pass</Label>
-                      <p className="text-xs text-[#49607e] font-medium">Bypass the current queue (+₹150 fee)</p>
-                    </div>
-                    <Switch 
-                      id="priority-mode" 
-                      checked={isPriorityToggle} 
-                      onCheckedChange={setIsPriorityToggle}
-                      className="data-[state=checked]:bg-[#493ee5]"
-                    />
-                  </div>
-                  <Button type="submit" size="lg" className="kinetic-btn-primary w-full h-14 text-base">
-                    {isPriorityToggle ? <Zap className="w-5 h-5 mr-2" /> : <Plus className="w-5 h-5 mr-2" />}
-                    {isPriorityToggle ? `Join VIP: ${joinQueueKey}` : `Join Queue: ${joinQueueKey}`}
-                  </Button>
-               </form>
-             )}
+                <Button type="submit" size="lg" className="kinetic-btn-primary w-full h-14 text-base">
+                  {isPriorityToggle ? <Zap className="w-5 h-5 mr-2" /> : <Plus className="w-5 h-5 mr-2" />}
+                  {isPriorityToggle ? `Join VIP: ${joinQueueKey}` : `Join Queue: ${joinQueueKey}`}
+                </Button>
+              </form>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -1066,119 +1073,117 @@ export default function UserDashboard() {
         <DialogContent className="sm:max-w-md rounded-3xl p-8 bg-white border-none shadow-ambient">
           <DialogHeader className="space-y-5">
             <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto relative group">
-               <CheckCircle2 className="w-8 h-8 text-green-600 relative z-10 group-hover:scale-110 transition-transform" />
-               <div className="absolute inset-0 bg-green-200 rounded-2xl animate-ping opacity-20" />
+              <CheckCircle2 className="w-8 h-8 text-green-600 relative z-10 group-hover:scale-110 transition-transform" />
+              <div className="absolute inset-0 bg-green-200 rounded-2xl animate-ping opacity-20" />
             </div>
             <DialogTitle className="text-2xl font-extrabold text-[#181c1e] text-center tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Session Complete</DialogTitle>
             <DialogDescription className="text-center text-[#49607e] text-sm font-medium pb-5 border-b border-[#e5e8eb]">
               Your service node has closed. How was the experience?
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="flex justify-center gap-3 py-5">
-            {[1,2,3,4,5].map(star => (
-               <StarIcon 
-                 key={star} 
-                 onClick={() => setFeedbackRating(star)}
-                 className={cn("w-10 h-10 cursor-pointer transition-all hover:scale-125", feedbackRating >= star ? "text-amber-400 fill-amber-400 drop-shadow-lg" : "text-[#e5e8eb] hover:text-[#d7dadd]")} 
-               />
+            {[1, 2, 3, 4, 5].map(star => (
+              <StarIcon
+                key={star}
+                onClick={() => setFeedbackRating(star)}
+                className={cn("w-10 h-10 cursor-pointer transition-all hover:scale-125", feedbackRating >= star ? "text-amber-400 fill-amber-400 drop-shadow-lg" : "text-[#e5e8eb] hover:text-[#d7dadd]")} />
             ))}
           </div>
 
           <div className="space-y-2">
-             <Label htmlFor="feedback-comment" className="text-xs font-bold text-[#49607e] uppercase tracking-[0.15em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Comments</Label>
-             <Textarea 
-               id="feedback-comment"
-               value={feedbackComment}
-               onChange={(e) => setFeedbackComment(e.target.value)}
-               placeholder="How was the service quality today?"
-               className="resize-none h-28 rounded-2xl bg-[#f1f4f7] border-none focus-visible:ring-[#493ee5] text-sm p-4"
-             />
+            <Label htmlFor="feedback-comment" className="text-xs font-bold text-[#49607e] uppercase tracking-[0.15em]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Comments</Label>
+            <Textarea
+              id="feedback-comment"
+              value={feedbackComment}
+              onChange={(e) => setFeedbackComment(e.target.value)}
+              placeholder="How was the service quality today?"
+              className="resize-none h-28 rounded-2xl bg-[#f1f4f7] border-none focus-visible:ring-[#493ee5] text-sm p-4"
+            />
           </div>
 
-          <DialogFooter className="mt-6 flex-col sm:flex-col gap-2">
-            <Button 
-              onClick={() => {
-                if(feedbackRating === 0) return toast.error("Please provide a rating");
-                setIsFeedbackModalOpen(false);
-                toast.success("Feedback Received", { description: "Thank you for the pulse." });
-              }} 
-              className="kinetic-btn-primary w-full h-12 text-base"
-            >
-              Submit Feedback
-            </Button>
-            <Button 
-              variant="ghost" 
-              onClick={() => setIsFeedbackModalOpen(false)}
-              className="w-full h-10 rounded-xl text-[#49607e] hover:bg-[#f1f4f7] font-bold text-sm"
-              style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
-            >
-              Dismiss
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <DialogFooter className="mt-6 flex-col sm:flex-col gap-2">
+          <Button
+            onClick={() => {
+              if (feedbackRating === 0) return toast.error("Please provide a rating");
+              setIsFeedbackModalOpen(false);
+              toast.success("Feedback Received", { description: "Thank you for the pulse." });
+            } }
+            className="kinetic-btn-primary w-full h-12 text-base"
+          >
+            Submit Feedback
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => setIsFeedbackModalOpen(false)}
+            className="w-full h-10 rounded-xl text-[#49607e] hover:bg-[#f1f4f7] font-bold text-sm"
+            style={{ fontFamily: 'var(--font-manrope), sans-serif' }}
+          >
+            Dismiss
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
       {/* ── Digital Pass Modal ── */}
       <Dialog open={isTicketModalOpen} onOpenChange={setIsTicketModalOpen}>
         <DialogContent className="max-w-[360px] p-0 overflow-hidden rounded-[32px] !border-0 !ring-0 !outline-none shadow-[0_32px_128px_-16px_rgba(73,62,229,0.15)] bg-white h-auto">
-           {/* Silent Accessibility Helpers */}
-           <DialogTitle className="sr-only">Lineo Digital Entry Pass</DialogTitle>
-           <DialogDescription className="sr-only">Verified token for your current queue position and estimated wait time.</DialogDescription>
+          <DialogTitle className="sr-only">Lineo Digital Entry Pass</DialogTitle>
+          <DialogDescription className="sr-only">Verified token for your current queue position and estimated wait time.</DialogDescription>
 
-           <div className="p-6 bg-white relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#493ee5]/10 -mr-16 -mt-16 rounded-full blur-[60px]" />
-              <div className="relative z-10">
+          <div className="p-6 bg-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#493ee5]/10 -mr-16 -mt-16 rounded-full blur-[60px]" />
+            <div className="flex justify-between items-start relative z-10">
+              <div className="flex-1">
                 <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#493ee5] mb-1" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Vector ID: {activeToken?.token_number}</p>
-                <div className="flex items-center justify-between">
-                   <h2 className="text-xl font-black tracking-tight text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Lineo Pass</h2>
-                   <div className="bg-[#493ee5] text-white px-3 py-1 rounded-full text-[8px] font-black tracking-widest shadow-lg" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>ACTIVE</div>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-black tracking-tight text-[#181c1e]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Lineo Pass</h2>
+                  <div className="bg-[#493ee5] text-white px-3 py-1 rounded-full text-[8px] font-black tracking-widest shadow-lg" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>ACTIVE</div>
                 </div>
-                <DialogDescription className="sr-only">Digital entry pass for Lineo queue system</DialogDescription>
               </div>
-           </div>
+              <button onClick={() => setIsTicketModalOpen(false)} className="p-2 bg-[#f1f4f7] rounded-full text-[#49607e] hover:text-[#181c1e] transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
 
-           <div className="p-6 space-y-6 bg-white">
-              <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-xl bg-[#493ee5]/5 flex items-center justify-center text-[#493ee5]">
-                    <QrCode className="w-5 h-5" />
-                 </div>
-                 <div>
-                    <p className="text-[9px] font-black text-[#49607e] uppercase tracking-[0.1em]">Access Node</p>
-                    <h3 className="text-sm font-black text-[#181c1e] tracking-tight truncate max-w-[180px]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{activeToken?.queue_key}</h3>
-                 </div>
+          <div className="p-6 space-y-6 bg-white">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#493ee5]/5 flex items-center justify-center text-[#493ee5]">
+                <QrCode className="w-5 h-5" />
               </div>
+              <div>
+                <p className="text-[9px] font-black text-[#49607e] uppercase tracking-[0.1em]">Access Node</p>
+                <h3 className="text-sm font-black text-[#181c1e] tracking-tight truncate max-w-[180px]" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{activeToken?.queue_key}</h3>
+              </div>
+            </div>
 
-              <div className="bg-[#f8fafc] p-6 rounded-[24px] flex flex-col items-center justify-center relative group border border-[#f1f4f7]/50 shadow-inner">
-                 <div className="bg-white p-4 rounded-[18px] shadow-sm relative overflow-hidden border border-[#493ee5]/5">
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${activeToken?.token_number}-${activeToken?.queue_key}`} 
-                      alt="QR Pass"
-                      className="w-28 h-28 relative z-0"
-                    />
-                 </div>
-                 <p className="mt-4 text-4xl font-black tracking-tighter text-[#493ee5] tabular-nums" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{activeToken?.token_number}</p>
-                 <p className="text-[8px] font-black text-[#49607e] uppercase tracking-[0.3em] mt-1 opacity-40">Verified Entry</p>
+            <div className="bg-[#f8fafc] p-6 rounded-[24px] flex flex-col items-center justify-center relative group border border-[#f1f4f7]/50 shadow-inner">
+              <div className="bg-white p-4 rounded-[18px] shadow-sm relative overflow-hidden border border-[#493ee5]/5">
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${activeToken?.token_number}-${activeToken?.queue_key}`} alt="QR Pass" className="w-28 h-28 relative z-0" />
               </div>
+              <p className="mt-4 text-4xl font-black tracking-tighter text-[#493ee5] tabular-nums" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{activeToken?.token_number}</p>
+              <p className="text-[8px] font-black text-[#49607e] uppercase tracking-[0.3em] mt-1 opacity-40">Verified Entry</p>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                 <div className="space-y-0.5">
-                    <p className="text-[9px] font-black text-[#49607e] uppercase tracking-[0.1em]">Queue Pos</p>
-                    <div className="text-xl font-black text-[#181c1e]">#{activeToken?.position}</div>
-                 </div>
-                 <div className="space-y-0.5 text-right">
-                    <p className="text-[9px] font-black text-[#49607e] uppercase tracking-[0.1em]">Wait Time</p>
-                    <div className="text-xl font-black text-[#493ee5]">{activeToken?.estimated_wait_mins}m</div>
-                 </div>
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="space-y-0.5">
+                <p className="text-[9px] font-black text-[#49607e] uppercase tracking-[0.1em]">Queue Pos</p>
+                <div className="text-xl font-black text-[#181c1e]">#{activeToken?.position}</div>
               </div>
-              
-              <div className="flex gap-2 pt-2">
-                  <Button onClick={fetchQueueMatrix} variant="outline" className="flex-1 h-14 font-black rounded-2xl border-[#e5e8eb] text-[#49607e] hover:bg-[#f1f4f7] transition-all">
-                    <Users className="w-4 h-4 mr-2" /> Live Queue
-                  </Button>
-                  <Button onClick={() => setIsTicketModalOpen(false)} className="kinetic-btn-primary flex-1 h-14 text-base font-black rounded-2xl shadow-xl active:scale-95 transition-all">Dismiss Pass</Button>
-               </div>
-           </div>
+              <div className="space-y-0.5 text-right">
+                <p className="text-[9px] font-black text-[#49607e] uppercase tracking-[0.1em]">Wait Time</p>
+                <div className="text-xl font-black text-[#493ee5]">{activeToken?.estimated_wait_mins}m</div>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 pt-2">
+              <Button onClick={fetchQueueMatrix} variant="outline" className="flex-1 h-14 font-black rounded-2xl border-[#e5e8eb] text-[#49607e] hover:bg-[#f1f4f7] transition-all">
+                <Users className="w-4 h-4 mr-2" /> Live Queue
+              </Button>
+              <Button onClick={() => setIsTicketModalOpen(false)} className="kinetic-btn-primary flex-1 h-14 text-base font-black rounded-2xl shadow-xl active:scale-95 transition-all">Dismiss Pass</Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1189,7 +1194,7 @@ export default function UserDashboard() {
         isLoading={isMatrixLoading}
         activeToken={activeToken}
       />
-    </div>
+      </>
   );
 }
 
@@ -1235,7 +1240,12 @@ function QueueMatrixModal({ isOpen, onOpenChange, data, isLoading, activeToken }
             <div className="relative z-10">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-black tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Queue Matrix</h2>
-                  <div className="bg-white/10 px-3 py-1 rounded-full text-[8px] font-black tracking-widest text-[#493ee5] border border-white/5">REAL-TIME</div>
+                  <button 
+                    onClick={() => onOpenChange(false)}
+                    className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-all"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
                 </div>
                 <div className="flex items-center gap-2 text-white/60 text-[10px] font-bold uppercase tracking-widest">
                   <Activity className="w-3.5 h-3.5 text-[#493ee5]" />

@@ -152,6 +152,7 @@ func (s *AppointmentReminderService) RunStage(ctx context.Context, stage StageCo
 				Title:     stage.Title,
 				Body:      body,
 				URL:       url,
+				Icon:      "/icon-512.png",
 				NotifType: "appointment",
 			})
 		}
@@ -191,17 +192,20 @@ func (s *AppointmentReminderService) OnBookingConfirmed(ctx context.Context, app
 }
 
 // OnAppointmentCancelled blocks all future notifications for a cancelled appointment.
-func (s *AppointmentReminderService) OnAppointmentCancelled(ctx context.Context, appointmentID uint, userID uint, orgName string) {
+func (s *AppointmentReminderService) OnAppointmentCancelled(ctx context.Context, appointmentID uint, userID uint, orgName string, apptTime time.Time) {
 	// Mark all 7 stages as skipped
 	for stage := 1; stage <= 7; stage++ {
 		markReminderSkipped(ctx, appointmentID, stage)
 	}
 
+	timeStr := apptTime.Format("Mon, 02 Jan at 03:04 PM")
+
 	// Send cancellation push
 	_ = s.pushSvc.SendToUser(ctx, userID, PushPayload{
 		Title:     "❌ Appointment Cancelled",
-		Body:      fmt.Sprintf("Your appointment at %s has been cancelled.", orgName),
+		Body:      fmt.Sprintf("Your appointment at %s for %s has been cancelled.", orgName, timeStr),
 		URL:       "/dashboard",
+		Icon:      "/icon-512.png",
 		NotifType: "appointment",
 	})
 }

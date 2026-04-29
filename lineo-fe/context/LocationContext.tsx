@@ -7,6 +7,8 @@ interface LocationContextType {
   coords: { lat: number; lng: number };
   address: string;
   pincode: string;
+  city: string;
+  setCity: (city: string) => void;
   refreshLocation: () => Promise<void>;
   isLoading: boolean;
 }
@@ -17,7 +19,19 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
   const [coords, setCoords] = useState({ lat: 28.6139, lng: 77.2090 }); // Default Delhi
   const [address, setAddress] = useState("Detecting Location...");
   const [pincode, setPincode] = useState("");
+  const [city, setCityState] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+
+  // Persistence for city
+  const setCity = useCallback((newCity: string) => {
+    setCityState(newCity);
+    localStorage.setItem('selected_city', newCity);
+  }, []);
+
+  useEffect(() => {
+    const savedCity = localStorage.getItem('selected_city');
+    if (savedCity) setCityState(savedCity);
+  }, []);
 
   const reverseGeocode = useCallback(async (lat: number, lng: number) => {
     try {
@@ -36,6 +50,11 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
         
         setAddress(neighborhood.trim());
         setPincode(pin);
+
+        // Try to extract city specifically
+        const cityPart = parts.length > 2 ? parts[parts.length - 3] : parts[0];
+        if (cityPart) setCity(cityPart.trim());
+
         return { neighborhood: neighborhood.trim(), pin };
       }
     } catch (err) {
@@ -43,7 +62,7 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
       setAddress("Main City");
     }
     return { neighborhood: "Main City", pin: "" };
-  }, []);
+  }, [setCity]);
 
   const handlePositionChanges = useCallback(async (pos: GeolocationPosition) => {
     const { latitude, longitude } = pos.coords;
@@ -65,20 +84,44 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   useEffect(() => {
+    // Check cache first to prevent "blinking" on page reload
+    const cachedCoords = sessionStorage.getItem('user_coords');
+    const cachedAddress = sessionStorage.getItem('user_address');
+    const cachedPin = sessionStorage.getItem('user_pincode');
+
+    if (cachedCoords && cachedAddress) {
+      setCoords(JSON.parse(cachedCoords));
+      setAddress(cachedAddress);
+      setPincode(cachedPin || "");
+      setIsLoading(false);
+      return;
+    }
+
     if ("geolocation" in navigator) {
-      // High-accuracy watcher for real-time app movement
-      const watchId = navigator.geolocation.watchPosition(
+      navigator.geolocation.getCurrentPosition(
         handlePositionChanges,
-        (err) => console.error("WatchPosition Error:", err),
-        { enableHighAccuracy: true, maximumAge: 10000 }
+        (err) => {
+          console.error("Initial GPS Fetch Error:", err);
+          setIsLoading(false);
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 } // 5 min cache
       );
-      
-      return () => navigator.geolocation.clearWatch(watchId);
+    } else {
+      setIsLoading(false);
     }
   }, [handlePositionChanges]);
 
+  // Update cache when position changes
+  useEffect(() => {
+    if (!isLoading && address !== "Detecting Location...") {
+      sessionStorage.setItem('user_coords', JSON.stringify(coords));
+      sessionStorage.setItem('user_address', address);
+      sessionStorage.setItem('user_pincode', pincode);
+    }
+  }, [coords, address, pincode, isLoading]);
+
   return (
-    <LocationContext.Provider value={{ coords, address, pincode, refreshLocation, isLoading }}>
+    <LocationContext.Provider value={{ coords, address, pincode, city, setCity, refreshLocation, isLoading }}>
       {children}
     </LocationContext.Provider>
   );

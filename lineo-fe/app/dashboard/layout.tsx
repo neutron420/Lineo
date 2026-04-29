@@ -33,6 +33,7 @@ import { SocketProvider, useSocket } from "@/context/SocketContext";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { initPushNotifications } from "@/lib/push";
 import api from "@/lib/api";
+import { CitySelection } from "@/components/CitySelection";
 
 interface UserData {
   username: string;
@@ -51,7 +52,7 @@ interface SocketQueueData {
 }
 
 function GlobalHeader() {
-  const { address, pincode, refreshLocation } = useLocation();
+  const { address, city, setCity, refreshLocation } = useLocation();
   const [user, setUser] = useState<UserData | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -101,7 +102,7 @@ function GlobalHeader() {
         
         {/* Location Badge - compact on mobile */}
         <div 
-          onClick={refreshLocation}
+          onClick={() => setCity("")} // Reset city to trigger modal
           className="hidden sm:flex items-center gap-2.5 px-4 py-2.5 bg-[#493ee5]/5 rounded-xl cursor-pointer hover:bg-[#493ee5]/10 transition-all group shrink-0"
         >
            <div className="relative">
@@ -109,8 +110,8 @@ function GlobalHeader() {
               <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border-2 border-white animate-pulse" />
            </div>
            <div className="flex flex-col">
-              <span className="text-[10px] font-extrabold text-[#493ee5] uppercase tracking-[0.08em] leading-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{address || "Locating..."}</span>
-              <span className="text-[9px] font-bold text-[#49607e] uppercase tracking-widest">{pincode || "Detect"}</span>
+              <span className="text-[10px] font-extrabold text-[#493ee5] uppercase tracking-[0.08em] leading-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>{city || "Select City"}</span>
+              <span className="text-[9px] font-bold text-[#49607e] uppercase tracking-widest truncate max-w-[100px]">{address || "Locating..."}</span>
            </div>
         </div>
       </div>
@@ -443,6 +444,23 @@ export default function DashboardLayout({
     };
     syncProfile();
 
+    window.addEventListener("userSync", syncProfile);
+
+    // Midnight Watcher: Auto-reset frontend limits if date changes while app is open
+    let lastDate = new Date().getDate();
+    const midnightCheck = setInterval(() => {
+      const current = new Date().getDate();
+      if (current !== lastDate) {
+        lastDate = current;
+        syncProfile(); // Fetch fresh limits!
+      }
+    }, 60000); // check every minute
+
+    return () => {
+      window.removeEventListener("userSync", syncProfile);
+      clearInterval(midnightCheck);
+    };
+
     // Register push notifications for returning sessions (idempotent)
     initPushNotifications().catch(() => {});
   }, []);
@@ -625,6 +643,8 @@ export default function DashboardLayout({
               {children}
             </main>
           </div>
+
+          <CitySelection />
 
           {/* ━━━ Mobile Bottom Tab Bar ━━━ */}
           <MobileTabBar pathname={pathname} />

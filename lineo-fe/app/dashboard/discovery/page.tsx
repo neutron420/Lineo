@@ -95,6 +95,7 @@ export default function DiscoveryPage() {
       loading: 'Securing your spot...',
       success: () => {
         // Optimistic redirect
+        window.dispatchEvent(new Event("userSync"));
         router.prefetch('/dashboard');
         setTimeout(() => router.push('/dashboard'), 1000);
         return 'Spot Secured! Pulsing to dashboard...';

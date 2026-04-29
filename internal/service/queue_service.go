@@ -455,6 +455,14 @@ func (s *queueService) transitionTicketWithCtx(ctx context.Context, orgID, actor
 		nextStatus := models.ApptCompleted
 		if to == models.StatusNoShow {
 			nextStatus = models.ApptNoShow
+			// Refund limits for No-Show
+			var history models.QueueHistory
+			if err := db.DB.Where("token_number = ?", token).First(&history).Error; err == nil && history.UserID != 0 {
+				if s.subSvc != nil {
+					_ = s.subSvc.DecrementJoins(history.UserID)
+					_ = s.subSvc.DecrementAppts(history.UserID)
+				}
+			}
 		}
 		db.DB.Model(&models.Appointment{}).Where("token_number = ?", token).Update("status", nextStatus)
 
@@ -590,7 +598,11 @@ func (s *queueService) CancelTicket(queueKey string, tokenNumber string, userID 
 	if err != nil {
 		return err
 	}
-	return s.repo.UpdateHistoryStatus(tokenNumber, models.StatusCancelled, &now)
+	err = s.repo.UpdateHistoryStatus(tokenNumber, models.StatusCancelled, &now)
+	if err == nil && s.subSvc != nil && history.UserID != 0 {
+		_ = s.subSvc.DecrementJoins(history.UserID)
+	}
+	return err
 }
 
 func (s *queueService) MarkNoShow(queueKey string, tokenNumber string, orgID uint, actorID uint) error {

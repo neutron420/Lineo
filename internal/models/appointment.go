@@ -34,8 +34,8 @@ type Appointment struct {
 }
 
 type BookAppointmentRequest struct {
-	OrganizationID uint    `json:"organization_id" binding:"required"`
-	QueueKey       string  `json:"queue_key"` // Optional
+	OrganizationID uint    `json:"organization_id"` // Optional, resolved via QueueKey if missing
+	QueueKey       string  `json:"queue_key" binding:"required"` // Now required since OrgID might be missing
 	StartTime      string  `json:"start_time" binding:"required"` // Format: YYYY-MM-DD HH:MM
 	UserLat        float64 `json:"user_lat"`
 	UserLon        float64 `json:"user_lon"`

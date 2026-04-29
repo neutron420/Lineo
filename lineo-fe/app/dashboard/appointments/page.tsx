@@ -39,6 +39,7 @@ interface Appointment {
 }
 
 interface Organization {
+  id: number;
   name: string;
   key?: string;
   distance?: number;
@@ -49,7 +50,7 @@ export default function AppointmentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ queue_key: "", time: "", urgency: "routine" });
+  const [formData, setFormData] = useState({ queue_key: "", time: "", urgency: "routine", organization_id: 0 });
   const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
   const [modalSearchQuery, setModalSearchQuery] = useState("");
   const [modalCategory, setModalCategory] = useState("all");
@@ -116,6 +117,7 @@ export default function AppointmentsPage() {
         toast.success("Schedule Updated", { description: "Time vector synchronized." });
       } else {
         const resp = await api.post("/appointments/book", {
+          organization_id: formData.organization_id,
           queue_key: formData.queue_key,
           start_time: formattedDate,
           urgency: formData.urgency,
@@ -126,8 +128,9 @@ export default function AppointmentsPage() {
         setAppointments(prev => prev.map(a => a.id === tempId ? resp.data.data : a));
         toast.success("Spot Reserved", { description: "Your token is ready." });
       }
+      window.dispatchEvent(new Event("userSync"));
       setSelectedAppt(null);
-      setFormData({ queue_key: "", time: "", urgency: "routine" });
+      setFormData({ queue_key: "", time: "", urgency: "routine", organization_id: 0 });
     } catch {
       toast.error("Process Failed", { description: "Unable to secure slot. Please try another time." });
       fetchAppointments(); // Rollback
@@ -161,6 +164,7 @@ export default function AppointmentsPage() {
           try {
             await api.post(`/appointments/${id}/cancel`);
             toast.success("Schedule Purged", { description: "Appointment cancelled." });
+            window.dispatchEvent(new Event("userSync"));
           } catch (err) {
             if (original) setAppointments(prev => [original, ...prev]); // Rollback
             toast.error("Failure", { description: "Could not cancel appointment." });
@@ -176,11 +180,12 @@ export default function AppointmentsPage() {
       setFormData({ 
         queue_key: appt.queue_key, 
         time: appt.start_time.replace(" ", "T").substring(0, 16),
-        urgency: "routine"
+        urgency: "routine",
+        organization_id: 0
       });
     } else {
       setSelectedAppt(null);
-      setFormData({ queue_key: "", time: "", urgency: "routine" });
+      setFormData({ queue_key: "", time: "", urgency: "routine", organization_id: 0 });
     }
     setIsModalOpen(true);
   };
@@ -367,21 +372,29 @@ export default function AppointmentsPage() {
 
       {/* Book Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-3xl border-none shadow-ambient">
-          <div className="p-6 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)' }}>
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-[32px] md:rounded-3xl border-none shadow-ambient max-h-[95vh] flex flex-col">
+          <div className="p-6 text-white relative overflow-hidden shrink-0" style={{ background: 'linear-gradient(135deg, #493ee5, #635bff)' }}>
             <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4 backdrop-blur-xl border border-white/20">
-              <Calendar className="w-6 h-6" />
+            <div className="flex items-center justify-between relative z-10 mb-4">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-xl border border-white/20">
+                <Calendar className="w-6 h-6" />
+              </div>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="p-2.5 bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-md border border-white/10 transition-all"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
             </div>
-            <DialogTitle className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
+            <DialogTitle className="text-2xl font-extrabold tracking-tight relative z-10" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
               {selectedAppt ? "Reschedule Appointment" : "Schedule New"}
             </DialogTitle>
-            <DialogDescription className="text-white/70 text-sm mt-1">
+            <DialogDescription className="text-white/70 text-sm mt-1 relative z-10">
               {selectedAppt ? `Current Institution: ${selectedAppt.queue_key}` : "Plan your next visit with precision."}
             </DialogDescription>
           </div>
 
-          <div className="p-6 space-y-5 bg-white">
+          <div className="p-6 space-y-5 bg-white overflow-y-auto">
               {!selectedAppt && (
                 <div>
                   <Label className="text-xs font-bold text-[#49607e] uppercase tracking-[0.15em] mb-3 block" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>Select Institution</Label>
@@ -440,7 +453,7 @@ export default function AppointmentsPage() {
                                 transition={{ delay: i * 0.05 }}
                               >
                                 <div
-                                  onClick={() => { if (org.key) setFormData({...formData, queue_key: org.key}); }}
+                                  onClick={() => { if (org.key) setFormData({...formData, queue_key: org.key, organization_id: org.id}); }}
                                   className={cn(
                                     "p-4 rounded-xl transition-all flex items-center justify-between border border-transparent",
                                     formData.queue_key === org.key && org.key

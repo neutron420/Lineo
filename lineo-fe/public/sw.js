@@ -15,8 +15,8 @@ self.addEventListener("push", function (event) {
 
   const options = {
     body: data.body || "You have a new notification",
-    icon: "/favicon.ico",
-    badge: "/favicon.ico",
+    icon: data.icon || "/icon-512.png",
+    badge: data.badge || "/icon-512.png",
     vibrate: [200, 100, 200],
     tag: data.tag || "lineo-" + Date.now(),
     renotify: true,

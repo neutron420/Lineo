@@ -300,6 +300,21 @@ func main() {
 	go handler.StartRedisBroadcaster(workerCtx)
 
 	go func() {
+		ticker := time.NewTicker(15 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-workerCtx.Done():
+				return
+			case <-ticker.C:
+				if err := apptService.AutoCancelNoShows(); err != nil {
+					slog.Error("AutoCancelNoShows failed", "error", err)
+				}
+			}
+		}
+	}()
+
+	go func() {
 		slog.Info("queueless server starting", "port", port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("server listen error", "error", err)

@@ -30,6 +30,7 @@ func (h *AppointmentHandler) Book(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 	appt, err := h.apptService.Book(userID, req)
 	if err != nil {
+		slog.Error("Booking failed with 500 error", "error", err.Error(), "req", req)
 		utils.RespondError(c, http.StatusInternalServerError, "Booking failed", err.Error())
 		return
 	}

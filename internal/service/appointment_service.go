@@ -15,7 +15,7 @@ import (
 // Defined here to avoid importing cron-jobs (which would create a cycle).
 type ReminderHook interface {
 	OnBookingConfirmed(ctx context.Context, appointmentID uint, userID uint, orgName string, scheduledAt time.Time)
-	OnAppointmentCancelled(ctx context.Context, appointmentID uint, userID uint, orgName string)
+	OnAppointmentCancelled(ctx context.Context, appointmentID uint, userID uint, orgName string, apptTime time.Time)
 	OnAppointmentRescheduled(ctx context.Context, appointmentID uint, userID uint, orgName string, newTime time.Time)
 }
 
@@ -28,6 +28,7 @@ type AppointmentService interface {
 	GetOrgAppointments(orgID uint) ([]models.Appointment, error)
 	CommuteWorker()
 	QueueCommuteChecks(ctx context.Context) error
+	AutoCancelNoShows() error
 	SetReminderService(r ReminderHook)
 }
 
@@ -91,7 +92,8 @@ func (s *appointmentService) Book(userID uint, req models.BookAppointmentRequest
 		return nil, err
 	}
 
-	startTime, err := time.Parse("2006-01-02 15:04", req.StartTime)
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	startTime, err := time.ParseInLocation("2006-01-02 15:04", req.StartTime, loc)
 	if err != nil {
 		return nil, errors.New("invalid date format")
 	}
@@ -205,7 +207,8 @@ func (s *appointmentService) Reschedule(appointmentID uint, userID uint, newTime
 		return nil, errors.New("appointment not found")
 	}
 
-	startTime, err := time.Parse("2006-01-02 15:04", newTime)
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	startTime, err := time.ParseInLocation("2006-01-02 15:04", newTime, loc)
 	if err != nil {
 		return nil, errors.New("invalid date format")
 	}
@@ -257,13 +260,18 @@ func (s *appointmentService) Cancel(appointmentID uint, userID uint) error {
 		return err
 	}
 
+	// Refund the user's daily quota limit
+	if s.subSvc != nil {
+		_ = s.subSvc.DecrementAppts(userID)
+	}
+
 	// Block all future reminders for this cancelled appointment
 	if s.reminderSvc != nil {
 		orgName := ""
 		if org, err := s.orgRepo.GetOrganizationByID(appt.OrganizationID); err == nil {
 			orgName = org.Name
 		}
-		go s.reminderSvc.OnAppointmentCancelled(context.Background(), appt.ID, userID, orgName)
+		go s.reminderSvc.OnAppointmentCancelled(context.Background(), appt.ID, userID, orgName, appt.StartTime)
 	}
 
 	return nil
@@ -299,6 +307,31 @@ func (s *appointmentService) QueueCommuteChecks(ctx context.Context) error {
 			ThresholdMinutes: 10,
 			RequestedAt:      time.Now().UTC(),
 		})
+	}
+
+	return nil
+}
+
+func (s *appointmentService) AutoCancelNoShows() error {
+	var appts []models.Appointment
+	cutoffTime := time.Now().Add(-30 * time.Minute)
+
+	// Find appointments that are scheduled but their start time is 30 mins in the past
+	err := db.DB.Where("status = ? AND start_time < ?", models.ApptScheduled, cutoffTime).Find(&appts).Error
+	if err != nil {
+		return err
+	}
+
+	for _, appt := range appts {
+		appt.Status = models.ApptNoShow
+		if err := db.DB.Save(&appt).Error; err == nil {
+			if s.subSvc != nil {
+				_ = s.subSvc.DecrementAppts(appt.UserID)
+			}
+			if s.reminderSvc != nil {
+				s.reminderSvc.OnAppointmentCancelled(context.Background(), appt.ID, appt.UserID, "", appt.StartTime)
+			}
+		}
 	}
 
 	return nil
