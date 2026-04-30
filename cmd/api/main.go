@@ -408,24 +408,30 @@ func autoCancelNoShowsTask(ctx context.Context, apptSvc service.AppointmentServi
 
 func setupShutdownHandler(srv *http.Server, cancel context.CancelFunc, wg *sync.WaitGroup, rabbit *broker.RabbitMQ) {
 	shutdownCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
-	go func() {
-		defer stop()
-		<-shutdownCtx.Done()
-		slog.Info("shutdown signal received")
+	defer stop()
 
-		httpCtx, httpCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer httpCancel()
-		srv.Shutdown(httpCtx)
-		cancel()
-		
-		wg.Wait()
-		handler.ShutdownWebsocketHub()
-		redis.FlushPipeline()
+	<-shutdownCtx.Done()
+	slog.Info("shutdown signal received")
+
+	httpCtx, httpCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer httpCancel()
+	
+	if err := srv.Shutdown(httpCtx); err != nil {
+		slog.Error("server forced to shutdown", "error", err)
+	}
+	
+	cancel()
+	wg.Wait()
+	
+	handler.ShutdownWebsocketHub()
+	redis.FlushPipeline()
+	if rabbit != nil {
 		rabbit.Close()
-		db.CloseDB()
-		redis.CloseRedis()
-		slog.Info("server exited cleanly")
-	}()
+	}
+	db.CloseDB()
+	redis.CloseRedis()
+	
+	slog.Info("server exited cleanly")
 }
 
 type pushSenderAdapter struct {
