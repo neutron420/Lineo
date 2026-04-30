@@ -18,6 +18,7 @@ type MockAuthService struct {
 	RegisterUserFunc         func(req models.RegisterRequest) (*models.User, error)
 	LoginUserFunc            func(req models.LoginRequest) (string, *models.User, error)
 	ForgotPasswordFunc       func(email string, method string) error
+	VerifyOTPFunc            func(email, otp string) error
 	ResetPasswordFunc        func(email, otp, newPass string) error
 	VerifyTurnstileFunc      func(token string) bool
 	AddStaffFunc             func(adminOrgID uint, req models.RegisterRequest) (*models.User, error)
@@ -42,6 +43,12 @@ func (m *MockAuthService) LoginUser(req models.LoginRequest) (string, *models.Us
 }
 func (m *MockAuthService) ForgotPassword(email string, method string) error {
 	return m.ForgotPasswordFunc(email, method)
+}
+func (m *MockAuthService) VerifyOTP(email, otp string) error {
+	if m.VerifyOTPFunc != nil {
+		return m.VerifyOTPFunc(email, otp)
+	}
+	return nil
 }
 func (m *MockAuthService) ResetPassword(email, otp, newPass string) error {
 	return m.ResetPasswordFunc(email, otp, newPass)
