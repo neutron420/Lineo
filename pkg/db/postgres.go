@@ -22,7 +22,7 @@ func InitDB() {
 	dsn := config.Secret("DATABASE_URL")
 	if dsn == "" {
 		dsn = fmt.Sprintf(
-			"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC prepare_threshold=0",
+			"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Kolkata prepare_threshold=0",
 			config.Secret("DB_HOST"), config.Secret("DB_USER"), config.Secret("DB_PASSWORD"),
 			config.Secret("DB_NAME"), config.Secret("DB_PORT"),
 		)

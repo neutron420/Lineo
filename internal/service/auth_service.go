@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"queueless/internal/models"
@@ -136,7 +137,7 @@ func (s *authService) ForgotPassword(email string, method string) error {
 	}
 
 	loc, _ := time.LoadLocation("Asia/Kolkata")
-	exp := time.Now().In(loc).Add(45 * time.Second)
+	exp := time.Now().In(loc).Add(5 * time.Minute) // Increased to 5 minutes for better UX
 	user.ResetToken = otp
 	user.ResetTokenExp = &exp
 	user.OTPAttempts = 0 // Reset attempts on new OTP request
@@ -151,7 +152,7 @@ func (s *authService) ForgotPassword(email string, method string) error {
 		if user.PhoneNumber == "" {
 			return errors.New("no phone number associated with this account")
 		}
-		go utils.SendSMS(user.PhoneNumber, fmt.Sprintf("Your Lineo verification code is: %s. Valid for 45 seconds.", otp))
+		go utils.SendSMS(user.PhoneNumber, fmt.Sprintf("Your Lineo verification code is: %s. Valid for 5 minutes.", otp))
 	} else {
 		// Default to email
 		go func() {
@@ -184,8 +185,11 @@ func (s *authService) ResetPassword(email, otp, newPass string) error {
 		return errors.New("OTP expired or invalid. please request a new one")
 	}
 
-	// 3. Verify OTP
-	if otp == "" || user.ResetToken != otp {
+	// 3. Verify OTP (trimming just in case)
+	otp = strings.TrimSpace(otp)
+	storedOTP := strings.TrimSpace(user.ResetToken)
+
+	if otp == "" || storedOTP != otp {
 		user.OTPAttempts++
 		if user.OTPAttempts >= 3 {
 			lockout := time.Now().In(loc).Add(15 * time.Minute)

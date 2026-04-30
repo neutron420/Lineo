@@ -3,6 +3,7 @@ package cronjobs
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/robfig/cron/v3"
 
@@ -24,8 +25,9 @@ func NewScheduler(
 	queueRepo repository.QueueRepository,
 	orgRepo repository.OrganizationRepository,
 ) *Scheduler {
+	loc, _ := time.LoadLocation("Asia/Kolkata")
 	return &Scheduler{
-		cron:     cron.New(),
+		cron:     cron.New(cron.WithLocation(loc)),
 		apptSvc:  NewAppointmentReminderService(pushSvc),
 		queueSvc: NewQueueReminderService(pushSvc, queueRepo, orgRepo),
 		logger:   slog.Default(),
@@ -44,7 +46,7 @@ func (s *Scheduler) Register() {
 	//  APPOINTMENT REMINDERS (7 stages)
 	// ═══════════════════════════════════════════════════════════════════
 
-	// Stage 1 — 7 days before — daily at 9:00 AM UTC
+	// Stage 1 — 7 days before — daily at 9:00 AM IST
 	if _, err := s.cron.AddFunc("0 9 * * *", func() {
 		s.logger.Info("🔔 Running Appointment Stage 1 (7-day reminder)...")
 		s.apptSvc.RunStage(context.Background(), Stages[0])
@@ -52,7 +54,7 @@ func (s *Scheduler) Register() {
 		s.logger.Error("failed to register Stage 1 cron", "error", err)
 	}
 
-	// Stage 2 — 3 days before — daily at 9:00 AM UTC
+	// Stage 2 — 3 days before — daily at 9:00 AM IST
 	if _, err := s.cron.AddFunc("0 9 * * *", func() {
 		s.logger.Info("🔔 Running Appointment Stage 2 (3-day reminder)...")
 		s.apptSvc.RunStage(context.Background(), Stages[1])
@@ -60,7 +62,7 @@ func (s *Scheduler) Register() {
 		s.logger.Error("failed to register Stage 2 cron", "error", err)
 	}
 
-	// Stage 3 — 24 hours before — daily at 8:00 AM UTC
+	// Stage 3 — 24 hours before — daily at 8:00 AM IST
 	if _, err := s.cron.AddFunc("0 8 * * *", func() {
 		s.logger.Info("🔔 Running Appointment Stage 3 (24-hour reminder)...")
 		s.apptSvc.RunStage(context.Background(), Stages[2])

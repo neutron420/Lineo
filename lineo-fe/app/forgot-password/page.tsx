@@ -44,7 +44,7 @@ export default function ForgotPasswordPage() {
       });
       setMethod(targetMethod);
       setStep("otp");
-      setTimeLeft(45);
+      setTimeLeft(60);
       setSuccess(`Verification code sent via ${targetMethod === "email" ? "Email" : "SMS"}.`);
     } catch (err) {
       const axiosError = err as AxiosError<{ message: string }>;

@@ -50,7 +50,7 @@ func SendOTPEmail(email, otp string) error {
 					<p>You recently requested to reset your password. Use the following code to proceed with the reset.</p>
 					
 					<div class="otp-container">
-						<div class="expiry">This code expires in <strong>45 seconds</strong></div>
+						<div class="expiry">This code expires in <strong>5 minutes</strong></div>
 						<div class="otp">%s</div>
 					</div>
 					

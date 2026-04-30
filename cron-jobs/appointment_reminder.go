@@ -131,10 +131,11 @@ func (s *AppointmentReminderService) RunStage(ctx context.Context, stage StageCo
 
 		for _, row := range rows {
 			// Mark as sent immediately within the transaction to prevent other instances from processing
+			loc, _ := time.LoadLocation("Asia/Kolkata")
 			err := tx.Table("appointment_reminders").Create(map[string]interface{}{
 				"appointment_id": row.ID,
 				"stage":          stage.Stage,
-				"sent_at":        time.Now(),
+				"sent_at":        time.Now().In(loc),
 				"status":         "sent",
 			}).Error
 			if err != nil {
@@ -156,6 +157,7 @@ func (s *AppointmentReminderService) RunStage(ctx context.Context, stage StageCo
 				Icon:      "/icon-512.png",
 				NotifType: "appointment",
 			})
+			slog.Info("cron: sent appointment reminder", "appointment_id", row.ID, "user_id", row.UserID, "stage", stage.Stage)
 		}
 		return nil
 	})
@@ -175,18 +177,22 @@ func (s *AppointmentReminderService) RunStage(ctx context.Context, stage StageCo
 // (handles late bookings gracefully).
 func (s *AppointmentReminderService) OnBookingConfirmed(ctx context.Context, appointmentID uint, userID uint, orgName string, scheduledAt time.Time) {
 	// Pre-mark all already-past stages as skipped
-	now := time.Now().UTC()
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	now := time.Now().In(loc)
 	timeUntilAppt := scheduledAt.Sub(now)
 
 	for _, stage := range Stages {
 		if stage.Stage == 7 {
 			continue // Post-visit is always in the future
 		}
-		if timeUntilAppt < stage.WindowBefore {
+		// Only skip if we are definitively past the entire trigger window (including slack)
+		if timeUntilAppt < (stage.WindowBefore - stage.WindowSlack) {
 			markReminderSkipped(ctx, appointmentID, stage.Stage)
 			slog.Info("cron: pre-skipped past stage",
 				"appointment_id", appointmentID,
 				"stage", stage.Stage,
+				"time_until", timeUntilAppt.String(),
+				"window_before", stage.WindowBefore.String(),
 			)
 		}
 	}
@@ -229,20 +235,22 @@ func markReminder(ctx context.Context, appointmentID uint, stage int, errMsg str
 	if errMsg != "" {
 		status = "failed"
 	}
+	loc, _ := time.LoadLocation("Asia/Kolkata")
 	// ON CONFLICT DO NOTHING — safe for duplicate calls
 	db.DB.WithContext(ctx).Exec(
 		`INSERT INTO appointment_reminders (appointment_id, stage, sent_at, status, error_message)
 		 VALUES (?, ?, ?, ?, ?)
 		 ON CONFLICT (appointment_id, stage) DO NOTHING`,
-		appointmentID, stage, time.Now().UTC(), status, errMsg,
+		appointmentID, stage, time.Now().In(loc), status, errMsg,
 	)
 }
 
 func markReminderSkipped(ctx context.Context, appointmentID uint, stage int) {
+	loc, _ := time.LoadLocation("Asia/Kolkata")
 	db.DB.WithContext(ctx).Exec(
 		`INSERT INTO appointment_reminders (appointment_id, stage, sent_at, status)
 		 VALUES (?, ?, ?, 'skipped')
 		 ON CONFLICT (appointment_id, stage) DO NOTHING`,
-		appointmentID, stage, time.Now().UTC(),
+		appointmentID, stage, time.Now().In(loc),
 	)
 }
