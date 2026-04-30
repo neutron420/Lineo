@@ -219,6 +219,7 @@ func registerPublicRoutes(v1 *gin.RouterGroup, h map[string]interface{}) {
 		auth.POST("/register", authH.Register)
 		auth.POST("/login", authH.Login)
 		auth.POST("/forgot-password", authH.ForgotPassword)
+		auth.POST("/verify-otp", authH.VerifyOTP)
 		auth.POST("/reset-password", authH.ResetPassword)
 		auth.POST("/register-org", authH.RegisterOrganization)
 	}

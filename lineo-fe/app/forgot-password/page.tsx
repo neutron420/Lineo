@@ -54,16 +54,28 @@ export default function ForgotPasswordPage() {
     }
   };
 
-  const handleVerifyOTP = (e: React.FormEvent) => {
+  const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otp.length !== 6) {
       setError("Please enter a valid 6-digit code.");
       return;
     }
-    // No more fake verification. We proceed to password step 
-    // and let the final handleResetPassword do the real validation.
-    setStep("password");
+    
+    setIsValidating(true);
     setError(null);
+
+    try {
+      await api.post("/auth/verify-otp", {
+        email,
+        otp
+      });
+      setStep("password");
+    } catch (err) {
+      const axiosError = err as AxiosError<{ message: string }>;
+      setError(axiosError.response?.data?.message || "Verification failed. Check your OTP.");
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   useEffect(() => {

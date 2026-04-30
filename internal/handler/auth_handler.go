@@ -160,6 +160,25 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	utils.RespondSuccess(c, http.StatusOK, msg, nil)
 }
 
+func (h *AuthHandler) VerifyOTP(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required"`
+		OTP   string `json:"otp" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	err := h.authService.VerifyOTP(req.Email, req.OTP)
+	if err != nil {
+		utils.RespondError(c, http.StatusUnauthorized, "Verification failed", err.Error())
+		return
+	}
+
+	utils.RespondSuccess(c, http.StatusOK, "OTP verified successfully", nil)
+}
+
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	var req models.ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

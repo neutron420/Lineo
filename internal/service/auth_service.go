@@ -24,6 +24,7 @@ type AuthService interface {
 	RegisterUser(req models.RegisterRequest) (*models.User, error)
 	LoginUser(req models.LoginRequest) (string, *models.User, error)
 	ForgotPassword(email string, method string) error
+	VerifyOTP(email, otp string) error
 	ResetPassword(email, otp, newPass string) error
 	VerifyTurnstile(token string) bool
 	AddStaff(adminOrgID uint, req models.RegisterRequest) (*models.User, error)
@@ -167,25 +168,25 @@ func (s *authService) ForgotPassword(email string, method string) error {
 	return nil
 }
 
-func (s *authService) ResetPassword(email, otp, newPass string) error {
+func (s *authService) VerifyOTP(email, otp string) error {
 	user, err := s.userRepo.GetUserByEmail(email)
 	if err != nil || user == nil {
 		return errors.New("user not found")
 	}
 
-	// 1. Check Lockout
 	loc, _ := time.LoadLocation("Asia/Kolkata")
+	// 1. Check Lockout
 	if user.LockoutUntil != nil && user.LockoutUntil.After(time.Now().In(loc)) {
 		diff := time.Until(*user.LockoutUntil)
 		return fmt.Errorf("account locked. please try again in %v", diff.Round(time.Second))
 	}
 
-	// 2. Check Expiry & Validity
+	// 2. Check Expiry
 	if user.ResetToken == "" || user.ResetTokenExp == nil || user.ResetTokenExp.Before(time.Now().In(loc)) {
 		return errors.New("OTP expired or invalid. please request a new one")
 	}
 
-	// 3. Verify OTP (trimming just in case)
+	// 3. Verify OTP
 	otp = strings.TrimSpace(otp)
 	storedOTP := strings.TrimSpace(user.ResetToken)
 
@@ -199,6 +200,20 @@ func (s *authService) ResetPassword(email, otp, newPass string) error {
 		}
 		db.DB.Save(user)
 		return fmt.Errorf("invalid OTP. %d attempts remaining", 3-user.OTPAttempts)
+	}
+
+	return nil
+}
+
+func (s *authService) ResetPassword(email, otp, newPass string) error {
+	user, err := s.userRepo.GetUserByEmail(email)
+	if err != nil || user == nil {
+		return errors.New("user not found")
+	}
+
+	// 1. Re-verify OTP to be safe (same logic as VerifyOTP)
+	if err := s.VerifyOTP(email, otp); err != nil {
+		return err
 	}
 
 	// 4. Check for Password Reuse
