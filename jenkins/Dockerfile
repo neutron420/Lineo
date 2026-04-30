@@ -13,9 +13,9 @@ RUN apt-get update && apt-get install -y lsb-release && \
     apt-get update && apt-get install -y docker-ce-cli
 
 # Install Go (for Backend CI)
-RUN curl -OL https://go.dev/dl/go1.21.1.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.21.1.linux-amd64.tar.gz && \
-    rm go1.21.1.linux-amd64.tar.gz
+RUN curl -OL https://go.dev/dl/go1.25.0.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz && \
+    rm go1.25.0.linux-amd64.tar.gz
 ENV PATH=$PATH:/usr/local/go/bin
 
 # Install Trivy (for Security Scanning)
