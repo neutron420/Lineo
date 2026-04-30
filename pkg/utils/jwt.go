@@ -19,7 +19,9 @@ type Claims struct {
 func getJWTKey() []byte {
 	key := config.Secret("JWT_SECRET")
 	if key == "" {
-		key = "fallback_secret_key_for_development_only"
+		// In production, this should cause a panic or error, but we'll return empty for now
+		// to allow the environment variable to be the only source.
+		return []byte("")
 	}
 	return []byte(key)
 }

